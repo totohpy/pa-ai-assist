@@ -480,7 +480,7 @@ Outcomes:{' | '.join(logic_df[logic_df['type']=='Outcome']['description'].tolist
         with c_query_area:
             # st.text_area จะใช้ค่าที่ผู้ใช้พิมพ์เป็นหลัก หากมีการพิมพ์แล้ว
             query_text = st.text_area(
-                "**สรุปบริบทที่ใช้ค้นหา (แก้ไขได้):**", 
+                "*สรุปบริบทที่ใช้ค้นหา (แก้ไขได้):*", 
                 seed, 
                 height=140, 
                 key="issue_query_text"
