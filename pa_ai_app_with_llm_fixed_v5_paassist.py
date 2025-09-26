@@ -833,6 +833,7 @@ with tab_chatbot:
 
     # Load documents on first run or if context is empty
     if "doc_context_loaded" not in st.session_state:
+        # ... (ส่วนเดิม: load_docs_from_folder) ...
         doc_text, message = load_docs_from_folder()
         if doc_text is not None:
             st.session_state.doc_context = doc_text
@@ -874,6 +875,7 @@ with tab_chatbot:
                         
                         doc_context = st.session_state.get("doc_context", "ไม่มีข้อมูลจากเอกสารภายใน")
                         
+                        # ... (system_prompt เหมือนเดิม) ...
                         system_prompt = f"""
 คุณคือผู้ช่วย AI อัจฉริยะ (Expert Assistant) หน้าที่ของคุณคือตอบคำถามของผู้ใช้ให้ถูกต้องและครบถ้วนที่สุด โดยใช้แหล่งข้อมูลสองแหล่ง:
 1.  **ข้อมูลจากเอกสารภายใน (Primary Source):** นี่คือเนื้อหาที่ดึงมาจากไฟล์ PDF ในโฟลเดอร์ "Doc" ของระบบ จงยึดข้อมูลนี้เป็นหลักในการตอบคำถามเสมอ
@@ -907,10 +909,30 @@ with tab_chatbot:
                             stream=True
                         )
                         
-                        response = st.write_stream(response_stream)
-                        st.session_state.chatbot_messages.append({"role": "assistant", "content": response})
+                        # ----------------------- **ส่วนที่แก้ไข** -----------------------
+                        # เปลี่ยนจากการใช้ st.write_stream เป็นการวนลูป manual เพื่อเพิ่มความเสถียร
+                        full_response = ""
+                        placeholder = st.empty() 
+
+                        for chunk in response_stream:
+                            # ดึง content จาก chunk.choices[0].delta.content
+                            content = chunk.choices[0].delta.content
+                            if content is not None:
+                                full_response += content
+                                # อัปเดต placeholder เพื่อแสดงผลแบบสตรีมมิ่ง
+                                placeholder.markdown(full_response) 
+                        
+                        # บันทึกข้อความฉบับเต็มลงใน session state
+                        st.session_state.chatbot_messages.append({"role": "assistant", "content": full_response})
+                        # ----------------------------------------------------------------
 
                     except Exception as e:
-                        error_message = f"เกิดข้อผิดพลาด: {e}"
+                        # ปรับปรุงการแสดงข้อผิดพลาดให้มีรายละเอียดมากขึ้น
+                        error_type = type(e).__name__
+                        if "APIError" in error_type or "AuthenticationError" in error_type:
+                             error_message = f"เกิดข้อผิดพลาดในการเชื่อมต่อ API: ({error_type}) โปรดตรวจสอบ API Key หรือขีดจำกัดการใช้งาน (Rate Limit) ของคุณ\nรายละเอียด: {e}"
+                        else:
+                             error_message = f"เกิดข้อผิดพลาดขณะสตรีม: ({error_type}) โปรดลองอีกครั้ง\nรายละเอียด: {e}"
+
                         st.error(error_message)
                         st.session_state.chatbot_messages.append({"role": "assistant", "content": error_message})
