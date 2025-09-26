@@ -15,7 +15,6 @@ st.set_page_config(page_title="Planning Studio (+ Issue Suggestions)", page_icon
 # ----------------- Session Init -----------------
 def init_state():
     ss = st.session_state
-    ss.setdefault("current_tab", "1. ระบุ แผน & 6W2H") # เพิ่มตัวแปรสำหรับควบคุมการแสดงผลของปุ่ม
     ss.setdefault("plan", {
         "plan_id": "PLN-" + datetime.now().strftime("%y%m%d-%H%M%S"),
         "plan_title": "",
@@ -32,7 +31,7 @@ def init_state():
     ss.setdefault("gen_findings", "")
     ss.setdefault("gen_report", "")
     ss.setdefault("issue_results", pd.DataFrame())
-    # **เพิ่ม state สำหรับเก็บค่า Seed อ้างอิงและข้อความค้นหา**
+    # **เพิ่ม state สำหรับเก็บค่า Seed อ้างอิงและข้อความค้นหา (จากโค้ดเดิม)**
     ss.setdefault("ref_seed", "") 
     ss.setdefault("issue_query_text", "")
     # Initialize chat history
@@ -156,27 +155,65 @@ audit_issues_df = st.session_state["audit_issues"]
 
 st.title("🧭 Planning Studio – Performance Audit")
 
-# ----------------- START: Custom CSS for Styling Buttons (Simple) -----------------
+# ----------------- START: Custom CSS for Styling and Responsiveness (ปรับปรุงแท็บและมือถือ) -----------------
 st.markdown("""
 <style>
 /* 1. GLOBAL FONT/BACKGROUND ADJUSTMENTS */
 body {
-    font-family: 'Kanit', sans-serif;
+    font-family: 'Kanit', sans-serif; 
 }
 
-/* 2. STYLE BUTTONS (General Styling for Custom Tabs) */
-.stButton>button {
-    border-radius: 8px !important;
-    padding: 10px 15px !important;
-    margin: 5px 5px 5px 0px !important;
-    font-weight: bold !important;
+/* 2. STYLE TABS - Uniform Width & Coloring */
+
+/* Targets the container around the tabs to enable flexbox for equal width */
+div[data-baseweb="tab-list"] {
+    border-bottom: none !important;
+    margin-bottom: 15px;
+    flex-wrap: wrap; /* สำคัญสำหรับมือถือ */
+    display: flex; /* เปิดใช้งาน Flexbox */
+    justify-content: space-around; /* จัดวางอย่างเท่ากัน */
+}
+
+/* Targets the individual tab items (the div wrapping the button) for equal width */
+div[data-baseweb="tab-list"] > div {
+    flex: 1 1 0%; /* **สำคัญ: บังคับให้ทุกแท็บขยายความกว้างเท่ากัน** */
+    min-width: 0;
+}
+
+/* Targets the tab button itself */
+button[data-baseweb="tab"] {
+    width: 100%; /* Make button fill its container */
+    text-align: center; /* Center the text */
+    
+    /* Standard Styling */
+    border: 1px solid #007bff; /* สีขอบเริ่มต้น */
+    border-radius: 8px; 
+    padding: 10px 15px; 
+    margin: 5px 5px 5px 0px; 
     transition: background-color 0.3s, color 0.3s;
-    /* Custom border and shadow for all buttons, to look like tabs */
-    border: 1px solid #007bff; 
-    box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);
+    font-weight: bold;
+    color: #007bff !important; /* สีตัวอักษรเริ่มต้น */
+    background-color: #ffffff;
+    box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1); 
 }
 
-/* 3. STYLE HEADERS */
+/* Active Tab Styling - ใช้สีน้ำเงินตามที่ตั้งใจ */
+button[data-baseweb="tab"][aria-selected="true"] {
+    background-color: #007bff; /* Active tab color (Blue) */
+    color: white !important; 
+    border: 1px solid #007bff;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+/* 3. MOBILE RESPONSIVENESS ADJUSTMENTS */
+@media (max-width: 768px) {
+    .st-emotion-cache-18ni2cb, .st-emotion-cache-1jm69l4 {
+        width: 100% !important;
+        margin-bottom: 1rem;
+    }
+}
+
+/* 4. STYLE HEADERS */
 h4 {
     color: #007bff !important;
     border-bottom: 2px solid #e0e0e0;
@@ -184,12 +221,11 @@ h4 {
 }
 </style>
 """, unsafe_allow_html=True)
-# ----------------- END: Custom CSS for Styling Buttons (Simple) -----------------
+# ----------------- END: Custom CSS -----------------
 
 
-# ----------------- CUSTOM TAB IMPLEMENTATION (Using st.button) -----------------
-# 1. กำหนดชื่อแท็บ
-TABS = [
+# ส่วนการใช้งาน st.tabs
+tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_assist, tab_chatbot = st.tabs([
     "1. ระบุ แผน & 6W2H", 
     "2. ระบุ Logic Model", 
     "3. ระบุ Methods", 
@@ -198,39 +234,10 @@ TABS = [
     "6. ค้นหาข้อตรวจพบที่ผ่านมา", 
     "7. สรุปข้อมูล (Preview)", 
     "✨ ให้ PA Assist ช่วย",     
-    "🤖 คุยกับ PA Chatbot"
-]
+    "🤖 คุยกับ PA Chatbot"        
+])
 
-# 2. สร้าง Function เพื่อเปลี่ยนหน้าเมื่อคลิกปุ่ม
-def set_tab(tab_name):
-    st.session_state.current_tab = tab_name
-
-# 3. แสดงผลปุ่มทั้งหมดใน st.columns
-cols = st.columns(len(TABS))
-for i, tab_name in enumerate(TABS):
-    is_active = (st.session_state.current_tab == tab_name)
-    
-    # ใช้ type="primary" สำหรับแท็บที่ถูกเลือก เพื่อให้ Streamlit ใช้สีหลัก (สีน้ำเงิน) ไฮไลต์
-    button_type = "primary" if is_active else "secondary"
-
-    with cols[i]:
-        # ใช้ st.button แบบปกติ พร้อมฟังก์ชัน on_click
-        st.button(
-            tab_name,
-            key=f"tab_btn_{i}",
-            on_click=set_tab,
-            args=(tab_name,),
-            type=button_type, 
-            use_container_width=True # ทำให้ปุ่มเต็มความกว้างของคอลัมน์
-        )
-
-
-# ----------------- DISPLAY CONTENT BASED ON ACTIVE TAB -----------------
-current_tab = st.session_state.current_tab
-
-if current_tab == "1. ระบุ แผน & 6W2H":
-    # ----------------- START: CONTENT FOR 1. ระบุ แผน & 6W2H -----------------
-    # content for tab_plan
+with tab_plan:
     st.subheader("ข้อมูลแผน (Plan) - กรุณาระบุข้อมูล")
     with st.container(border=True):
         c1, c2, c3 = st.columns([2,2,1])
@@ -336,11 +343,8 @@ How Much: [ข้อความ]
         with cc3:
             st.session_state.plan["how"] = st.text_area("How (อย่างไร)", value=st.session_state.plan["how"], key="how_input")
             st.session_state.plan["how_much"] = st.text_input("How much (เท่าไร)", value=st.session_state.plan["how_much"], key="how_much_input")
-    # ----------------- END: CONTENT FOR 1. ระบุ แผน & 6W2H -----------------
 
-elif current_tab == "2. ระบุ Logic Model":
-    # ----------------- START: CONTENT FOR 2. ระบุ Logic Model -----------------
-    # content for tab_logic
+with tab_logic:
     st.subheader("ระบุข้อมูล Logic Model: Input → Activities → Output → Outcome → Impact")
     st.dataframe(logic_df, use_container_width=True, hide_index=True)
     with st.expander("➕ เพิ่มรายการใน Logic Model"):
@@ -364,11 +368,8 @@ elif current_tab == "2. ระบุ Logic Model":
                     }])
                     st.session_state["logic_items"] = pd.concat([logic_df, new_row], ignore_index=True)
                     st.rerun()
-    # ----------------- END: CONTENT FOR 2. ระบุ Logic Model -----------------
 
-elif current_tab == "3. ระบุ Methods":
-    # ----------------- START: CONTENT FOR 3. ระบุ Methods -----------------
-    # content for tab_method
+with tab_method:
     st.subheader("ระบุวิธีการเก็บข้อมูล (Methods)")
     st.dataframe(methods_df, use_container_width=True, hide_index=True)
     with st.expander("➕ เพิ่ม Method"):
@@ -394,11 +395,8 @@ elif current_tab == "3. ระบุ Methods":
                     }])
                     st.session_state["methods"] = pd.concat([methods_df, new_row], ignore_index=True)
                     st.rerun()
-    # ----------------- END: CONTENT FOR 3. ระบุ Methods -----------------
 
-elif current_tab == "4. ระบุ KPIs":
-    # ----------------- START: CONTENT FOR 4. ระบุ KPIs -----------------
-    # content for tab_kpi
+with tab_kpi:
     st.subheader("ระบุตัวชี้วัด (KPIs)")
     st.dataframe(kpis_df, use_container_width=True, hide_index=True)
     with st.expander("➕ เพิ่ม KPI เอง"):
@@ -429,11 +427,8 @@ elif current_tab == "4. ระบุ KPIs":
                     }])
                     st.session_state["kpis"] = pd.concat([kpis_df, new_row], ignore_index=True)
                     st.rerun()
-    # ----------------- END: CONTENT FOR 4. ระบุ KPIs -----------------
 
-elif current_tab == "5. ระบุ Risks":
-    # ----------------- START: CONTENT FOR 5. ระบุ Risks -----------------
-    # content for tab_risk
+with tab_risk:
     st.subheader("ระบุความเสี่ยง (Risks)")
     st.dataframe(risks_df, use_container_width=True, hide_index=True)
     with st.expander("➕ เพิ่ม Risk"):
@@ -458,11 +453,8 @@ elif current_tab == "5. ระบุ Risks":
                     }])
                     st.session_state["risks"] = pd.concat([risks_df, new_row], ignore_index=True)
                     st.rerun()
-    # ----------------- END: CONTENT FOR 5. ระบุ Risks -----------------
 
-elif current_tab == "6. ค้นหาข้อตรวจพบที่ผ่านมา":
-    # ----------------- START: CONTENT FOR 6. ค้นหาข้อตรวจพบที่ผ่านมา -----------------
-    # content for tab_issue
+with tab_issue:
     st.subheader("🔎 แนะนำประเด็นตรวจจากรายงานเก่า (Issue Suggestions)")
     st.write("***กรุณาอัพโหลดฐานข้อมูล (ถ้าไม่มีจะใช้ฐานข้อมูลในระบบ)***")
 
@@ -484,7 +476,6 @@ elif current_tab == "6. ค้นหาข้อตรวจพบที่ผ�
         st.success(f"พบข้อมูล Findings ทั้งหมด {len(findings_df)} รายการ")
         vec, X = build_tfidf_index(findings_df)
         
-        # 1. สร้าง Seed ใหม่ล่าสุดจากข้อมูลในหน้าก่อนหน้า
         seed = f"""
 Who:{plan.get('who','')} What:{plan.get('what','')} Where:{plan.get('where','')}
 When:{plan.get('when','')} Why:{plan.get('why','')} How:{plan.get('how','')}
@@ -492,27 +483,19 @@ Outputs:{' | '.join(logic_df[logic_df['type']=='Output']['description'].tolist()
 Outcomes:{' | '.join(logic_df[logic_df['type']=='Outcome']['description'].tolist())}
 """
         
-        # 2. ตรรกะสำหรับการอัปเดตอัตโนมัติ (เฉพาะเมื่อผู้ใช้ไม่ได้แก้ไข)
-        if st.session_state.get("issue_query_text") == st.session_state.get("ref_seed"):
-            st.session_state["issue_query_text"] = seed
-        
-        # 3. อัปเดตค่าอ้างอิงสำหรับรอบถัดไป
-        st.session_state["ref_seed"] = seed
-
-
         # [FIX] Define a function to overwrite the text area's state with the latest seed
         def refresh_query_text(new_seed):
+            # ฟังก์ชันนี้จะสั่งให้ st.session_state["issue_query_text"] ถูกเขียนทับด้วยค่า seed ใหม่
             st.session_state["issue_query_text"] = new_seed
-            st.session_state["ref_seed"] = new_seed # สำคัญ: อัปเดตค่าอ้างอิงด้วย
-        
+
         # ใช้ Columns เพื่อจัดวางช่องค้นหาและปุ่มให้อยู่ข้างกัน
         c_query_area, c_refresh_btn = st.columns([6, 1])
 
         with c_query_area:
-            # st.text_area จะดึงค่าจาก st.session_state["issue_query_text"] มาใช้
+            # st.text_area จะใช้ค่าที่ผู้ใช้พิมพ์เป็นหลัก หากมีการพิมพ์แล้ว
             query_text = st.text_area(
                 "*สรุปบริบทที่ใช้ค้นหา (แก้ไขได้):*", 
-                value=st.session_state["issue_query_text"], 
+                seed, 
                 height=140, 
                 key="issue_query_text"
             )
@@ -612,11 +595,8 @@ Outcomes:{' | '.join(logic_df[logic_df['type']=='Outcome']['description'].tolist
             st.divider()
         st.markdown("### ประเด็นที่ถูกเพิ่มเข้าแผน")
         st.dataframe(st.session_state["audit_issues"], use_container_width=True, hide_index=True)
-    # ----------------- END: CONTENT FOR 6. ค้นหาข้อตรวจพบที่ผ่านมา -----------------
-
-elif current_tab == "7. สรุปข้อมูล (Preview)":
-    # ----------------- START: CONTENT FOR 7. สรุปข้อมูล (Preview) -----------------
-    # content for tab_preview
+        
+with tab_preview:
     st.subheader("สรุปแผน (Preview)")
     with st.container(border=True):
         st.markdown(f"**Plan ID:** {plan['plan_id']}  \n**ชื่อแผนงาน:** {plan['plan_title']}  \n**โครงการ:** {plan['program_name']}  \n**หน่วยรับตรวจ:** {plan['who']}")
@@ -676,11 +656,8 @@ elif current_tab == "7. สรุปข้อมูล (Preview)":
     plan_df = pd.DataFrame([plan])
     df_download_link(plan_df, "plan.csv", "⬇️ ดาวน์โหลด Plan (CSV)")
     st.success("พร้อมเชื่อม Glide / Sheets ต่อได้ทันที")
-    # ----------------- END: CONTENT FOR 7. สรุปข้อมูล (Preview) -----------------
-
-elif current_tab == "✨ ให้ PA Assist ช่วย":
-    # ----------------- START: CONTENT FOR ✨ ให้ PA Assist ช่วย -----------------
-    # content for tab_assist
+    
+with tab_assist:
     st.subheader("💡 PA Audit Assist (ขับเคลื่อนด้วย LLM)")
     st.write("🤖 สร้างคำแนะนำประเด็นการตรวจสอบจาก AI")
     st.markdown("💡 **ยังไม่มี API Key?** คลิก [ที่นี่](https://playground.opentyphoon.ai/settings/api-key) เพื่อรับ key ฟรี!")
@@ -790,11 +767,9 @@ Logic Model:
 
     st.markdown("<h4 style='color:blue;'>ร่างรายงานตรวจสอบ (Preview)</h4>", unsafe_allow_html=True)
     st.markdown(f"<div style='background-color: #f0f2f6; border: 1px solid #ccc; padding: 10px; border-radius: 5px; height: 400px; overflow-y: scroll;'>{st.session_state.get('gen_report', '')}</div>", unsafe_allow_html=True)
-    # ----------------- END: CONTENT FOR ✨ ให้ PA Assist ช่วย -----------------
 
-elif current_tab == "🤖 คุยกับ PA Chatbot":
-    # ----------------- START: CONTENT FOR 🤖 คุยกับ PA Chatbot -----------------
-    # content for tab_chatbot
+
+with tab_chatbot:
     st.subheader("🤖 PA Chatbot")
     st.write("ถาม-ตอบข้อสงสัย โดยอ้างอิงข้อมูลจากคู่มือการตรวจสอบ เอกสารภายใน และข้อมูลจากอินเทอร์เน็ต")
 
@@ -910,4 +885,3 @@ elif current_tab == "🤖 คุยกับ PA Chatbot":
                         error_message = f"เกิดข้อผิดพลาด: {e}"
                         st.error(error_message)
                         st.session_state.chatbot_messages.append({"role": "assistant", "content": error_message})
-    # ----------------- END: CONTENT FOR 🤖 คุยกับ PA Chatbot -----------------
