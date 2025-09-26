@@ -159,34 +159,34 @@ st.title("🧭 Planning Studio – Performance Audit")
 st.markdown("""
 <style>
 /* 1. GLOBAL FONT/BACKGROUND ADJUSTMENTS */
-/* ทำให้ฟอนต์ดูดีขึ้นและมีช่องว่างเพิ่มขึ้น */
 body {
-    font-family: 'Kanit', sans-serif; /* แนะนำให้ใช้ฟอนต์ที่อ่านง่าย */
+    font-family: 'Kanit', sans-serif;
 }
 
 /* 2. STYLE TABS AS COLORED BUTTONS (Custom Tabs) */
 /* การจัดรูปแบบสำหรับปุ่มแท็บทั้งหมด */
 button[data-baseweb="tab"] {
-    border: 1px solid #007bff; /* ขอบสีน้ำเงิน */
-    border-radius: 8px; /* มุมโค้งมน */
-    padding: 10px 15px; /* เพิ่มช่องว่างภายใน */
-    margin: 5px 5px 5px 0px; /* เพิ่มช่องว่างระหว่างปุ่ม */
+    border: 1px solid #007bff !important; /* ขอบสีน้ำเงิน */
+    border-radius: 8px !important; /* มุมโค้งมน */
+    padding: 10px 15px !important; /* เพิ่มช่องว่างภายใน */
+    margin: 5px 5px 5px 0px !important; /* เพิ่มช่องว่างระหว่างปุ่ม */
     transition: background-color 0.3s, color 0.3s;
-    font-weight: bold;
+    font-weight: bold !important;
     color: #007bff !important; /* สีตัวอักษรเริ่มต้น */
-    background-color: #ffffff;
-    box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1); /* เพิ่มเงานิดหน่อย */
+    background-color: #ffffff !important;
+    box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1) !important; /* เพิ่มเงานิดหน่อย */
 }
 
 /* การจัดรูปแบบสำหรับแท็บที่ถูกเลือก (Active Tab) */
 button[data-baseweb="tab"][aria-selected="true"] {
-    background-color: #007bff; /* พื้นหลังสีน้ำเงินเข้ม */
+    background-color: #007bff !important; /* พื้นหลังสีน้ำเงินเข้ม */
     color: white !important; /* ตัวอักษรสีขาว */
-    border: 1px solid #007bff;
-    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+    border: 1px solid #007bff !important;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2) !important;
 }
 
-/* --- การกำหนดสีสำหรับแต่ละกลุ่ม (ใช้ nth-child) --- */
+/* --- 3. การกำหนดสีสำหรับแต่ละกลุ่ม (ใช้ nth-child) --- */
+
 /* Group 1: 1-5 (การวางแผนหลัก: สีน้ำเงินเข้ม #007bff) */
 div[data-baseweb="tab-list"] > div:nth-child(1) button,
 div[data-baseweb="tab-list"] > div:nth-child(2) button,
@@ -194,7 +194,7 @@ div[data-baseweb="tab-list"] > div:nth-child(3) button,
 div[data-baseweb="tab-list"] > div:nth-child(4) button,
 div[data-baseweb="tab-list"] > div:nth-child(5) button {
     border-color: #007bff !important;
-    color: #007bff !important; /* สีตัวอักษรเริ่มต้น */
+    color: #007bff !important; 
 }
 /* Active state for Group 1 */
 div[data-baseweb="tab-list"] > div:nth-child(1) button[aria-selected="true"],
@@ -240,18 +240,15 @@ div[data-baseweb="tab-list"] {
     flex-wrap: wrap; /* สำคัญสำหรับมือถือ */
 }
 
-/* 3. MOBILE RESPONSIVENESS ADJUSTMENTS */
-/* ปรับปรุงการแสดงผลบนมือถือ: บังคับให้คอลัมน์แสดงเต็มความกว้าง */
+/* 4. MOBILE RESPONSIVENESS ADJUSTMENTS */
 @media (max-width: 768px) {
-    /* ใช้ class ที่ Streamlit ใช้สำหรับ Column (อาจมีการเปลี่ยนแปลงในอนาคต แต่ทำงานได้ในปัจจุบัน) */
     .st-emotion-cache-18ni2cb, .st-emotion-cache-1jm69l4 {
         width: 100% !important;
         margin-bottom: 1rem;
     }
 }
 
-/* 4. STYLE HEADERS */
-/* ปรับรูปแบบ H4 ในแท็บ Assist ให้เข้ากับสีน้ำเงิน */
+/* 5. STYLE HEADERS */
 h4 {
     color: #007bff !important;
     border-bottom: 2px solid #e0e0e0;
