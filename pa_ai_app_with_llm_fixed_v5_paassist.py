@@ -10,6 +10,7 @@ import os
 import io
 from PyPDF2 import PdfReader
 
+# ตั้งค่าหน้าเพจ
 st.set_page_config(page_title="Planning Studio (+ Issue Suggestions)", page_icon="🧭", layout="wide")
 
 # ----------------- Session Init -----------------
@@ -31,15 +32,10 @@ def init_state():
     ss.setdefault("gen_findings", "")
     ss.setdefault("gen_report", "")
     ss.setdefault("issue_results", pd.DataFrame())
-    # **เพิ่ม state สำหรับเก็บค่า Seed อ้างอิงและข้อความค้นหา**
+    # เพิ่ม state สำหรับเก็บค่า Seed อ้างอิงและข้อความค้นหา
     ss.setdefault("ref_seed", "") 
     ss.setdefault("issue_query_text", "")
-    # Initialize chat history
-    ss.setdefault("chatbot_messages", [
-        {"role": "assistant", "content": "สวัสดีครับ ผมคือผู้ช่วยตรวจสอบ (PA Chatbot) ผมพร้อมตอบคำถามจากคู่มือการตรวจสอบ PA และข้อมูลบนอินเทอร์เน็ตแล้วครับ"}
-    ])
-    ss.setdefault("doc_context", "")
-
+    # ลบ st.session_state.chatbot_messages และ st.session_state.doc_context ออกจาก init_state()
 
 def next_id(prefix, df, col):
     if df.empty: return f"{prefix}-001"
@@ -144,35 +140,7 @@ def create_excel_template():
     processed_data = output.getvalue()
     return processed_data
 
-# Function to read PDFs from a folder
-@st.cache_data(show_spinner="กำลังอ่านเอกสาร'Doc'...")
-def load_docs_from_folder(folder_path="Doc"):
-    if not os.path.isdir(folder_path):
-        return "", f"Warning: ไม่พบโฟลเดอร์ '{folder_path}' ในระบบ"
-    
-    all_text = ""
-    try:
-        pdf_files = [f for f in os.listdir(folder_path) if f.lower().endswith(".pdf")]
-    except Exception as e:
-        return "", f"Error: ไม่สามารถเข้าถึงโฟลเดอร์ '{folder_path}': {e}"
-    
-    if not pdf_files:
-        return "", "Warning: ไม่พบไฟล์ PDF ในโฟลเดอร์ 'Doc'"
-
-    for filename in pdf_files:
-        try:
-            filepath = os.path.join(folder_path, filename)
-            with open(filepath, 'rb') as f:
-                reader = PdfReader(f)
-                text = ""
-                for page in reader.pages:
-                    text += page.extract_text() or ""
-            all_text += f"\n\n--- เนื้อหาจากไฟล์: {filename} ---\n\n{text}"
-        except Exception as e:
-            st.warning(f"ไม่สามารถอ่านไฟล์ {filename}: {e}")
-            
-    return all_text.strip(), f"ประมวลผลข้อมูลในระบบเรียบร้อยแล้ว"
-
+# ลบฟังก์ชัน load_docs_from_folder ออก
 
 # ----------------- App UI -----------------
 init_state()
@@ -240,15 +208,13 @@ div[data-baseweb="tab-list"] button:nth-of-type(7)[aria-selected="true"] {
     color: white !important;
 }
 
-/* ---- Group 3: 8-9 (Gold - AI/Assist) ---- */
-div[data-baseweb="tab-list"] button:nth-of-type(8),
-div[data-baseweb="tab-list"] button:nth-of-type(9) {
+/* ---- Group 3: 8 (Gold - AI/Assist) ---- */
+div[data-baseweb="tab-list"] button:nth-of-type(8) {
     border-color: #ffc107;
     color: #cc9900 !important;
     box-shadow: 0 0 5px rgba(255, 193, 7, 0.5);
 }
-div[data-baseweb="tab-list"] button:nth-of-type(8)[aria-selected="true"],
-div[data-baseweb="tab-list"] button:nth-of-type(9)[aria-selected="true"] {
+div[data-baseweb="tab-list"] button:nth-of-type(8)[aria-selected="true"] {
     background-color: #ffc107;
     border-color: #ffc107;
     color: #333333 !important;
@@ -270,7 +236,8 @@ h4 { color: #007bff !important; border-bottom: 2px solid #e0e0e0; padding-bottom
 # ----------------- END: Custom CSS -----------------
 
 # ----------------- Tab Definitions -----------------
-tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_assist, tab_chatbot = st.tabs([
+# **ลบ tab_chatbot ออกจากรายการ**
+tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_assist = st.tabs([
     "1. ระบุ แผน & 6W2H", 
     "2. ระบุ Logic Model", 
     "3. ระบุ Methods", 
@@ -278,8 +245,8 @@ tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_
     "5. ระบุ Risks", 
     "6. ค้นหาข้อตรวจพบที่ผ่านมา", 
     "7. สรุปข้อมูล (Preview)", 
-    "✨ ให้ PA Assist ช่วย",
-    "🤖 คุยกับ PA Chatbot"
+    # **เปลี่ยนชื่อ Tab 8**
+    "🤖 ให้ PA Assist ช่วยแนะนำประเด็นการตรวจสอบ ✨✨" 
 ]) 
 
 # ----------------- Tab 1: ระบุ แผน & 6W2H -----------------
@@ -341,6 +308,8 @@ How Much: [ข้อความ]
                             messages=[{"role": "user", "content": user_prompt}],
                             temperature=0.7,
                             max_tokens=1024,
+                            top_p=0.9,
+                            repetition_penalty=1.1,
                         )
                         llm_output = response.choices[0].message.content
                         
@@ -526,23 +495,21 @@ Outputs:{' | '.join(logic_df[logic_df['type']=='Output']['description'].tolist()
 Outcomes:{' | '.join(logic_df[logic_df['type']=='Outcome']['description'].tolist())}
 """
         
-        # [FIX] Define a function to overwrite the text area's state with the latest seed
+        # Define a function to overwrite the text area's state with the latest seed
         def refresh_query_text(new_seed):
-            # ฟังก์ชันนี้จะสั่งให้ st.session_state["issue_query_text"] ถูกเขียนทับด้วยค่า seed ใหม่
             st.session_state["issue_query_text"] = new_seed
-            st.session_state["ref_seed"] = new_seed # <-- ADDED: Update the reference seed
+            st.session_state["ref_seed"] = new_seed 
 
-        # ------------------- ส่วนที่แก้ไข: การอัปเดตอัตโนมัติ (เพื่อแก้ปัญหาที่ข้อความไม่ดึงค่า seed ใหม่) -------------------
-        # **A. กรณีโหลดครั้งแรกสุด หรือค่าว่าง ให้ใส่ seed ใหม่และตั้งค่า ref_seed**
+        # ------------------- การอัปเดตอัตโนมัติ -------------------
+        # A. กรณีโหลดครั้งแรกสุด หรือค่าว่าง ให้ใส่ seed ใหม่และตั้งค่า ref_seed
         if "issue_query_text" not in st.session_state or st.session_state["issue_query_text"] == "":
             st.session_state["issue_query_text"] = seed
             st.session_state["ref_seed"] = seed
             
-        # **B. กรณี seed เปลี่ยน และค่าในช่องค้นหายังเป็นค่าเดิมจาก seed เก่า**
-        #    (แสดงว่าผู้ใช้ยังไม่เคยแก้ไขเอง) -> ให้ทำการอัปเดตช่องค้นหาอัตโนมัติ
+        # B. กรณี seed เปลี่ยน และค่าในช่องค้นหายังเป็นค่าเดิมจาก seed เก่า
         elif st.session_state.get("ref_seed") != seed and st.session_state.get("issue_query_text") == st.session_state.get("ref_seed"):
             st.session_state["issue_query_text"] = seed
-            st.session_state["ref_seed"] = seed # อัปเดต ref_seed ใหม่
+            st.session_state["ref_seed"] = seed 
         # --------------------------------------------------------------------------------------------------------------
 
         # ใช้ Columns เพื่อจัดวางช่องค้นหาและปุ่มให้อยู่ข้างกัน
@@ -714,7 +681,7 @@ with tab_preview:
     df_download_link(plan_df, "plan.csv", "⬇️ ดาวน์โหลด Plan (CSV)")
     st.success("พร้อมเชื่อม Glide / Sheets ต่อได้ทันที")
     
-# ----------------- Tab 8: ให้ PA Assist ช่วย -----------------
+# ----------------- Tab 8: ให้ PA Assist ช่วยแนะนำประเด็นการตรวจสอบ -----------------
 with tab_assist:
     st.subheader("💡 PA Audit Assist (ขับเคลื่อนด้วย LLM)")
     st.write("🤖 สร้างคำแนะนำประเด็นการตรวจสอบจาก AI")
@@ -779,7 +746,7 @@ Logic Model:
                     )
                     
                     messages = [
-                        {"role": "system", "content": "คุณคือผู้เชี่ยวชาญด้านการตรวจสอบผลสัมฤทธิ์และประสิทธิภาพการดำเนินงาน (Performance Audit)"},
+                        {"role": "system", "content": "คุณคือผู้เชี่ยวชาญด้านการตรวจสอบผลสัมฤทธิ์และประสิทธิภาพการดำเนินงาน (Performance Audit) กรุณาตอบโดยมุ่งเน้นการสร้างคำแนะนำตามรูปแบบที่ต้องการเท่านั้น"},
                         {"role": "user", "content": user_prompt}
                     ]
                     
@@ -788,6 +755,8 @@ Logic Model:
                         messages=messages,
                         temperature=0.7,
                         max_tokens=2048,
+                        top_p=0.9,
+                        repetition_penalty=1.1,
                     )
 
                     full_response = response.choices[0].message.content
@@ -824,93 +793,3 @@ Logic Model:
 
     st.markdown("<h4 style='color:blue;'>ร่างรายงานตรวจสอบ (Preview)</h4>", unsafe_allow_html=True)
     st.markdown(f"<div style='background-color: #f0f2f6; border: 1px solid #ccc; padding: 10px; border-radius: 5px; height: 400px; overflow-y: scroll;'>{st.session_state.get('gen_report', '')}</div>", unsafe_allow_html=True)
-
-
-# ----------------- Tab 9: คุยกับ PA Chatbot -----------------
-with tab_chatbot:
-    st.subheader("🤖 คุยกับ PA Chatbot")
-    st.write("ถาม-ตอบข้อสงสัย โดยอ้างอิงข้อมูลจากคู่มือการตรวจสอบ เอกสารภายใน และข้อมูลจากอินเทอร์เน็ต")
-
-    # Load documents on first run or if context is empty
-    if "doc_context_loaded" not in st.session_state:
-        doc_text, message = load_docs_from_folder()
-        if doc_text is not None:
-            st.session_state.doc_context = doc_text
-            st.info(message)
-        else:
-            st.error(message)
-        st.session_state.doc_context_loaded = True
-        
-    api_key_chatbot = st.text_input("กรุณากรอก API Key เพื่อใช้บริการ AI:", type="password", key="api_key_chatbot")
-
-    # Display chat messages from history on app rerun
-    for message in st.session_state.chatbot_messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-
-    # Accept user input
-    if prompt := st.chat_input("ถามคำถามจากเอกสารหรือข้อมูลทั่วไป..."):
-        if not api_key_chatbot:
-            st.error("กรุณากรอก API Key ก่อนใช้งาน Chatbot")
-        elif not st.session_state.get("doc_context"):
-            st.warning("ยังไม่มีข้อมูลจากเอกสารเพื่อใช้อ้างอิง กรุณาเพิ่มไฟล์ PDF ในโฟลเดอร์ 'Doc'")
-            # Still allow question to be asked using general knowledge
-        
-        # Add user message to chat history regardless of context
-        st.session_state.chatbot_messages.append({"role": "user", "content": prompt})
-        # Display user message in chat message container
-        with st.chat_message("user"):
-            st.markdown(prompt)
-
-        # Proceed to get assistant response if API key is provided
-        if api_key_chatbot:
-            with st.chat_message("assistant"):
-                with st.spinner("AI กำลังค้นหาคำตอบ..."):
-                    try:
-                        client = OpenAI(
-                            api_key=api_key_chatbot,
-                            base_url="https://api.opentyphoon.ai/v1"
-                        )
-                        
-                        doc_context = st.session_state.get("doc_context", "ไม่มีข้อมูลจากเอกสารภายใน")
-                        
-                        system_prompt = f"""
-คุณคือผู้ช่วย AI อัจฉริยะ (Expert Assistant) หน้าที่ของคุณคือตอบคำถามของผู้ใช้ให้ถูกต้องและครบถ้วนที่สุด โดยใช้แหล่งข้อมูลสองแหล่ง:
-1.  **ข้อมูลจากเอกสารภายใน (Primary Source):** นี่คือเนื้อหาที่ดึงมาจากไฟล์ PDF ในโฟลเดอร์ "Doc" ของระบบ จงยึดข้อมูลนี้เป็นหลักในการตอบคำถามเสมอ
-2.  **ความรู้ทั่วไปและข้อมูลจากอินเทอร์เน็ต (Secondary Source):** หากคำตอบไม่มีอยู่ในเอกสารภายใน ให้ใช้ความรู้ที่คุณมีจากการฝึกฝน (ซึ่งเทียบเท่าการค้นหาข้อมูลบนอินเทอร์เน็ต) เพื่อตอบคำถาม
-
-**กฎการตอบ:**
-- เมื่อตอบคำถาม ให้อ้างอิงเสมอว่าข้อมูลมาจากแหล่งใด (เช่น "จากเอกสาร [ชื่อไฟล์] ระบุว่า..." หรือ "จากเอกสารที่ให้มา" ระบุว่า...) หากไม่ทราบชื่อไฟล์ให้บอกว่า "จากเอกสารที่ให้มา"
-- หากข้อมูลในเอกสารขัดแย้งกับข้อมูลทั่วไป ให้ยึดข้อมูลในเอกสารเป็นหลักและอาจกล่าวถึงความขัดแย้งนั้น
-- หากไม่พบคำตอบทั้งในเอกสารและความรู้ทั่วไป ให้ตอบว่า "ขออภัยครับ ไม่พบข้อมูลที่เกี่ยวข้องทั้งในเอกสารและฐานข้อมูลของผม"
-
----
-**บริบทจากเอกสารภายใน:**
-{doc_context}
----
-
-จากข้อมูลข้างต้นนี้ จงตอบคำถามล่าสุดของผู้ใช้
-"""
-                        
-                        messages_for_api = [
-                            {"role": "system", "content": system_prompt}
-                        ]
-                        # Add chat history, but keep it concise
-                        for msg in st.session_state.chatbot_messages[-10:]:
-                            messages_for_api.append(msg)
-                        
-                        response_stream = client.chat.completions.create(
-                            model="typhoon-v2.1-12b-instruct",
-                            messages=messages_for_api,
-                            temperature=0.5,
-                            max_tokens=3072,
-                            stream=True
-                        )
-                        
-                        response = st.write_stream(response_stream)
-                        st.session_state.chatbot_messages.append({"role": "assistant", "content": response})
-
-                    except Exception as e:
-                        error_message = f"เกิดข้อผิดพลาด: {e}"
-                        st.error(error_message)
-                        st.session_state.chatbot_messages.append({"role": "assistant", "content": error_message})
