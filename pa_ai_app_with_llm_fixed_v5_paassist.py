@@ -31,7 +31,7 @@ def init_state():
     ss.setdefault("gen_findings", "")
     ss.setdefault("gen_report", "")
     ss.setdefault("issue_results", pd.DataFrame())
-    # **เพิ่ม state สำหรับเก็บค่า Seed อ้างอิง**
+    # **เพิ่ม state สำหรับเก็บค่า Seed อ้างอิงและข้อความค้นหา**
     ss.setdefault("ref_seed", "") 
     ss.setdefault("issue_query_text", "")
     # Initialize chat history
@@ -187,55 +187,51 @@ button[data-baseweb="tab"][aria-selected="true"] {
 }
 
 /* --- การกำหนดสีสำหรับแต่ละกลุ่ม (ใช้ nth-child) --- */
-
 /* Group 1: 1-5 (การวางแผนหลัก: สีน้ำเงินเข้ม #007bff) */
-/* แท็บ 1, 2, 3, 4, 5 */
 div[data-baseweb="tab-list"] > div:nth-child(1) button,
 div[data-baseweb="tab-list"] > div:nth-child(2) button,
 div[data-baseweb="tab-list"] > div:nth-child(3) button,
 div[data-baseweb="tab-list"] > div:nth-child(4) button,
 div[data-baseweb="tab-list"] > div:nth-child(5) button {
-    border-color: #007bff;
-    color: #007bff !important;
+    border-color: #007bff !important;
+    color: #007bff !important; /* สีตัวอักษรเริ่มต้น */
 }
+/* Active state for Group 1 */
 div[data-baseweb="tab-list"] > div:nth-child(1) button[aria-selected="true"],
 div[data-baseweb="tab-list"] > div:nth-child(2) button[aria-selected="true"],
 div[data-baseweb="tab-list"] > div:nth-child(3) button[aria-selected="true"],
 div[data-baseweb="tab-list"] > div:nth-child(4) button[aria-selected="true"],
 div[data-baseweb="tab-list"] > div:nth-child(5) button[aria-selected="true"] {
-    background-color: #007bff;
-    border-color: #007bff;
-}
-
-/* Group 2: 6-7 (เครื่องมือช่วย: สีม่วง #6f42c1) */
-/* แท็บ 6 (ค้นหาข้อตรวจพบที่ผ่านมา), แท็บ 7 (สรุปข้อมูล Preview) */
-div[data-baseweb="tab-list"] > div:nth-child(6) button,
-div[data-baseweb="tab-list"] > div:nth-child(7) button {
-    border-color: #6f42c1;
-    color: #6f42c1 !important;
-}
-div[data-baseweb="tab-list"] > div:nth-child(6) button[aria-selected="true"],
-div[data-baseweb="tab-list"] > div:nth-child(7) button[aria-selected="true"] {
-    background-color: #6f42c1;
-    border-color: #6f42c1;
+    background-color: #007bff !important;
     color: white !important;
 }
 
-/* Group 3: 8-9 (AI Assistant: สีทอง #ffc107) */
-/* แท็บ 8 (PA Assist), แท็บ 9 (Chatbot) */
+/* Group 2: 6-7 (เครื่องมือช่วย: สีม่วง #6f42c1) */
+div[data-baseweb="tab-list"] > div:nth-child(6) button,
+div[data-baseweb="tab-list"] > div:nth-child(7) button {
+    border-color: #6f42c1 !important;
+    color: #6f42c1 !important;
+}
+/* Active state for Group 2 */
+div[data-baseweb="tab-list"] > div:nth-child(6) button[aria-selected="true"],
+div[data-baseweb="tab-list"] > div:nth-child(7) button[aria-selected="true"] {
+    background-color: #6f42c1 !important;
+    color: white !important;
+}
+
+/* Group 3: 8-9 (AI Assistant: สีทอง/ส้มทอง #ffc107) */
 div[data-baseweb="tab-list"] > div:nth-child(8) button,
 div[data-baseweb="tab-list"] > div:nth-child(9) button {
-    border-color: #ffc107; /* ขอบสีทอง */
-    color: #cc9900 !important; /* ตัวอักษรสีน้ำตาลทอง */
-    box-shadow: 0 0 5px rgba(255, 193, 7, 0.5); /* เพิ่มความโดดเด่น */
+    border-color: #ffc107 !important;
+    color: #cc9900 !important; /* สีตัวอักษร: ส้มทองเข้ม */
 }
+/* Active state for Group 3 */
 div[data-baseweb="tab-list"] > div:nth-child(8) button[aria-selected="true"],
 div[data-baseweb="tab-list"] > div:nth-child(9) button[aria-selected="true"] {
-    background-color: #ffc107; /* พื้นหลังสีทอง */
-    border-color: #ffc107;
-    color: #333333 !important; /* ตัวอักษรสีเข้ม */
-    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+    background-color: #ffc107 !important;
+    color: #333 !important; /* ตัวอักษรสีเข้ม (ดำ) */
 }
+
 
 /* ซ่อนเส้นแบ่งแนวนอน และให้แท็บขึ้นบรรทัดใหม่บนมือถือ */
 div[data-baseweb="tab-list"] {
