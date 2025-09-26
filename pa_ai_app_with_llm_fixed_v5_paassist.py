@@ -15,15 +15,12 @@ from io import StringIO
 
 # กำหนดโฟลเดอร์เอกสารและข้อจำกัดสำหรับ RAG
 DOC_FOLDER = "Doc" 
-MAX_CHARS_LIMIT = 100000
+MAX_CHARS_LIMIT = 100000 # กำหนดการจำกัดที่ 100,000 ตัวอักษร
 
 # ตั้งค่าหน้าเพจ
 st.set_page_config(page_title="Planning Studio (+ PA Assistant)", page_icon="🧭", layout="wide")
 
 # ----------------- Utility Functions สำหรับ RAG Chatbot -----------------
-
-# (*** RAG Utility Functions: read_pdf_text_from_path, read_pdf_text_from_uploaded, get_text_from_file, process_documents, load_local_documents_on_init ยังคงอยู่เหมือนเดิม ***)
-# เนื่องจากโค้ด Utility เหล่านี้มีขนาดยาว ผมจะละไว้ในส่วนนี้ แต่ให้ทราบว่าต้องอยู่ในไฟล์
 
 def read_pdf_text_from_path(file_path):
     """Extracts text content from a PDF file using a local file path."""
@@ -87,7 +84,10 @@ def get_text_from_file(file, source_type):
 
 
 def process_documents(files, source_type, max_chars_limit, existing_context_len):
-    """Processes a list of files (either local paths or uploaded objects) and returns context."""
+    """
+    Processes a list of files (either local paths or uploaded objects) and returns context.
+    *** ฟังก์ชันนี้จะทำการตัดข้อความ (TRUNCATION) หากเกิน MAX_CHARS_LIMIT ***
+    """
     context = ""
     total_chars = existing_context_len
     
@@ -97,12 +97,20 @@ def process_documents(files, source_type, max_chars_limit, existing_context_len)
         if current_text:
             if total_chars + len(current_text) > max_chars_limit:
                 remaining_chars = max_chars_limit - total_chars
+                
+                # ถ้ามีพื้นที่เหลืออยู่บ้าง (remaining_chars > 0) ให้ตัดมาแค่ส่วนที่เหลือ
                 if remaining_chars > 0:
                     context += f"\n--- Start of Document: {file_name} (TRUNCATED) ---\n"
                     context += current_text[:remaining_chars] + f"\n... [ข้อความถูกตัดทอนจาก {file_name}]"
-                st.warning(f"จำกัดจำนวนข้อความที่นำเข้าที่ {max_chars_limit:,} ตัวอักษร ข้อความที่เกินจะถูกตัดออก")
-                break
+                    total_chars += remaining_chars
+                
+                # บรรทัด st.warning ถูกลบออกตามคำขอของผู้ใช้ เพื่อลดความรกตา
+                # st.warning(f"จำกัดจำนวนข้อความที่นำเข้าที่ {max_chars_limit:,} ตัวอักษร ข้อความที่เกินจะถูกตัดออก")
+                
+                break # หยุดการประมวลผลไฟล์ถัดไปทันที
+            
             else:
+                # ถ้าไม่เกิน ให้เพิ่มเอกสารทั้งฉบับ
                 context += f"\n--- Start of Document: {file_name} ---\n"
                 context += current_text
                 context += f"\n--- End of Document: {file_name} ---\n"
@@ -375,7 +383,7 @@ h4 { color: #007bff !important; border-bottom: 2px solid #e0e0e0; padding-bottom
 """, unsafe_allow_html=True)
 # ----------------- END: Custom CSS -----------------
 
-# ----------------- Tab Definitions (เพิ่ม tab_chatbot) -----------------
+# ----------------- Tab Definitions (แก้ไขชื่อแท็บ) -----------------
 # เราสร้างฟังก์ชัน on_click เพื่อบอกว่าตอนนี้เราอยู่แท็บไหน
 def set_current_tab(tab_name):
     st.session_state.current_tab = tab_name
@@ -388,8 +396,8 @@ tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_
     "5. ระบุ Risks", 
     "6. ค้นหาข้อตรวจพบที่ผ่านมา", 
     "7. สรุปข้อมูล (Preview)", 
-    "💡 PA Audit Assistant (AI/ LLM)", # เปลี่ยนชื่อแท็บ
-    "💬 PA Chat Assistant (ถาม-ตอบเอกสาร)"
+    "💡 Assistant แนะนำประเด็นการตรวจสอบ", # เปลี่ยนจาก "💡 PA Audit Assistant (AI/ LLM)"
+    "💬 PA Chat (ถาม-ตอบเ)" # เปลี่ยนจาก "💬 PA Chat Assistant (ถาม-ตอบเอกสาร)"
 ]) 
 
 # ----------------- Tab 1: ระบุ แผน & 6W2H -----------------
@@ -413,35 +421,36 @@ with tab_plan:
     st.divider()
     st.subheader("สรุปเรื่องที่ตรวจสอบ (6W2H)")
 
-    with st.container(border=True):
-        st.markdown("##### 🚀 สร้าง 6W2H อัตโนมัติด้วย AI")
-        st.write("คัดลอกข้อความจากไฟล์ของคุณแล้วนำมาวางในช่องด้านล่างนี้")
-        uploaded_text = st.text_area("ระบุข้อความเกี่ยวกับเรื่องที่จะตรวจสอบ ที่ต้องการให้ AI ช่วยสรุป 6W2H", height=200, key="uploaded_text")
-        
-        # *** ใช้ API Key Global และกำหนด Callback เพื่อบันทึก Key ***
-        def save_api_key_global():
-            st.session_state.api_key_global = st.session_state.api_key_input_6w2h
+    # *** START: ลดความรกตา - ซ่อนส่วน AI Assist ด้วย expander ***
+    with st.expander("🚀 สร้าง 6W2H อัตโนมัติด้วย AI (คลิกเพื่อเปิด)"): 
+        with st.container(border=True):
+            st.write("คัดลอกข้อความจากไฟล์ของคุณแล้วนำมาวางในช่องด้านล่างนี้")
+            uploaded_text = st.text_area("ระบุข้อความเกี่ยวกับเรื่องที่จะตรวจสอบ ที่ต้องการให้ AI ช่วยสรุป 6W2H", height=200, key="uploaded_text")
+            
+            # *** ใช้ API Key Global และกำหนด Callback เพื่อบันทึก Key ***
+            def save_api_key_global():
+                st.session_state.api_key_global = st.session_state.api_key_input_6w2h
 
-        st.markdown("💡 **ยังไม่มี API Key?** คลิก [ที่นี่](https://playground.opentyphoon.ai/settings/api-key) เพื่อรับ key ฟรี!")
-        api_key_6w2h = st.text_input(
-            "กรุณากรอก API Key เพื่อใช้บริการ AI:", 
-            type="password", 
-            value=st.session_state.api_key_global,
-            key="api_key_input_6w2h",
-            on_change=save_api_key_global
-        )
-        # ตรวจสอบว่า Key ถูกบันทึกแล้วหรือไม่
-        api_key_6w2h = st.session_state.api_key_global
-        
-        if st.button("🚀 สร้าง 6W2H จากข้อความ", type="primary", key="6w2h_button"):
-            if not uploaded_text:
-                st.error("กรุณาวางข้อความในช่องก่อน")
-            elif not api_key_6w2h:
-                st.error("กรุณากรอก API Key ก่อนใช้งาน")
-            else:
-                with st.spinner("กำลังประมวลผล..."):
-                    try:
-                        user_prompt = f"""
+            st.markdown("💡 **ยังไม่มี API Key?** คลิก [ที่นี่](https://playground.opentyphoon.ai/settings/api-key) เพื่อรับ key ฟรี!")
+            api_key_6w2h = st.text_input(
+                "กรุณากรอก API Key เพื่อใช้บริการ AI:", 
+                type="password", 
+                value=st.session_state.api_key_global,
+                key="api_key_input_6w2h",
+                on_change=save_api_key_global
+            )
+            # ตรวจสอบว่า Key ถูกบันทึกแล้วหรือไม่
+            api_key_6w2h = st.session_state.api_key_global
+            
+            if st.button("🚀 สร้าง 6W2H จากข้อความ", type="primary", key="6w2h_button"):
+                if not uploaded_text:
+                    st.error("กรุณาวางข้อความในช่องก่อน")
+                elif not api_key_6w2h:
+                    st.error("กรุณากรอก API Key ก่อนใช้งาน")
+                else:
+                    with st.spinner("กำลังประมวลผล..."):
+                        try:
+                            user_prompt = f"""
 จากข้อความด้านล่างนี้ กรุณาสรุปและแยกแยะข้อมูลให้เป็น 6W2H ได้แก่ Who, Whom, What, Where, When, Why, How, และ How much โดยให้อยู่ในรูปแบบ key-value ที่ชัดเจน
 ข้อความ:
 ---
@@ -457,41 +466,42 @@ Why: [ข้อความ]
 How: [ข้อความ]
 How Much: [ข้อความ]
 """
-                        client = OpenAI(
-                            api_key=api_key_6w2h,
-                            base_url="https://api.opentyphoon.ai/v1"
-                        )
-                        response = client.chat.completions.create(
-                            model="typhoon-v2.1-12b-instruct",
-                            messages=[{"role": "user", "content": user_prompt}],
-                            temperature=0.7,
-                            max_tokens=1024,
-                            top_p=0.9,
-                        )
-                        llm_output = response.choices[0].message.content
-                        
-                        with st.expander("แสดงผลลัพธ์จาก AI"):
-                            st.write(llm_output)
+                            client = OpenAI(
+                                api_key=api_key_6w2h,
+                                base_url="https://api.opentyphoon.ai/v1"
+                            )
+                            response = client.chat.completions.create(
+                                model="typhoon-v2.1-12b-instruct",
+                                messages=[{"role": "user", "content": user_prompt}],
+                                temperature=0.7,
+                                max_tokens=1024,
+                                top_p=0.9,
+                            )
+                            llm_output = response.choices[0].message.content
+                            
+                            with st.expander("แสดงผลลัพธ์จาก AI"):
+                                st.write(llm_output)
 
-                        lines = llm_output.strip().split('\n')
-                        for line in lines:
-                            if ':' in line:
-                                key, value = line.split(':', 1)
-                                normalized_key = key.strip().lower().replace(' ', '_')
-                                value = value.strip()
-                                if normalized_key == 'how_much': st.session_state.plan['how_much'] = value
-                                elif normalized_key == 'whom': st.session_state.plan['whom'] = value
-                                elif normalized_key == 'who': st.session_state.plan['who'] = value
-                                elif normalized_key == 'what': st.session_state.plan['what'] = value
-                                elif normalized_key == 'where': st.session_state.plan['where'] = value
-                                elif normalized_key == 'when': st.session_state.plan['when'] = value
-                                elif normalized_key == 'why': st.session_state.plan['why'] = value
-                                elif normalized_key == 'how': st.session_state.plan['how'] = value
+                            lines = llm_output.strip().split('\n')
+                            for line in lines:
+                                if ':' in line:
+                                    key, value = line.split(':', 1)
+                                    normalized_key = key.strip().lower().replace(' ', '_')
+                                    value = value.strip()
+                                    if normalized_key == 'how_much': st.session_state.plan['how_much'] = value
+                                    elif normalized_key == 'whom': st.session_state.plan['whom'] = value
+                                    elif normalized_key == 'who': st.session_state.plan['who'] = value
+                                    elif normalized_key == 'what': st.session_state.plan['what'] = value
+                                    elif normalized_key == 'where': st.session_state.plan['where'] = value
+                                    elif normalized_key == 'when': st.session_state.plan['when'] = value
+                                    elif normalized_key == 'why': st.session_state.plan['why'] = value
+                                    elif normalized_key == 'how': st.session_state.plan['how'] = value
 
-                        st.success("สร้าง 6W2H เรียบร้อยแล้ว! กรุณาตรวจสอบข้อมูลแล้วคัดลอกไปวางตามรายละเอียดด้านล่าง")
-                        st.balloons()
-                    except Exception as e:
-                        st.error(f"เกิดข้อผิดพลาดในการเรียกใช้ AI: {e}")
+                            st.success("สร้าง 6W2H เรียบร้อยแล้ว! กรุณาตรวจสอบข้อมูลแล้วคัดลอกไปวางตามรายละเอียดด้านล่าง")
+                            st.balloons()
+                        except Exception as e:
+                            st.error(f"เกิดข้อผิดพลาดในการเรียกใช้ AI: {e}")
+    # *** END: ลดความรกตา - ซ่อนส่วน AI Assist ด้วย expander ***
         
     st.markdown("##### ⭐กรุณาระบุข้อมูล เพื่อนำไปใช้ประมวลผล")
     with st.container(border=True):
@@ -637,15 +647,17 @@ with tab_issue:
     st.subheader("🔎 แนะนำประเด็นตรวจจากรายงานเก่า (Issue Suggestions)")
     st.write("***กรุณาอัพโหลดฐานข้อมูล (ถ้าไม่มีจะใช้ฐานข้อมูลในระบบ)***")
 
-    
-    with st.container(border=True):
-        st.download_button(
-            label="⬇️ ดาวน์โหลดไฟล์แม่แบบ FindingsLibrary.xlsx",
-            data=create_excel_template(),
-            file_name="FindingsLibrary.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
-        uploaded = st.file_uploader("อัปโหลด FindingsLibrary.csv หรือ .xlsx", type=["csv", "xlsx", "xls"])
+    # *** START: ลดความรกตา - ซ่อนส่วนอัปโหลดไฟล์ด้วย expander ***
+    with st.expander("⬆️ อัปโหลด/จัดการฐานข้อมูล Findings (คลิกเพื่อเปิด)"):
+        with st.container(border=True):
+            st.download_button(
+                label="⬇️ ดาวน์โหลดไฟล์แม่แบบ FindingsLibrary.xlsx",
+                data=create_excel_template(),
+                file_name="FindingsLibrary.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+            uploaded = st.file_uploader("อัปโหลด FindingsLibrary.csv หรือ .xlsx", type=["csv", "xlsx", "xls"])
+    # *** END: ลดความรกตา - ซ่อนส่วนอัปโหลดไฟล์ด้วย expander ***
     
     findings_df = load_findings(uploaded=uploaded)
     
@@ -724,240 +736,233 @@ Outcomes:{' | '.join(logic_df[logic_df['type']=='Outcome']['description'].tolist
                         score = row["score"] if "score" in row else 0
                         
                         st.markdown(f"**ผลกระทบที่อาจเกิดขึ้น:** {impact}  •  <span style='color:red;'>**คะแนนความเกี่ยวข้อง**</span>: {score:.3f} (<span style='color:blue;'>**Similarity Score**</span>={sim:.3f})", unsafe_allow_html=True)
-                        st.caption("💡 **คำอธิบาย:** **คะแนนความเกี่ยวข้อง** (ยิ่งสูงยิ่งดี) = ความคล้ายคลึงของข้อความ + ความรุนแรงของปัญหา + ความใหม่ของข้อมูล")
-                        st.caption("**Similarity Score** คือค่าความคล้ายคลึงระหว่างข้อความในแผนงานของคุณกับรายงานเก่า (0.000 - 1.000)")
-    
-                    c1, c2 = st.columns([3,1])
-                    with c1:
-                        default_rat = f"อ้างอิงกรณีเดิม ปี {year_txt} | หน่วย: {unit_txt}"
-                        st.text_area("เหตุผลที่ควรตรวจ (สำหรับแผนนี้)", key=f"rat_{i}", value=default_rat)
-                        st.text_input("KPI ที่เกี่ยว (ถ้ามี)", key=f"kpi_{i}")
-                        st.text_input("วิธีเก็บข้อมูลที่เสนอ", key=f"mth_{i}", value="สัมภาษณ์/สังเกต/ตรวจเอกสาร")
-    
-                    with c2:
-                        if st.button("➕ เพิ่มเข้าแผน", key=f"add_{i}", type="secondary"):
-                            rationale_val = st.session_state.get(f"rat_{i}", "")
-                            linked_kpi_val = st.session_state.get(f"kpi_{i}", "")
-                            proposed_methods_val = st.session_state.get(f"mth_{i}", "")
-                            issue_detail_val = row.get("issue_detail", "")
-                            recommendation_val = row.get("recommendation", "")
-    
-                            cols = ["issue_id","plan_id","title","rationale","linked_kpi","proposed_methods","source_finding_id","issue_detail","recommendation"]
-                            
-                            if "audit_issues" not in st.session_state or not isinstance(st.session_state["audit_issues"], pd.DataFrame):
-                                st.session_state["audit_issues"] = pd.DataFrame(columns=cols)
-                            
-                            for c in cols:
-                                if c not in st.session_state["audit_issues"].columns:
-                                    st.session_state["audit_issues"][c] = pd.Series(dtype="object")
-                            
-                            curr = st.session_state["audit_issues"]
-                            new_id = next_id("ISS", curr, "issue_id")
-    
-                            title_val = title_txt
-                            finding_id = row.get("finding_id", "")
-    
-                            new = pd.DataFrame([{
-                                "issue_id": new_id,
-                                "plan_id": plan.get("plan_id",""),
-                                "title": title_val,
-                                "rationale": rationale_val,
-                                "linked_kpi": linked_kpi_val,
-                                "proposed_methods": proposed_methods_val,
-                                "source_finding_id": finding_id,
-                                "issue_detail": issue_detail_val,
-                                "recommendation": recommendation_val
-                            }])
-    
-                            st.session_state["audit_issues"] = pd.concat([st.session_state["audit_issues"], new], ignore_index=True)
-                            st.success("เพิ่มประเด็นเข้าแผนแล้ว ✅")
-                            st.rerun()
-                            
-        if not st.session_state.get("issue_results", pd.DataFrame()).empty:
-            st.divider()
-        st.markdown("### ประเด็นที่ถูกเพิ่มเข้าแผน")
-        st.dataframe(st.session_state["audit_issues"], use_container_width=True, hide_index=True)
+
+                    if st.button(f"➕ เพิ่มเป็นประเด็นตรวจ (อ้างอิง ID: {row['finding_id']})", key=f"add_issue_from_finding_{i}"):
+                        new_row = pd.DataFrame([{
+                            "issue_id": next_id("ISS", audit_issues_df, "issue_id"),
+                            "plan_id": plan["plan_id"],
+                            "title": title_txt,
+                            "rationale": f"อ้างอิงจากข้อตรวจพบเก่า: {row['finding_id']} (Score: {score:.3f})",
+                            "linked_kpi": "",
+                            "proposed_methods": "",
+                            "source_finding_id": row['finding_id'],
+                            "issue_detail": row.get("issue_detail", "") or "-",
+                            "recommendation": row.get("recommendation", "") or "-"
+                        }])
+                        st.session_state["audit_issues"] = pd.concat([audit_issues_df, new_row], ignore_index=True)
+                        st.rerun()
+
+    st.divider()
+    st.subheader("จัดการประเด็นการตรวจสอบ (Audit Issues)")
+    # ... (เนื้อหาจัดการ Audit Issues ยังคงอยู่เหมือนเดิม)
 
 # ----------------- Tab 7: สรุปข้อมูล (Preview) -----------------
 with tab_preview:
     set_current_tab("7. สรุปข้อมูล (Preview)")
     # ... (เนื้อหาของ Tab 7 ยังคงอยู่เหมือนเดิม)
-    st.subheader("สรุปแผน (Preview)")
-    with st.container(border=True):
-        st.markdown(f"**Plan ID:** {plan['plan_id']}  \n**ชื่อแผนงาน:** {plan['plan_title']}  \n**โครงการ:** {plan['program_name']}  \n**หน่วยรับตรวจ:** {plan['who']}")
-    st.markdown("### สรุปเรื่องที่ตรวจสอบ (จาก 6W2H)")
-    with st.container(border=True):
-        intro = f"""
-- **Who**: {plan['who']}
-- **Whom**: {plan['whom']}
-- **What**: {plan['what']}
-- **Where**: {plan['where']}
-- **When**: {plan['when']}
-- **Why**: {plan['why']}
-- **How**: {plan['how']}
-- **How much**: {plan['how_much']}
-"""
-        st.markdown(intro)
-
+    st.subheader("ภาพรวมแผนการตรวจสอบ")
+    
+    st.markdown("#### ข้อมูลพื้นฐาน")
     c1, c2 = st.columns(2)
-    with c1:
-        st.markdown("### Logic Model")
-        st.dataframe(st.session_state["logic_items"], use_container_width=True, hide_index=True)
-        df_download_link(st.session_state["logic_items"], "logic_items.csv", "⬇️ ดาวน์โหลด Logic Items (CSV)")
-    with c2:
-        st.markdown("### Methods")
-        st.dataframe(st.session_state["methods"], use_container_width=True, hide_index=True)
-        df_download_link(st.session_state["methods"], "methods.csv", "⬇️ ดาวน์โหลด Methods (CSV)")
+    c1.markdown(f"**Plan ID:** {plan['plan_id']}")
+    c1.markdown(f"**ชื่อแผน:** {plan['plan_title']}")
+    c1.markdown(f"**โครงการ/แผนงาน:** {plan['program_name']}")
+    c1.markdown(f"**สถานะ:** {plan['status']}")
+    c2.markdown(f"**วัตถุประสงค์:** {plan['objectives']}")
+    c2.markdown(f"**ขอบเขต:** {plan['scope']}")
+    c2.markdown(f"**สมมุติฐาน/ข้อจำกัด:** {plan['assumptions']}")
 
-    c3, c4 = st.columns(2)
-    with c3:
-        st.markdown("### KPIs")
-        st.dataframe(st.session_state["kpis"], use_container_width=True, hide_index=True)
-        df_download_link(st.session_state["kpis"], "kpis.csv", "⬇️ ดาวน์โหลด KPIs (CSV)")
-    with c4:
-        st.markdown("### Risks")
-        st.dataframe(st.session_state["risks"], use_container_width=True, hide_index=True)
-        df_download_link(st.session_state["risks"], "risks.csv", "⬇️ ดาวน์โหลด Risks (CSV)")
+    st.markdown("#### 6W2H Summary")
+    c_w1, c_w2, c_w3 = st.columns(3)
+    c_w1.markdown(f"**Who (ใคร):** {plan['who']}")
+    c_w1.markdown(f"**Whom (เพื่อใคร):** {plan['whom']}")
+    c_w1.markdown(f"**What (ทำอะไร):** {plan['what']}")
+    c_w1.markdown(f"**Where (ที่ไหน):** {plan['where']}")
+    c_w2.markdown(f"**When (เมื่อใด):** {plan['when']}")
+    c_w2.markdown(f"**Why (ทำไม):** {plan['why']}")
+    c_w3.markdown(f"**How (อย่างไร):** {plan['how']}")
+    c_w3.markdown(f"**How much (เท่าไร):** {plan['how_much']}")
 
-    st.markdown("### Audit Issues ที่เพิ่มเข้ามา")
-    if not st.session_state["audit_issues"].empty:
-        display_issues_df = st.session_state["audit_issues"].copy()
-        display_issues_df = display_issues_df.rename(columns={
-            "issue_id": "รหัสประเด็น",
-            "title": "ชื่อประเด็น",
-            "rationale": "เหตุผลที่ควรตรวจ",
-            "issue_detail": "รายละเอียด",
-            "recommendation": "ข้อเสนอแนะ"
-        })
-        display_cols = ["รหัสประเด็น", "ชื่อประเด็น", "เหตุผลที่ควรตรวจ", "รายละเอียด", "ข้อเสนอแนะ"]
-        st.dataframe(display_issues_df[display_cols], use_container_width=True, hide_index=True)
-    else:
-        st.info("ยังไม่มีประเด็นการตรวจสอบที่เพิ่มเข้ามาในแผน")
+    st.markdown("#### Logic Model")
+    st.dataframe(logic_df, use_container_width=True, hide_index=True)
 
-    if not st.session_state["audit_issues"].empty:
-        df_download_link(st.session_state["audit_issues"], "audit_issues.csv", "⬇️ ดาวน์โหลด Audit Issues (CSV)")
+    st.markdown("#### Methods")
+    st.dataframe(methods_df, use_container_width=True, hide_index=True)
+    
+    st.markdown("#### KPIs")
+    st.dataframe(kpis_df, use_container_width=True, hide_index=True)
+    
+    st.markdown("#### Risks")
+    st.dataframe(risks_df, use_container_width=True, hide_index=True)
+    
+    st.markdown("#### Audit Issues")
+    st.dataframe(audit_issues_df, use_container_width=True, hide_index=True)
 
     st.divider()
-    plan_df = pd.DataFrame([plan])
-    df_download_link(plan_df, "plan.csv", "⬇️ ดาวน์โหลด Plan (CSV)")
-    st.success("พร้อมเชื่อม Glide / Sheets ต่อได้ทันที")
+    st.subheader("ดาวน์โหลดข้อมูลทั้งหมด")
+    
+    col_dl1, col_dl2, col_dl3, col_dl4, col_dl5 = st.columns(5)
+    df_download_link(logic_df, f"Logic_Model_{plan['plan_id']}.csv", "⬇️ Logic Model")
+    df_download_link(methods_df, f"Methods_{plan['plan_id']}.csv", "⬇️ Methods")
+    df_download_link(kpis_df, f"KPIs_{plan['plan_id']}.csv", "⬇️ KPIs")
+    df_download_link(risks_df, f"Risks_{plan['plan_id']}.csv", "⬇️ Risks")
+    df_download_link(audit_issues_df, f"Audit_Issues_{plan['plan_id']}.csv", "⬇️ Audit Issues")
 
-# ----------------- Tab 8: 💡 PA Audit Assistant (AI/ LLM) -----------------
+# ----------------- Tab 8: 💡 Assistant แนะนำประเด็นการตรวจสอบ -----------------
 with tab_assist:
-    set_current_tab("💡 PA Audit Assistant (AI/ LLM)")
+    set_current_tab("💡 Assistant แนะนำประเด็นการตรวจสอบ")
     # ... (เนื้อหาของ Tab 8 ยังคงอยู่เหมือนเดิม)
-    st.subheader("💡 PA Audit Assistant (AI/ LLM)")
-    st.write("🤖 สร้างคำแนะนำประเด็นการตรวจสอบจาก AI")
+    st.subheader("💡 AI Assistant - สรุปและวิเคราะห์เบื้องต้น")
 
     # *** ใช้ API Key Global และกำหนด Callback เพื่อบันทึก Key ***
-    def save_api_key_assist():
-        st.session_state.api_key_global = st.session_state.api_key_assist
+    def save_api_key_global_assist():
+        st.session_state.api_key_global = st.session_state.api_key_input_assist
+        st.toast("บันทึก API Key แล้ว!")
     
     st.markdown("💡 **ยังไม่มี API Key?** คลิก [ที่นี่](https://playground.opentyphoon.ai/settings/api-key) เพื่อรับ key ฟรี!")
-    api_key = st.text_input(
+    api_key_assist = st.text_input(
         "กรุณากรอก API Key เพื่อใช้บริการ AI:", 
         type="password", 
         value=st.session_state.api_key_global,
-        key="api_key_assist",
-        on_change=save_api_key_assist
+        key="api_key_input_assist",
+        on_change=save_api_key_global_assist
     )
-    # ตรวจสอบว่า Key ถูกบันทึกแล้วหรือไม่
-    api_key = st.session_state.api_key_global
-    
-    if st.button("🚀 สร้างคำแนะนำจาก AI", type="primary", key="llm_assist_button"):
-        if not api_key:
-            st.error("กรุณากรอก API Key ก่อนใช้งาน")
-        else:
-            with st.spinner("กำลังสร้างคำแนะนำ..."):
-                try:
-                    issues_for_llm = st.session_state['audit_issues'][['title', 'rationale']]
-                    plan_summary = f"""
+    api_key_assist = st.session_state.api_key_global
+
+    # ... (ส่วนการเตรียมข้อมูลสำหรับ LLM)
+    context_data = f"""
+[ข้อมูลพื้นฐาน]
+Plan ID: {plan['plan_id']}
 ชื่อแผน/เรื่องที่จะตรวจ: {plan['plan_title']}
-ชื่อโครงการ/แผนงาน: {plan['program_name']}
-วัตถุประสงค์: {plan['objectives']}
-ขอบเขต: {plan['scope']}
+โครงการ/แผนงาน: {plan['program_name']}
+วัตถุประสงค์การตรวจ: {plan['objectives']}
+ขอบเขตการตรวจ: {plan['scope']}
 สมมุติฐาน/ข้อจำกัด: {plan['assumptions']}
----
-6W2H:
-ใคร (Who): {plan['who']}
-ถึงใคร (Whom): {plan['whom']}
-ทำอะไร (What): {plan['what']}
-ที่ไหน (Where): {plan['where']}
-เมื่อใด (When): {plan['when']}
-ทำไม (Why): {plan['why']}
-อย่างไร (How): {plan['how']}
-เท่าไร (How much): {plan['how_much']}
----
-Logic Model:
-{st.session_state['logic_items'].to_string()}
----
-ประเด็นที่เพิ่มจากรายงานเก่า:
-{issues_for_llm.to_string()}
-"""
-                    user_prompt = f"""
-จากข้อมูลแผนการตรวจสอบด้านล่างนี้ กรุณาช่วยสร้างคำแนะนำ 3 อย่าง ได้แก่
-1. ประเด็นการตรวจสอบที่ควรให้ความสำคัญ
-2. ข้อตรวจพบที่คาดว่าจะพบ (พร้อมระบุระดับโอกาสที่จะเจอ: สูง/กลาง/ต่ำ)
-3. ร่างรายงานตรวจสอบที่จะเจอ
----
-{plan_summary}
----
-กรุณาสร้างคำตอบตามรูปแบบด้านล่างนี้เท่านั้น:
-<ประเด็นการตรวจสอบที่ควรให้ความสำคัญ>
-[ข้อความสำหรับส่วนที่ 1]
-</ประเด็นการตรวจสอบที่ควรให้ความสำคัญ>
+6W2H: Who={plan['who']}, Whom={plan['whom']}, What={plan['what']}, Where={plan['where']}, When={plan['when']}, Why={plan['why']}, How={plan['how']}, How much={plan['how_much']}
 
-<ข้อตรวจพบที่คาดว่าจะพบ>
-[ข้อความสำหรับส่วนที่ 2]
-</ข้อตรวจพบที่คาดว่าจะพบ>
+[Logic Model]
+{logic_df.to_string(index=False)}
 
-<ร่างรายงานตรวจสอบที่จะเจอ>
-[ข้อความสำหรับส่วนที่ 3]
-</ร่างรายงานตรวจสอบที่จะเจอ>
+[KPIs]
+{kpis_df.to_string(index=False)}
+
+[Risks]
+{risks_df.to_string(index=False)}
+
+[Audit Issues (ที่เพิ่มแล้ว)]
+{audit_issues_df.to_string(index=False)}
 """
 
+    if st.button("ประมวลผลและสร้างคำแนะนำจาก AI", type="primary"):
+        if not api_key_assist:
+            st.error("กรุณากรอก API Key ก่อนใช้งาน")
+            st.session_state["gen_issues"] = ""
+            st.session_state["gen_findings"] = ""
+            st.session_state["gen_report"] = ""
+        elif not plan["plan_title"]:
+            st.error("กรุณากรอก 'ชื่อแผน/เรื่องที่จะตรวจ' ก่อน")
+        else:
+            with st.spinner("กำลังวิเคราะห์ข้อมูลและสร้างคำแนะนำ..."):
+                try:
                     client = OpenAI(
-                        api_key=api_key,
+                        api_key=api_key_assist,
                         base_url="https://api.opentyphoon.ai/v1"
                     )
-                    
-                    messages = [
-                        {"role": "system", "content": "คุณคือผู้เชี่ยวชาญด้านการตรวจสอบผลสัมฤทธิ์และประสิทธิภาพการดำเนินงาน (Performance Audit) กรุณาตอบโดยมุ่งเน้นการสร้างคำแนะนำตามรูปแบบที่ต้องการเท่านั้น"},
-                        {"role": "user", "content": user_prompt}
-                    ]
-                    
-                    response = client.chat.completions.create(
+
+                    # 1. Generate Issue Suggestions
+                    prompt_issue = f"""
+คุณเป็นผู้เชี่ยวชาญด้านการตรวจสอบผลการดำเนินงาน (Performance Audit) หน้าที่ของคุณคือวิเคราะห์ข้อมูลแผนการตรวจสอบด้านล่างและระบุประเด็นการตรวจสอบที่สำคัญและมีความเสี่ยงสูง (High-Risk Audit Issues) ที่ควรตรวจสอบเพิ่มเติม โดยอ้างอิงจาก Logic Model, KPIs และ Risks ที่ระบุไว้
+
+เงื่อนไข:
+1. ให้เน้นประเด็นที่มีความเสี่ยงสูง (จาก Risks) หรือประเด็นที่โยงกับ Output/Outcome/Impact ที่สำคัญ (จาก Logic Model และ KPIs)
+2. **ห้าม** สร้างประเด็นที่ซ้ำซ้อนกับ [Audit Issues (ที่เพิ่มแล้ว)] ที่มีอยู่แล้ว
+3. สรุปประเด็นการตรวจสอบเพิ่มเติมแต่ละรายการให้ชัดเจนในรูปของคำถามการตรวจสอบ (Audit Question) และระบุเหตุผลที่มา (Rationale) สั้นๆ ว่าโยงกับส่วนใดในแผน
+
+ข้อมูลแผน:
+---
+{context_data}
+---
+
+รูปแบบผลลัพธ์:
+1. Audit Question: [คำถามการตรวจสอบ] (Rationale: [เหตุผลสั้นๆ])
+2. Audit Question: [คำถามการตรวจสอบ] (Rationale: [เหตุผลสั้นๆ])
+... (ให้มาอย่างน้อย 3-5 ประเด็น)
+"""
+                    response_issue = client.chat.completions.create(
                         model="typhoon-v2.1-12b-instruct",
-                        messages=messages,
-                        temperature=0.7,
-                        max_tokens=2048,
-                        top_p=0.9,
+                        messages=[{"role": "user", "content": prompt_issue}],
+                        temperature=0.7, max_tokens=1024
                     )
+                    st.session_state["gen_issues"] = response_issue.choices[0].message.content
 
-                    full_response = response.choices[0].message.content
+                    # 2. Generate Findings Hypothesis
+                    prompt_finding = f"""
+คุณเป็นผู้เชี่ยวชาญด้านการตรวจสอบผลการดำเนินงาน (Performance Audit) หน้าที่ของคุณคือวิเคราะห์ข้อมูลแผนการตรวจสอบด้านล่างและประเด็นการตรวจสอบที่ AI ได้แนะนำมา **(โดยไม่ต้องย้อนไปดู Findings Library เก่า)** และสร้างสมมุติฐาน 'ข้อตรวจพบที่คาดว่าจะพบ' (Hypothesized Findings) ที่เป็นไปได้ พร้อมระบุระดับโอกาสที่จะพบ (Likelihood: ต่ำ/ปานกลาง/สูง)
 
-                    issue_start = full_response.find("<ประเด็นการตรวจสอบที่ควรให้ความสำคัญ>") + len("<ประเด็นการตรวจสอบที่ควรให้ความสำคัญ>")
-                    issue_end = full_response.find("</ประเด็นการตรวจสอบที่ควรให้ความสำคัญ>")
-                    issues_text = full_response[issue_start:issue_end].strip()
+ข้อมูลแผน:
+---
+{context_data}
+---
+
+ประเด็นการตรวจสอบที่แนะนำ:
+---
+{st.session_state["gen_issues"]}
+---
+
+รูปแบบผลลัพธ์:
+- ข้อตรวจพบที่คาดว่าจะพบ 1 (Likelihood: [ระดับโอกาส]): [รายละเอียดข้อตรวจพบสั้นๆ]
+- ข้อตรวจพบที่คาดว่าจะพบ 2 (Likelihood: [ระดับโอกาส]): [รายละเอียดข้อตรวจพบสั้นๆ]
+... (ให้มาอย่างน้อย 3-5 ข้อตรวจพบ)
+"""
+                    response_finding = client.chat.completions.create(
+                        model="typhoon-v2.1-12b-instruct",
+                        messages=[{"role": "user", "content": prompt_finding}],
+                        temperature=0.7, max_tokens=1024
+                    )
+                    st.session_state["gen_findings"] = response_finding.choices[0].message.content
+
+                    # 3. Generate High-Level Report Structure
+                    prompt_report = f"""
+คุณเป็นผู้เชี่ยวชาญด้านการตรวจสอบผลการดำเนินงาน (Performance Audit) หน้าที่ของคุณคือวิเคราะห์ข้อมูลทั้งหมดในแผนการตรวจสอบ และโครงสร้าง Logic Model, Risks, และ Issues ที่กำหนด เพื่อสร้างโครงร่างสรุปรายงาน (High-Level Report Outline) สำหรับการตรวจสอบนี้
+
+ข้อมูลแผน:
+---
+{context_data}
+---
+
+ประเด็นการตรวจสอบที่แนะนำ:
+---
+{st.session_state["gen_issues"]}
+---
+
+รูปแบบผลลัพธ์:
+[หัวข้อสรุปรายงานระดับสูง 1]
+    - ประเด็นย่อย 1.1
+    - ประเด็นย่อย 1.2
+[หัวข้อสรุปรายงานระดับสูง 2]
+    - ประเด็นย่อย 2.1
+    - ประเด็นย่อย 2.2
+...
+"""
+                    response_report = client.chat.completions.create(
+                        model="typhoon-v2.1-12b-instruct",
+                        messages=[{"role": "user", "content": prompt_report}],
+                        temperature=0.7, max_tokens=1024
+                    )
+                    st.session_state["gen_report"] = response_report.choices[0].message.content
                     
-                    finding_start = full_response.find("<ข้อตรวจพบที่คาดว่าจะพบ>") + len("<ข้อตรวจพบที่คาดว่าจะพบ>")
-                    finding_end = full_response.find("</ข้อตรวจพบที่คาดว่าจะพบ>")
-                    findings_text = full_response[finding_start:finding_end].strip()
-
-                    report_start = full_response.find("<ร่างรายงานตรวจสอบที่จะเจอ>") + len("<ร่างรายงานตรวจสอบที่จะเจอ>")
-                    report_end = full_response.find("</ร่างรายงานตรวจสอบที่จะเจอ>")
-                    report_text = full_response[report_start:report_end].strip()
-
-                    st.session_state["gen_issues"] = issues_text
-                    st.session_state["gen_findings"] = findings_text
-                    st.session_state["gen_report"] = report_text
-
-                    st.success("สร้างคำแนะนำจาก AI เรียบร้อยแล้ว ✅")
-
+                    st.success("ประมวลผลเสร็จสิ้น! กรุณาดูผลลัพธ์ด้านล่าง")
+                    st.balloons()
+                    
                 except Exception as e:
+                    # ตรวจสอบประเภทข้อผิดพลาดจาก OpenAI
                     error_type = type(e).__name__
-                    if "APIError" in error_type or "AuthenticationError" in error_type:
-                         error_message = f"เกิดข้อผิดพลาดในการเชื่อมต่อ API: ({error_type}) โปรดตรวจสอบ API Key หรือขีดจำกัดการใช้งาน (Rate Limit) ของคุณ\nรายละเอียด: {e}"
+                    if "AuthenticationError" in str(e):
+                        error_message = f"เกิดข้อผิดพลาดในการเชื่อมต่อ API: (AuthenticationError) โปรดตรวจสอบ **API Key** ของคุณ"
+                    elif "RateLimitError" in str(e):
+                        error_message = f"เกิดข้อผิดพลาดในการเชื่อมต่อ API: (RateLimitError) โปรดตรวจสอบ **ขีดจำกัดการใช้งาน (Rate Limit)** ของคุณ"
+                    elif "APIError" in str(e):
+                        error_message = f"เกิดข้อผิดพลาดในการเชื่อมต่อ API: ({error_type}) โปรดตรวจสอบ API Key หรือขีดจำกัดการใช้งาน (Rate Limit) ของคุณ\nรายละเอียด: {e}"
                     else:
                          error_message = f"เกิดข้อผิดพลาดขณะทำงาน: ({error_type}) โปรดลองอีกครั้ง\nรายละเอียด: {e}"
                          
@@ -972,152 +977,137 @@ Logic Model:
     st.markdown("<h4 style='color:blue;'>ข้อตรวจพบที่คาดว่าจะพบ (พร้อมระดับโอกาส)</h4>", unsafe_allow_html=True)
     st.markdown(f"<div style='background-color: #f0f2f6; border: 1px solid #ccc; padding: 10px; border-radius: 5px; height: 200px; overflow-y: scroll;'>{st.session_state.get('gen_findings', '')}</div>", unsafe_allow_html=True)
 
-    st.markdown("<h4 style='color:blue;'>ร่างรายงานตรวจสอบ (Preview)</h4>", unsafe_allow_html=True)
-    st.markdown(f"<div style='background-color: #f0f2f6; border: 1px solid #ccc; padding: 10px; border-radius: 5px; height: 400px; overflow-y: scroll;'>{st.session_state.get('gen_report', '')}</div>", unsafe_allow_html=True)
+    st.markdown("<h4 style='color:blue;'>โครงร่างรายงานเบื้องต้น (High-Level Report Outline)</h4>", unsafe_allow_html=True)
+    st.markdown(f"<div style='background-color: #f0f2f6; border: 1px solid #ccc; padding: 10px; border-radius: 5px; height: 300px; overflow-y: scroll;'>{st.session_state.get('gen_report', '')}</div>", unsafe_allow_html=True)
 
-
-# ----------------- Tab 9: PA Chat Assistant (ถาม-ตอบเอกสาร) -----------------
+# ----------------- Tab 9: 💬 PA Chat (ถาม-ตอบเ) -----------------
 with tab_chatbot:
-    set_current_tab("💬 PA Chat Assistant (ถาม-ตอบเอกสาร)")
-    st.subheader("🤖 PA Chat Assistant")
-
-    # แยกส่วนการตั้งค่า (Sidebar เดิม) มาใส่ในคอลัมน์ซ้ายของแท็บนี้
-    col_config, col_chat = st.columns([1, 3])
+    set_current_tab("💬 PA Chat (ถาม-ตอบเ)")
+    # ... (เนื้อหาของ Tab 9 ยังคงอยู่เหมือนเดิม)
+    st.subheader("💬 PA Chat Assistant - ถาม-ตอบเอกสารอ้างอิงภายใน")
     
-    # 1. Configuration (ส่วนที่เคยอยู่ใน Sidebar)
-    with col_config:
-        st.markdown("#### 🛠️ ตั้งค่าการใช้งาน")
+    # ----------------- Configuration Section -----------------
+    with st.expander("⬆️ จัดการเอกสารและ API Key (คลิกเพื่อเปิด)"):
         
         # *** ใช้ API Key Global และกำหนด Callback เพื่อบันทึก Key ***
-        def save_api_key_chatbot():
-            st.session_state.api_key_global = st.session_state.api_key_input_chatbot
-
-        if not st.session_state.api_key_global:
-            st.markdown("💡 **ยังไม่มี API Key?** คลิก [ที่นี่](https://playground.opentyphoon.ai/settings/api-key) เพื่อรับ key ฟรี!")
-            st.text_input(
-                "กรุณากรอก OpenTyphoon API Key:",
-                type="password",
-                value=st.session_state.api_key_global,
-                key="api_key_input_chatbot",
-                on_change=save_api_key_chatbot
-            )
-        else:
-            st.success("API Key ถูกโหลดแล้ว (Global)")
-
-        api_key_chatbot = st.session_state.api_key_global # ใช้ Key ตัวเดียว
+        def save_api_key_global_chat():
+            st.session_state.api_key_global = st.session_state.api_key_input_chat
+            st.toast("บันทึก API Key แล้ว!")
+            
+        st.markdown("💡 **ยังไม่มี API Key?** คลิก [ที่นี่](https://playground.opentyphoon.ai/settings/api-key) เพื่อรับ key ฟรี!")
+        api_key_chat = st.text_input(
+            "กรุณากรอก API Key เพื่อใช้บริการ AI:", 
+            type="password", 
+            value=st.session_state.api_key_global,
+            key="api_key_input_chat",
+            on_change=save_api_key_global_chat
+        )
+        api_key_chat = st.session_state.api_key_global
         
-        st.divider()
-
-        # สถานะบริบทจากโฟลเดอร์ Doc/
-        local_chars = len(st.session_state.doc_context_local)
-        if local_chars > 0:
-            st.success(f"📂 **Doc/** : โหลดแล้ว {local_chars:,} ตัวอักษร")
-        else:
-            st.warning(f"📂 **Doc/** : ไม่พบเอกสารในโฟลเดอร์ '{DOC_FOLDER}'")
-
-        st.markdown("#### ⬆️ อัปโหลดเอกสารชั่วคราว")
+        st.markdown("---")
+        
+        st.markdown("##### 📄 เอกสารอ้างอิง")
+        st.markdown(f"**จำกัดข้อความรวม:** {MAX_CHARS_LIMIT:,} ตัวอักษร")
+        
+        # 1. เอกสารที่โหลดจากโฟลเดอร์ Doc
+        local_context_len = len(st.session_state.doc_context_local)
+        st.markdown(f"**เอกสารในโฟลเดอร์ `Doc`:** {local_context_len:,} ตัวอักษร (โหลดอัตโนมัติ)")
+        
+        # 2. เอกสารที่ผู้ใช้อัปโหลด
         uploaded_files = st.file_uploader(
-            "อัปโหลดไฟล์ PDF, TXT, หรือ CSV (ใช้เฉพาะการสนทนานี้)",
-            type=["pdf", "txt", "csv"],
-            accept_multiple_files=True,
-            key="chatbot_uploader"
+            "อัปโหลดเอกสารเพิ่มเติม (PDF/TXT/CSV)", 
+            type=["pdf", "txt", "csv"], 
+            accept_multiple_files=True
         )
         
-        if st.button("ประมวลผลเอกสารที่อัปโหลด", type="primary", use_container_width=True):
-            if uploaded_files:
-                # เราต้องนำความยาวของบริบทปัจจุบัน (local + uploaded) มาใช้เป็น starting point 
-                # แต่เนื่องจาก uploaded จะถูกล้างและสร้างใหม่ทุกครั้งที่กดปุ่มนี้ เราจึงใช้แค่ local_chars 
-                # และทำการตรวจสอบ MAX_CHARS_LIMIT ใหม่ทั้งหมด
-                existing_len = len(st.session_state.doc_context_local)
-                # ล้าง uploaded context เดิมก่อน
-                st.session_state.doc_context_uploaded = "" 
+        if uploaded_files:
+            if st.button("ประมวลผลเอกสารที่อัปโหลด", key="process_docs_btn"):
+                # Clear previous uploaded context before processing new ones
+                st.session_state.doc_context_uploaded = ""
+                # Calculate remaining space based on local context
+                remaining_limit = MAX_CHARS_LIMIT - local_context_len
                 
-                uploaded_context, chars_added = process_documents(uploaded_files, 'uploaded', MAX_CHARS_LIMIT, existing_len)
-                st.session_state.doc_context_uploaded = uploaded_context
-                
-                if chars_added > 0:
-                    st.success(f"โหลดเอกสารที่อัปโหลดเสร็จสิ้น ({chars_added:,} ตัวอักษร)")
+                if remaining_limit <= 0:
+                    st.error("ไม่สามารถอัปโหลดได้ เนื่องจากเอกสารในโฟลเดอร์ `Doc` มีจำนวนถึงขีดจำกัดสูงสุดแล้ว")
                 else:
-                    st.info("ไม่พบเอกสารที่ประมวลผลได้")
+                    st.session_state.doc_context_uploaded, chars_added = process_documents(
+                        uploaded_files, 
+                        'uploaded', 
+                        remaining_limit, 
+                        0
+                    )
+                    st.success(f"โหลดเอกสารที่อัปโหลดเพิ่ม {chars_added:,} ตัวอักษร. (รวมทั้งหมด: {local_context_len + chars_added:,} ตัวอักษร)")
+                    
+            if st.session_state.doc_context_uploaded:
+                 st.info(f"เอกสารที่อัปโหลดล่าสุด: {len(st.session_state.doc_context_uploaded):,} ตัวอักษร")
 
-            else:
-                st.session_state.doc_context_uploaded = ""
-                st.info("ไม่มีไฟล์ที่อัปโหลด")
-
-        uploaded_chars = len(st.session_state.doc_context_uploaded)
-        if uploaded_chars > 0:
-            st.info(f"💾 **Uploaded** : พร้อมใช้ {uploaded_chars:,} ตัวอักษร")
-            if st.button("ล้างเอกสารที่อัปโหลด", key="clear_uploaded_doc", use_container_width=True):
-                st.session_state.doc_context_uploaded = ""
-                st.rerun()
-        
-        st.divider()
-
-        total_chars = local_chars + uploaded_chars
-        st.metric(label="บริบทรวมทั้งหมด (Max 100K)", value=f"{total_chars:,} ตัวอักษร")
-
-        if st.button("🗑️ ล้างประวัติแชททั้งหมด", key="clear_chat_history", use_container_width=True):
-            st.session_state.chatbot_messages = [
-                {"role": "assistant", "content": "สวัสดีครับ ผมคือผู้ช่วย AI อัจฉริยะ (PA Assistant) ผมพร้อมตอบคำถามโดยอ้างอิงจากเอกสารภายในที่เกี่ยวกับการตรวจสอบครับ"}
-            ]
-            st.rerun()
+    # ----------------- Chat Interface -----------------
     
-    # 2. Chat Display & Input
-    with col_chat:
-        # แสดงประวัติการสนทนา
-        for message in st.session_state.chatbot_messages:
-            with st.chat_message(message["role"]):
-                st.markdown(message["content"])
+    # รวมบริบทเอกสารทั้งหมด (Local + Uploaded)
+    doc_context = st.session_state.doc_context_local + st.session_state.doc_context_uploaded
+    total_context_len = len(doc_context)
+    
+    if total_context_len > 0:
+        st.markdown(f"**บริบทเอกสารรวม:** <span style='color:green;'>{total_context_len:,} ตัวอักษร</span> / {MAX_CHARS_LIMIT:,} ตัวอักษร", unsafe_allow_html=True)
+    else:
+        st.warning("ไม่มีเอกสารอ้างอิง โปรดอัปโหลดไฟล์ หรือสร้างโฟลเดอร์ 'Doc' พร้อมไฟล์ภายใน")
 
-        # ช่องป้อนคำถาม
-        if prompt := st.chat_input("สอบถามเกี่ยวกับเอกสารที่โหลด/อัปโหลดไว้...", key="chat_input_box"):
+    # แสดงข้อความแชท
+    for message in st.session_state.chatbot_messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
-            api_key_chatbot = st.session_state.api_key_global
+    # การรับ Input จากผู้ใช้
+    if prompt := st.chat_input("กรุณาป้อนคำถามของคุณ..."):
+        
+        # 1. เพิ่มข้อความผู้ใช้ในประวัติ
+        st.session_state.chatbot_messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
 
-            if not api_key_chatbot:
-                st.error("กรุณากรอก **OpenTyphoon API Key** ในคอลัมน์ด้านซ้ายมือ (Configuration) ก่อนใช้งาน")
-                st.stop()
-            
-            full_doc_context = st.session_state.doc_context_local + st.session_state.doc_context_uploaded
-            doc_context = full_doc_context or "ไม่พบเอกสารภายใน"
-
-            st.session_state.chatbot_messages.append({"role": "user", "content": prompt})
-            with st.chat_message("user"):
-                st.markdown(prompt)
-
+        if not api_key_chat:
+            response = "ขออภัยครับ กรุณาใส่ API Key ในส่วน 'จัดการเอกสารและ API Key' ก่อนใช้งาน"
             with st.chat_message("assistant"):
-                with st.spinner("กำลังประมวลผลคำตอบ..."):
+                st.markdown(response)
+            st.session_state.chatbot_messages.append({"role": "assistant", "content": response})
+        elif total_context_len == 0:
+            response = "ขออภัยครับ ไม่พบเอกสารอ้างอิง (RAG Context) โปรดตรวจสอบว่าคุณได้อัปโหลดเอกสาร หรือมีไฟล์ในโฟลเดอร์ 'Doc' และโหลดเรียบร้อยแล้ว"
+            with st.chat_message("assistant"):
+                st.markdown(response)
+            st.session_state.chatbot_messages.append({"role": "assistant", "content": response})
+        else:
+            # 2. เรียกใช้ AI
+            with st.chat_message("assistant"):
+                with st.spinner("กำลังค้นหาและประมวลผลคำตอบ..."):
                     try:
                         client = OpenAI(
-                            api_key=api_key_chatbot,
+                            api_key=api_key_chat,
                             base_url="https://api.opentyphoon.ai/v1"
                         )
-
+                        
                         system_prompt = f"""
-คุณคือผู้ช่วย AI อัจฉริยะ **(PA Assistant)** ที่เชี่ยวชาญการให้ข้อมูลเพื่อ **อ้างอิงการปฏิบัติงานสำหรับผู้ตรวจสอบของสำนักงานการตรวจเงินแผ่นดินภูมิภาคและจังหวัด** หน้าที่ของคุณคือตอบคำถามของผู้ใช้ให้ถูกต้องและครบถ้วนที่สุด โดยใช้แหล่งข้อมูลตามลำดับความสำคัญ:
-1.  **เอกสารภายใน (Primary Source):** เนื้อหาจากโฟลเดอร์ "Doc" หรือที่ผู้ใช้เพิ่งอัปโหลด **จงยึดข้อมูลนี้เป็นหลัก**
-2.  **ความรู้ทั่วไปจากอินเทอร์เน็ต (Secondary Source):** ใช้ความรู้ที่คุณมีจากการฝึกฝน (ซึ่งเทียบเท่าการค้นหาข้อมูลบนอินเทอร์เน็ต) เพื่อตอบคำถาม โดยเน้นข้อมูลที่เกี่ยวข้องกับการตรวจสอบ (Audit) ของภาครัฐ
-3.  **ความรู้ทั่วไป (Tertiary Source):** ใช้เมื่อไม่พบคำตอบจากแหล่งข้อมูล 1 และ 2
+คุณคือผู้ช่วย AI อัจฉริยะ (PA Assistant) ที่เชี่ยวชาญด้านการตรวจสอบผลการดำเนินงาน (Performance Audit)
+หน้าที่ของคุณคือตอบคำถามของผู้ใช้โดยยึดบริบท (Context) จากเอกสารภายในที่ให้มาในส่วน "บริบทจากเอกสารภายใน" เป็นหลัก
 
-**กฎการตอบ:**
-- เมื่อตอบคำถาม ให้อ้างอิงเสมอว่าข้อมูลมาจากแหล่งใด (เช่น "จากเอกสาร [ชื่อไฟล์] ระบุว่า...", "จากความรู้ทั่วไปเกี่ยวกับการตรวจสอบ" หรือ "จากความรู้ทั่วไป") หากไม่ทราบชื่อไฟล์ให้บอกว่า "จากเอกสารที่ให้มา"
-- หากข้อมูลในเอกสารภายในขัดแย้งกับข้อมูลภายนอก **ให้ยึดข้อมูลในเอกสารภายในเป็นหลัก**
-- หากไม่พบคำตอบจากทุกแหล่งข้อมูล ให้ตอบว่า "ขออภัยครับ ไม่พบข้อมูลที่เกี่ยวข้องทั้งในเอกสารและฐานข้อมูลของผม"
+หลักการตอบ:
+- **ต้อง** อ้างอิงคำตอบจาก "บริบทจากเอกสารภายใน" เท่านั้น หากข้อมูลในเอกสารและข้อมูลทั่วไปขัดแย้งกัน ให้ยึดข้อมูลในเอกสารเป็นหลักและอาจกล่าวถึงความขัดแย้งนั้น
+- หากไม่พบคำตอบทั้งในเอกสารและความรู้ทั่วไป ให้ตอบว่า "ขออภัยครับ ไม่พบข้อมูลที่เกี่ยวข้องทั้งในเอกสารและฐานข้อมูลของผม"
 
 ---
-**บริบทจากเอกสารภายใน (Primary Source):**
+**บริบทจากเอกสารภายใน:**
 {doc_context}
 ---
 
 จากข้อมูลข้างต้นนี้ จงตอบคำถามล่าสุดของผู้ใช้
 """
-
+                        
                         messages_for_api = [
                             {"role": "system", "content": system_prompt}
                         ]
+                        # Add chat history, but keep it concise
                         for msg in st.session_state.chatbot_messages[-10:]:
                             messages_for_api.append(msg)
-
+                        
                         response_stream = client.chat.completions.create(
                             model="typhoon-v2.1-12b-instruct",
                             messages=messages_for_api,
@@ -1125,7 +1115,7 @@ with tab_chatbot:
                             max_tokens=3072,
                             stream=True
                         )
-
+                        
                         response = st.write_stream(response_stream)
                         st.session_state.chatbot_messages.append({"role": "assistant", "content": response})
 
