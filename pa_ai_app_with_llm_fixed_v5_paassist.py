@@ -150,7 +150,7 @@ kpis_df = st.session_state["kpis"]
 risks_df = st.session_state["risks"]
 audit_issues_df = st.session_state["audit_issues"]
 
-st.title("🧭 Planning Studio – Performance Audit")
+st.title("🧭 Planning Studio – Performance Audit (แนะนำประเด็นการตรวจสอบ)")
 
 # ----------------- START: Custom CSS for Styling and Responsiveness (ปรับปรุงแท็บและมือถือ) -----------------
 st.markdown("""
@@ -217,10 +217,10 @@ tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_
     "3. Methods", 
     "4. KPIs", 
     "5. Risks", 
-    "6. ข้อตรวจพบที่ผ่านมา", 
-    "7. Preview/Export", 
-    "✨ PA Assist แนะนำประเด็น",
-    "🤖 Chatbot"   
+    "6. ประเด็นตรวจ", 
+    "7. Export", 
+    "✨ PA Assist",      # ชื่อแท็บใหม่
+    "🤖 Chatbot"         # ชื่อแท็บใหม่
 ])
 
 with tab_plan:
@@ -466,10 +466,39 @@ When:{plan.get('when','')} Why:{plan.get('why','')} How:{plan.get('how','')}
 Outputs:{' | '.join(logic_df[logic_df['type']=='Output']['description'].tolist())}
 Outcomes:{' | '.join(logic_df[logic_df['type']=='Outcome']['description'].tolist())}
 """
-        query_text = st.text_area("สรุปบริบทที่ใช้ค้นหา (แก้ไขได้):", seed, height=140, key="issue_query_text")
         
-        if st.button("ค้นหาประเด็นที่ใกล้เคียง", type="primary"):
-            results = search_candidates(query_text, findings_df, vec, X, top_k=8)
+        # [FIX] Define a function to overwrite the text area's state with the latest seed
+        def refresh_query_text(new_seed):
+            # ฟังก์ชันนี้จะสั่งให้ st.session_state["issue_query_text"] ถูกเขียนทับด้วยค่า seed ใหม่
+            st.session_state["issue_query_text"] = new_seed
+
+        # ใช้ Columns เพื่อจัดวางช่องค้นหาและปุ่มให้อยู่ข้างกัน
+        c_query_area, c_refresh_btn = st.columns([6, 1])
+
+        with c_query_area:
+            # st.text_area จะใช้ค่าที่ผู้ใช้พิมพ์เป็นหลัก หากมีการพิมพ์แล้ว
+            query_text = st.text_area(
+                "สรุปบริบทที่ใช้ค้นหา (แก้ไขได้):", 
+                seed, 
+                height=140, 
+                key="issue_query_text"
+            )
+        
+        with c_refresh_btn:
+            st.markdown("<br>", unsafe_allow_html=True) # เพิ่มช่องว่างจัดแนวปุ่ม
+            st.button(
+                "🔄 ดึงข้อมูลใหม่", 
+                on_click=refresh_query_text,
+                args=(seed,), # ส่งค่า seed ล่าสุดไปให้ฟังก์ชัน
+                help="คลิกเพื่ออัปเดตช่องค้นหาด้วยข้อมูลล่าสุดจากแท็บ 'แผน & 6W2H' และ 'Logic Model' (จะล้างข้อมูลที่คุณเคยแก้ไข)",
+                type="secondary"
+            )
+        
+        # The search button logic
+        if st.button("ค้นหาประเด็นที่ใกล้เคียง", type="primary", key="search_button_fix"):
+            # Ensure we use the value stored in the session state for the search
+            search_value = st.session_state.get("issue_query_text", seed)
+            results = search_candidates(search_value, findings_df, vec, X, top_k=8)
             st.session_state["issue_results"] = results
             st.success(f"พบประเด็นที่เกี่ยวข้อง {len(results)} รายการ")
             
