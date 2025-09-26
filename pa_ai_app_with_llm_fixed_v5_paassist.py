@@ -33,7 +33,7 @@ def init_state():
     ss.setdefault("issue_results", pd.DataFrame())
     # Initialize chat history
     ss.setdefault("chatbot_messages", [
-        {"role": "assistant", "content": "สวัสดีครับ ผมคือผู้ช่วยตรวจสอบ (PA Chatbot) ผมพร้อมตอบคำถามจากเอกสารในโฟลเดอร์ 'Doc' และข้อมูลบนอินเทอร์เน็ตแล้วครับ"}
+        {"role": "assistant", "content": "สวัสดีครับ ผมคือผู้ช่วยตรวจสอบ (PA Chatbot) ผมพร้อมตอบคำถามจากคู่มือการตรวจสอบ PA และข้อมูลบนอินเทอร์เน็ตแล้วครับ"}
     ])
     ss.setdefault("doc_context", "")
 
@@ -688,7 +688,7 @@ with tab_chatbot:
             except Exception as e:
                 st.warning(f"ไม่สามารถอ่านไฟล์ {filename}: {e}")
                 
-        return all_text.strip(), f"ประมวลผล {len(pdf_files)} เอกสาร 'Doc' เรียบร้อยแล้ว"
+        return all_text.strip(), f"ประมวลผลข้อมูลในระบบเรียบร้อยแล้ว"
 
     # Load documents on first run or if context is empty
     if "doc_context_loaded" not in st.session_state:
