@@ -8,7 +8,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from openai import OpenAI
 import os
 import io
-from PyPDF2 import PdfReader
+# จากเดิมมี from PyPDF2 import PdfReader แต่ถูกลบออกแล้วเนื่องจากไม่มีการใช้ Chatbot
 
 # ตั้งค่าหน้าเพจ
 st.set_page_config(page_title="Planning Studio (+ Issue Suggestions)", page_icon="🧭", layout="wide")
@@ -35,7 +35,7 @@ def init_state():
     # เพิ่ม state สำหรับเก็บค่า Seed อ้างอิงและข้อความค้นหา
     ss.setdefault("ref_seed", "") 
     ss.setdefault("issue_query_text", "")
-    # ลบ st.session_state.chatbot_messages และ st.session_state.doc_context ออกจาก init_state()
+    # ลบ state ที่เกี่ยวข้องกับ Chatbot ออกทั้งหมด
 
 def next_id(prefix, df, col):
     if df.empty: return f"{prefix}-001"
@@ -780,7 +780,14 @@ Logic Model:
                     st.success("สร้างคำแนะนำจาก AI เรียบร้อยแล้ว ✅")
 
                 except Exception as e:
-                    st.error(f"เกิดข้อผิดพลาดในการเรียกใช้ AI: {e}")
+                    # ปรับปรุงการแสดงข้อผิดพลาด API
+                    error_type = type(e).__name__
+                    if "APIError" in error_type or "AuthenticationError" in error_type:
+                         error_message = f"เกิดข้อผิดพลาดในการเชื่อมต่อ API: ({error_type}) โปรดตรวจสอบ API Key หรือขีดจำกัดการใช้งาน (Rate Limit) ของคุณ\nรายละเอียด: {e}"
+                    else:
+                         error_message = f"เกิดข้อผิดพลาดขณะทำงาน: ({error_type}) โปรดลองอีกครั้ง\nรายละเอียด: {e}"
+                         
+                    st.error(error_message)
                     st.session_state["gen_issues"] = ""
                     st.session_state["gen_findings"] = ""
                     st.session_state["gen_report"] = ""
