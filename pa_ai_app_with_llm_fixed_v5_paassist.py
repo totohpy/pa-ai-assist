@@ -126,7 +126,7 @@ def load_local_documents_on_init():
     context, total_chars_added = process_documents(supported_files, 'local', MAX_CHARS_LIMIT, 0)
     return context
 
-# ----------------- Session Init (รวม RAG State) -----------------
+# ----------------- Session Init (รวม RAG State & Global API Key) -----------------
 def init_state():
     ss = st.session_state
     ss.setdefault("plan", {
@@ -148,13 +148,16 @@ def init_state():
     ss.setdefault("ref_seed", "") 
     ss.setdefault("issue_query_text", "")
     
+    # *** GLOBAL API Key for all LLM features ***
+    # โหลดจาก st.secrets ก่อน ถ้าไม่มีให้เป็นค่าว่าง
+    ss.setdefault("api_key_global", st.secrets.get('OPENAI_API_KEY', '')) 
+    
     # *** RAG Chatbot specific states ***
     ss.setdefault("doc_context_local", "") 
     ss.setdefault("doc_context_uploaded", "") 
     ss.setdefault("chatbot_messages", [
         {"role": "assistant", "content": "สวัสดีครับ ผมคือผู้ช่วย AI อัจฉริยะ (PA Assistant) ผมพร้อมตอบคำถามโดยอ้างอิงจากเอกสารภายในที่เกี่ยวกับการตรวจสอบครับ"}
     ])
-    ss.setdefault("api_key_chatbot_standalone", st.secrets.get('OPENAI_API_KEY', '')) 
     ss.setdefault("local_load_attempted", False)
     # เพิ่ม state สำหรับบอกว่าแท็บไหนถูกเลือกอยู่
     ss.setdefault("current_tab", "1. ระบุ แผน & 6W2H")
@@ -385,7 +388,7 @@ tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_
     "5. ระบุ Risks", 
     "6. ค้นหาข้อตรวจพบที่ผ่านมา", 
     "7. สรุปข้อมูล (Preview)", 
-    "🤖 ให้ PA Assist ช่วยแนะนำประเด็นการตรวจสอบ ✨✨",
+    "💡 PA Audit Assistant (AI/ LLM)", # เปลี่ยนชื่อแท็บ
     "💬 PA Chat Assistant (ถาม-ตอบเอกสาร)"
 ]) 
 
@@ -414,9 +417,22 @@ with tab_plan:
         st.markdown("##### 🚀 สร้าง 6W2H อัตโนมัติด้วย AI")
         st.write("คัดลอกข้อความจากไฟล์ของคุณแล้วนำมาวางในช่องด้านล่างนี้")
         uploaded_text = st.text_area("ระบุข้อความเกี่ยวกับเรื่องที่จะตรวจสอบ ที่ต้องการให้ AI ช่วยสรุป 6W2H", height=200, key="uploaded_text")
-        st.markdown("💡 **ยังไม่มี API Key?** คลิก [ที่นี่](https://playground.opentyphoon.ai/settings/api-key) เพื่อรับ key ฟรี!")
-        api_key_6w2h = st.text_input("กรุณากรอก API Key เพื่อใช้บริการ AI:", type="password", key="api_key_6w2h")
+        
+        # *** ใช้ API Key Global และกำหนด Callback เพื่อบันทึก Key ***
+        def save_api_key_global():
+            st.session_state.api_key_global = st.session_state.api_key_input_6w2h
 
+        st.markdown("💡 **ยังไม่มี API Key?** คลิก [ที่นี่](https://playground.opentyphoon.ai/settings/api-key) เพื่อรับ key ฟรี!")
+        api_key_6w2h = st.text_input(
+            "กรุณากรอก API Key เพื่อใช้บริการ AI:", 
+            type="password", 
+            value=st.session_state.api_key_global,
+            key="api_key_input_6w2h",
+            on_change=save_api_key_global
+        )
+        # ตรวจสอบว่า Key ถูกบันทึกแล้วหรือไม่
+        api_key_6w2h = st.session_state.api_key_global
+        
         if st.button("🚀 สร้าง 6W2H จากข้อความ", type="primary", key="6w2h_button"):
             if not uploaded_text:
                 st.error("กรุณาวางข้อความในช่องก่อน")
@@ -826,15 +842,28 @@ with tab_preview:
     df_download_link(plan_df, "plan.csv", "⬇️ ดาวน์โหลด Plan (CSV)")
     st.success("พร้อมเชื่อม Glide / Sheets ต่อได้ทันที")
 
-# ----------------- Tab 8: ให้ PA Assist ช่วยแนะนำประเด็นการตรวจสอบ -----------------
+# ----------------- Tab 8: 💡 PA Audit Assistant (AI/ LLM) -----------------
 with tab_assist:
-    set_current_tab("🤖 ให้ PA Assist ช่วยแนะนำประเด็นการตรวจสอบ ✨✨")
+    set_current_tab("💡 PA Audit Assistant (AI/ LLM)")
     # ... (เนื้อหาของ Tab 8 ยังคงอยู่เหมือนเดิม)
-    st.subheader("💡 PA Audit Assist (ขับเคลื่อนด้วย LLM)")
+    st.subheader("💡 PA Audit Assistant (AI/ LLM)")
     st.write("🤖 สร้างคำแนะนำประเด็นการตรวจสอบจาก AI")
-    st.markdown("💡 **ยังไม่มี API Key?** คลิก [ที่นี่](https://playground.opentyphoon.ai/settings/api-key) เพื่อรับ key ฟรี!")
-    api_key = st.text_input("กรุณากรอก API Key เพื่อใช้บริการ AI:", type="password", key="api_key_assist")
 
+    # *** ใช้ API Key Global และกำหนด Callback เพื่อบันทึก Key ***
+    def save_api_key_assist():
+        st.session_state.api_key_global = st.session_state.api_key_assist
+    
+    st.markdown("💡 **ยังไม่มี API Key?** คลิก [ที่นี่](https://playground.opentyphoon.ai/settings/api-key) เพื่อรับ key ฟรี!")
+    api_key = st.text_input(
+        "กรุณากรอก API Key เพื่อใช้บริการ AI:", 
+        type="password", 
+        value=st.session_state.api_key_global,
+        key="api_key_assist",
+        on_change=save_api_key_assist
+    )
+    # ตรวจสอบว่า Key ถูกบันทึกแล้วหรือไม่
+    api_key = st.session_state.api_key_global
+    
     if st.button("🚀 สร้างคำแนะนำจาก AI", type="primary", key="llm_assist_button"):
         if not api_key:
             st.error("กรุณากรอก API Key ก่อนใช้งาน")
@@ -959,19 +988,24 @@ with tab_chatbot:
     with col_config:
         st.markdown("#### 🛠️ ตั้งค่าการใช้งาน")
         
-        api_key_chatbot = st.session_state.api_key_chatbot_standalone
+        # *** ใช้ API Key Global และกำหนด Callback เพื่อบันทึก Key ***
+        def save_api_key_chatbot():
+            st.session_state.api_key_global = st.session_state.api_key_input_chatbot
 
-        if not api_key_chatbot:
+        if not st.session_state.api_key_global:
             st.markdown("💡 **ยังไม่มี API Key?** คลิก [ที่นี่](https://playground.opentyphoon.ai/settings/api-key) เพื่อรับ key ฟรี!")
-            st.session_state.api_key_chatbot_standalone = st.text_input(
-                "กรุณากรอก OpenTyphoon API Key สำหรับ Chatbot:",
+            st.text_input(
+                "กรุณากรอก OpenTyphoon API Key:",
                 type="password",
-                value=st.session_state.api_key_chatbot_standalone,
-                key="api_key_input_chatbot"
+                value=st.session_state.api_key_global,
+                key="api_key_input_chatbot",
+                on_change=save_api_key_chatbot
             )
         else:
-            st.success("Chatbot API Key ถูกโหลดแล้ว")
+            st.success("API Key ถูกโหลดแล้ว (Global)")
 
+        api_key_chatbot = st.session_state.api_key_global # ใช้ Key ตัวเดียว
+        
         st.divider()
 
         # สถานะบริบทจากโฟลเดอร์ Doc/
@@ -991,9 +1025,16 @@ with tab_chatbot:
         
         if st.button("ประมวลผลเอกสารที่อัปโหลด", type="primary", use_container_width=True):
             if uploaded_files:
+                # เราต้องนำความยาวของบริบทปัจจุบัน (local + uploaded) มาใช้เป็น starting point 
+                # แต่เนื่องจาก uploaded จะถูกล้างและสร้างใหม่ทุกครั้งที่กดปุ่มนี้ เราจึงใช้แค่ local_chars 
+                # และทำการตรวจสอบ MAX_CHARS_LIMIT ใหม่ทั้งหมด
                 existing_len = len(st.session_state.doc_context_local)
+                # ล้าง uploaded context เดิมก่อน
+                st.session_state.doc_context_uploaded = "" 
+                
                 uploaded_context, chars_added = process_documents(uploaded_files, 'uploaded', MAX_CHARS_LIMIT, existing_len)
                 st.session_state.doc_context_uploaded = uploaded_context
+                
                 if chars_added > 0:
                     st.success(f"โหลดเอกสารที่อัปโหลดเสร็จสิ้น ({chars_added:,} ตัวอักษร)")
                 else:
@@ -1031,7 +1072,7 @@ with tab_chatbot:
         # ช่องป้อนคำถาม
         if prompt := st.chat_input("สอบถามเกี่ยวกับเอกสารที่โหลด/อัปโหลดไว้...", key="chat_input_box"):
 
-            api_key_chatbot = st.session_state.api_key_chatbot_standalone
+            api_key_chatbot = st.session_state.api_key_global
 
             if not api_key_chatbot:
                 st.error("กรุณากรอก **OpenTyphoon API Key** ในคอลัมน์ด้านซ้ายมือ (Configuration) ก่อนใช้งาน")
