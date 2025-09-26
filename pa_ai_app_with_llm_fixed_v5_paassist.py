@@ -10,6 +10,7 @@ import os
 import io
 from PyPDF2 import PdfReader
 
+# ตั้งค่าหน้าเพจ
 st.set_page_config(page_title="Planning Studio (+ Issue Suggestions)", page_icon="🧭", layout="wide")
 
 # ----------------- Session Init -----------------
@@ -31,7 +32,7 @@ def init_state():
     ss.setdefault("gen_findings", "")
     ss.setdefault("gen_report", "")
     ss.setdefault("issue_results", pd.DataFrame())
-    # **เพิ่ม state สำหรับเก็บค่า Seed อ้างอิงและข้อความค้นหา**
+    # **แก้ไข: เพิ่ม state สำหรับเก็บค่า Seed อ้างอิงและข้อความค้นหา**
     ss.setdefault("ref_seed", "") 
     ss.setdefault("issue_query_text", "")
     # Initialize chat history
@@ -341,6 +342,8 @@ How Much: [ข้อความ]
                             messages=[{"role": "user", "content": user_prompt}],
                             temperature=0.7,
                             max_tokens=1024,
+                            top_p=0.9, # เพิ่มพารามิเตอร์
+                            repetition_penalty=1.1, # เพิ่มพารามิเตอร์
                         )
                         llm_output = response.choices[0].message.content
                         
@@ -530,16 +533,15 @@ Outcomes:{' | '.join(logic_df[logic_df['type']=='Outcome']['description'].tolist
         def refresh_query_text(new_seed):
             # ฟังก์ชันนี้จะสั่งให้ st.session_state["issue_query_text"] ถูกเขียนทับด้วยค่า seed ใหม่
             st.session_state["issue_query_text"] = new_seed
-            st.session_state["ref_seed"] = new_seed # <-- ADDED: Update the reference seed
+            st.session_state["ref_seed"] = new_seed 
 
-        # ------------------- ส่วนที่แก้ไข: การอัปเดตอัตโนมัติ (เพื่อแก้ปัญหาที่ข้อความไม่ดึงค่า seed ใหม่) -------------------
-        # **A. กรณีโหลดครั้งแรกสุด หรือค่าว่าง ให้ใส่ seed ใหม่และตั้งค่า ref_seed**
+        # ------------------- **ส่วนที่แก้ไข: การอัปเดตอัตโนมัติ** -------------------
+        # A. กรณีโหลดครั้งแรกสุด หรือค่าว่าง ให้ใส่ seed ใหม่และตั้งค่า ref_seed
         if "issue_query_text" not in st.session_state or st.session_state["issue_query_text"] == "":
             st.session_state["issue_query_text"] = seed
             st.session_state["ref_seed"] = seed
             
-        # **B. กรณี seed เปลี่ยน และค่าในช่องค้นหายังเป็นค่าเดิมจาก seed เก่า**
-        #    (แสดงว่าผู้ใช้ยังไม่เคยแก้ไขเอง) -> ให้ทำการอัปเดตช่องค้นหาอัตโนมัติ
+        # B. กรณี seed เปลี่ยน และค่าในช่องค้นหายังเป็นค่าเดิมจาก seed เก่า
         elif st.session_state.get("ref_seed") != seed and st.session_state.get("issue_query_text") == st.session_state.get("ref_seed"):
             st.session_state["issue_query_text"] = seed
             st.session_state["ref_seed"] = seed # อัปเดต ref_seed ใหม่
@@ -779,7 +781,7 @@ Logic Model:
                     )
                     
                     messages = [
-                        {"role": "system", "content": "คุณคือผู้เชี่ยวชาญด้านการตรวจสอบผลสัมฤทธิ์และประสิทธิภาพการดำเนินงาน (Performance Audit)"},
+                        {"role": "system", "content": "คุณคือผู้เชี่ยวชาญด้านการตรวจสอบผลสัมฤทธิ์และประสิทธิภาพการดำเนินงาน (Performance Audit) กรุณาตอบโดยมุ่งเน้นการสร้างคำแนะนำตามรูปแบบที่ต้องการเท่านั้น"},
                         {"role": "user", "content": user_prompt}
                     ]
                     
@@ -788,6 +790,8 @@ Logic Model:
                         messages=messages,
                         temperature=0.7,
                         max_tokens=2048,
+                        top_p=0.9, # <-- เพิ่มพารามิเตอร์
+                        repetition_penalty=1.1, # <-- เพิ่มพารามิเตอร์
                     )
 
                     full_response = response.choices[0].message.content
@@ -833,7 +837,6 @@ with tab_chatbot:
 
     # Load documents on first run or if context is empty
     if "doc_context_loaded" not in st.session_state:
-        # ... (ส่วนเดิม: load_docs_from_folder) ...
         doc_text, message = load_docs_from_folder()
         if doc_text is not None:
             st.session_state.doc_context = doc_text
@@ -875,7 +878,6 @@ with tab_chatbot:
                         
                         doc_context = st.session_state.get("doc_context", "ไม่มีข้อมูลจากเอกสารภายใน")
                         
-                        # ... (system_prompt เหมือนเดิม) ...
                         system_prompt = f"""
 คุณคือผู้ช่วย AI อัจฉริยะ (Expert Assistant) หน้าที่ของคุณคือตอบคำถามของผู้ใช้ให้ถูกต้องและครบถ้วนที่สุด โดยใช้แหล่งข้อมูลสองแหล่ง:
 1.  **ข้อมูลจากเอกสารภายใน (Primary Source):** นี่คือเนื้อหาที่ดึงมาจากไฟล์ PDF ในโฟลเดอร์ "Doc" ของระบบ จงยึดข้อมูลนี้เป็นหลักในการตอบคำถามเสมอ
@@ -906,41 +908,32 @@ with tab_chatbot:
                             messages=messages_for_api,
                             temperature=0.5,
                             max_tokens=3072,
+                            top_p=0.9, # <-- เพิ่มพารามิเตอร์
+                            repetition_penalty=1.1, # <-- เพิ่มพารามิเตอร์
                             stream=True
                         )
                         
-                        # ----------------------- **ส่วนที่แก้ไข** -----------------------
-                        # ... (โค้ดก่อนหน้า: การเตรียม system_prompt และ messages_for_api)
+                        # **FIX: การวนลูป manual เพื่อเพิ่มความเสถียรในการสตรีม**
+                        full_response = ""
+                        placeholder = st.empty() 
 
-                    response_stream = client.chat.completions.create(
-                        model="typhoon-v2.1-12b-instruct",
-                        messages=messages_for_api,
-                        temperature=0.5,
-                        max_tokens=3072,
-                        top_p=0.9, # <-- เพิ่มพารามิเตอร์
-                        repetition_penalty=1.1, # <-- เพิ่มพารามิเตอร์
-                        stream=True
-                    )
-                    
-                    # FIX: การวนลูป manual เพื่อเพิ่มความเสถียร (ตามที่แก้ไขไปแล้วในขั้นตอนก่อนหน้า)
-                    full_response = ""
-                    placeholder = st.empty() 
+                        for chunk in response_stream:
+                            content = chunk.choices[0].delta.content
+                            if content is not None:
+                                full_response += content
+                                # อัปเดต placeholder เพื่อแสดงผลแบบสตรีมมิ่ง
+                                placeholder.markdown(full_response) 
+                        
+                        # บันทึกข้อความฉบับเต็มลงใน session state
+                        st.session_state.chatbot_messages.append({"role": "assistant", "content": full_response})
 
-                    for chunk in response_stream:
-                        content = chunk.choices[0].delta.content
-                        if content is not None:
-                            full_response += content
-                            placeholder.markdown(full_response) 
-                    
-                    st.session_state.chatbot_messages.append({"role": "assistant", "content": full_response})
+                    except Exception as e:
+                        # **FIX: ปรับปรุงการแสดงข้อผิดพลาดให้มีรายละเอียดมากขึ้น**
+                        error_type = type(e).__name__
+                        if "APIError" in error_type or "AuthenticationError" in error_type:
+                             error_message = f"เกิดข้อผิดพลาดในการเชื่อมต่อ API: ({error_type}) โปรดตรวจสอบ API Key หรือขีดจำกัดการใช้งาน (Rate Limit) ของคุณ\nรายละเอียด: {e}"
+                        else:
+                             error_message = f"เกิดข้อผิดพลาดขณะสตรีม: ({error_type}) โปรดลองอีกครั้ง\nรายละเอียด: {e}"
 
-                except Exception as e:
-                    # FIX: ปรับปรุงการแสดงข้อผิดพลาดให้มีรายละเอียดมากขึ้น
-                    error_type = type(e).__name__
-                    if "APIError" in error_type or "AuthenticationError" in error_type:
-                         error_message = f"เกิดข้อผิดพลาดในการเชื่อมต่อ API: ({error_type}) โปรดตรวจสอบ API Key หรือขีดจำกัดการใช้งาน (Rate Limit) ของคุณ\nรายละเอียด: {e}"
-                    else:
-                         error_message = f"เกิดข้อผิดพลาดขณะสตรีม: ({error_type}) โปรดลองอีกครั้ง\nรายละเอียด: {e}"
-
-                    st.error(error_message)
-                    st.session_state.chatbot_messages.append({"role": "assistant", "content": error_message})
+                        st.error(error_message)
+                        st.session_state.chatbot_messages.append({"role": "assistant", "content": error_message})
