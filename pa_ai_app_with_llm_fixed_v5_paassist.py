@@ -8,12 +8,123 @@ from sklearn.metrics.pairwise import cosine_similarity
 from openai import OpenAI
 import os
 import io
-# จากเดิมมี from PyPDF2 import PdfReader แต่ถูกลบออกแล้วเนื่องจากไม่มีการใช้ Chatbot
+# *** เพิ่ม Imports สำหรับ RAG Chatbot ***
+from PyPDF2 import PdfReader
+import glob
+from io import StringIO
+
+# กำหนดโฟลเดอร์เอกสารและข้อจำกัดสำหรับ RAG
+DOC_FOLDER = "Doc" 
+MAX_CHARS_LIMIT = 100000
 
 # ตั้งค่าหน้าเพจ
-st.set_page_config(page_title="Planning Studio (+ Issue Suggestions)", page_icon="🧭", layout="wide")
+st.set_page_config(page_title="Planning Studio (+ PA Assistant)", page_icon="🧭", layout="wide")
 
-# ----------------- Session Init -----------------
+# ----------------- Utility Functions สำหรับ RAG Chatbot -----------------
+
+def read_pdf_text_from_path(file_path):
+    """Extracts text content from a PDF file using a local file path."""
+    try:
+        with open(file_path, 'rb') as file:
+            reader = PdfReader(file)
+            text = ""
+            for page in reader.pages:
+                text += page.extract_text() or ""
+            return text
+    except Exception:
+        return ""
+
+def read_pdf_text_from_uploaded(uploaded_file):
+    """Extracts text content from an uploaded PDF file."""
+    try:
+        reader = PdfReader(uploaded_file)
+        text = ""
+        for page in reader.pages:
+            text += page.extract_text() or ""
+            return text
+    except Exception:
+        return ""
+    
+def get_text_from_file(file, source_type):
+    """Handles text extraction based on file source (local path or uploaded object)."""
+    file_name = file if source_type == 'local' else file.name
+    file_extension = os.path.splitext(file_name)[1].lower()
+    current_text = ""
+    
+    try:
+        if file_extension == '.pdf':
+            if source_type == 'local':
+                current_text = read_pdf_text_from_path(file)
+            else:
+                current_text = read_pdf_text_from_uploaded(file)
+        elif file_extension == '.txt':
+            if source_type == 'local':
+                with open(file, 'r', encoding='utf-8') as f:
+                    current_text = f.read()
+            else:
+                current_text = StringIO(file.getvalue().decode("utf-8")).read()
+        elif file_extension == '.csv':
+            if source_type == 'local':
+                try:
+                    df = pd.read_csv(file, encoding='utf-8')
+                except UnicodeDecodeError:
+                    df = pd.read_csv(file, encoding='TIS-620')
+            else:
+                try:
+                    df = pd.read_csv(file, encoding='utf-8')
+                except UnicodeDecodeError:
+                    df = pd.read_csv(file, encoding='TIS-620')
+
+            current_text = df.to_string()
+    
+    except Exception as e:
+        return "", ""
+
+    return current_text, file_name
+
+
+def process_documents(files, source_type, max_chars_limit, existing_context_len):
+    """Processes a list of files (either local paths or uploaded objects) and returns context."""
+    context = ""
+    total_chars = existing_context_len
+    
+    for file in files:
+        current_text, file_name = get_text_from_file(file, source_type)
+        
+        if current_text:
+            if total_chars + len(current_text) > max_chars_limit:
+                remaining_chars = max_chars_limit - total_chars
+                if remaining_chars > 0:
+                    context += f"\n--- Start of Document: {file_name} (TRUNCATED) ---\n"
+                    context += current_text[:remaining_chars] + f"\n... [ข้อความถูกตัดทอนจาก {file_name}]"
+                st.warning(f"จำกัดจำนวนข้อความที่นำเข้าที่ {max_chars_limit:,} ตัวอักษร ข้อความที่เกินจะถูกตัดออก")
+                break
+            else:
+                context += f"\n--- Start of Document: {file_name} ---\n"
+                context += current_text
+                context += f"\n--- End of Document: {file_name} ---\n"
+                total_chars += len(current_text)
+                if source_type == 'local':
+                    st.toast(f"โหลด: {file_name} ({len(current_text):,} ตัวอักษร)")
+                else:
+                    st.toast(f"อัปโหลด: {file_name} ({len(current_text):,} ตัวอักษร)")
+
+    return context, total_chars - existing_context_len
+
+def load_local_documents_on_init():
+    """Initial load function for Doc folder (run once)."""
+    supported_files = []
+    for ext in ['*.pdf', '*.txt', '*.csv']:
+        supported_files.extend(glob.glob(os.path.join(DOC_FOLDER, ext)))
+        
+    if not supported_files:
+        return ""
+
+    context, total_chars_added = process_documents(supported_files, 'local', MAX_CHARS_LIMIT, 0)
+    return context
+
+
+# ----------------- Session Init (รวม RAG State) -----------------
 def init_state():
     ss = st.session_state
     ss.setdefault("plan", {
@@ -32,10 +143,19 @@ def init_state():
     ss.setdefault("gen_findings", "")
     ss.setdefault("gen_report", "")
     ss.setdefault("issue_results", pd.DataFrame())
-    # เพิ่ม state สำหรับเก็บค่า Seed อ้างอิงและข้อความค้นหา
     ss.setdefault("ref_seed", "") 
     ss.setdefault("issue_query_text", "")
-    # ลบ state ที่เกี่ยวข้องกับ Chatbot ออกทั้งหมด
+    
+    # *** RAG Chatbot specific states ***
+    ss.setdefault("doc_context_local", "") 
+    ss.setdefault("doc_context_uploaded", "") 
+    ss.setdefault("chatbot_messages", [
+        {"role": "assistant", "content": "สวัสดีครับ ผมคือผู้ช่วย AI อัจฉริยะ (PA Assistant) ผมพร้อมตอบคำถามโดยอ้างอิงจากเอกสารภายในที่เกี่ยวกับการตรวจสอบครับ"}
+    ])
+    # API Key นี้ใช้สำหรับ OpenTyphoon (RAG Chatbot)
+    ss.setdefault("api_key_chatbot_standalone", st.secrets.get('OPENAI_API_KEY', '')) 
+    ss.setdefault("local_load_attempted", False) # เพื่อให้โหลด Doc/ แค่ครั้งเดียว
+
 
 def next_id(prefix, df, col):
     if df.empty: return f"{prefix}-001"
@@ -58,7 +178,6 @@ def df_download_link(df: pd.DataFrame, filename: str, label: str):
 def load_findings(uploaded=None):
     findings_df = pd.DataFrame()
 
-    # 1. Try to load the pre-existing database file
     findings_db_path = "FindingsLibrary.csv"
     if os.path.exists(findings_db_path):
         try:
@@ -67,7 +186,6 @@ def load_findings(uploaded=None):
             st.error(f"เกิดข้อผิดพลาดในการอ่านไฟล์ FindingsLibrary.csv: {e}")
             findings_df = pd.DataFrame()
 
-    # 2. If a new file is uploaded, combine it with the existing data
     if uploaded is not None:
         try:
             if uploaded.name.endswith('.csv'):
@@ -87,7 +205,6 @@ def load_findings(uploaded=None):
         except Exception as e:
             st.error(f"เกิดข้อผิดพลาดในการอ่านไฟล์ที่อัปโหลด: {e}")
 
-    # 3. Clean and return the combined dataframe
     if not findings_df.empty:
         for c in ["issue_title","issue_detail","cause_detail","recommendation","program","unit"]:
             if c in findings_df.columns:
@@ -127,7 +244,6 @@ def search_candidates(query_text, findings_df, vec, X, top_k=8):
     cols = [c for c in cols if c in out.columns] + ["sim_score"]
     return out.sort_values("score", ascending=False).head(top_k)[cols]
     
-# Function to create an empty Excel template
 def create_excel_template():
     df = pd.DataFrame(columns=[
         "finding_id", "issue_title", "unit", "program", "year", 
@@ -142,6 +258,12 @@ def create_excel_template():
 
 # ----------------- App UI -----------------
 init_state()
+# *** Initial Load RAG Data ***
+if not st.session_state.doc_context_local and not st.session_state.get('local_load_attempted', False):
+    st.session_state.doc_context_local = load_local_documents_on_init()
+    st.session_state.local_load_attempted = True
+# *****************************
+
 plan = st.session_state["plan"]
 logic_df = st.session_state["logic_items"]
 methods_df = st.session_state["methods"]
@@ -218,6 +340,18 @@ div[data-baseweb="tab-list"] button:nth-of-type(8)[aria-selected="true"] {
     color: #333333 !important;
 }
 
+/* ---- Group 4: 9 (Green - Chatbot) ---- */
+div[data-baseweb="tab-list"] button:nth-of-type(9) {
+    border-color: #28a745;
+    color: #28a745 !important;
+    box-shadow: 0 0 5px rgba(40, 167, 69, 0.5);
+}
+div[data-baseweb="tab-list"] button:nth-of-type(9)[aria-selected="true"] {
+    background-color: #28a745;
+    border-color: #28a745;
+    color: white !important;
+}
+
 /* ---- Container/Layout/Responsiveness ---- */
 div[data-baseweb="tab-list"] { border-bottom: none !important; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
 @media (max-width: 768px) {
@@ -233,9 +367,8 @@ h4 { color: #007bff !important; border-bottom: 2px solid #e0e0e0; padding-bottom
 """, unsafe_allow_html=True)
 # ----------------- END: Custom CSS -----------------
 
-# ----------------- Tab Definitions -----------------
-# **ลบ tab_chatbot ออกจากรายการ**
-tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_assist = st.tabs([
+# ----------------- Tab Definitions (เพิ่ม tab_chatbot) -----------------
+tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_assist, tab_chatbot = st.tabs([
     "1. ระบุ แผน & 6W2H", 
     "2. ระบุ Logic Model", 
     "3. ระบุ Methods", 
@@ -243,8 +376,8 @@ tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_
     "5. ระบุ Risks", 
     "6. ค้นหาข้อตรวจพบที่ผ่านมา", 
     "7. สรุปข้อมูล (Preview)", 
-    # **เปลี่ยนชื่อ Tab 8**
-    "🤖 ให้ PA Assist ช่วยแนะนำประเด็นการตรวจสอบ ✨✨" 
+    "🤖 ให้ PA Assist ช่วยแนะนำประเด็นการตรวจสอบ ✨✨",
+    "💬 PA Chat Assistant (ถาม-ตอบเอกสาร)" # *** แท็บใหม่ ***
 ]) 
 
 # ----------------- Tab 1: ระบุ แผน & 6W2H -----------------
@@ -301,7 +434,6 @@ How Much: [ข้อความ]
                             api_key=api_key_6w2h,
                             base_url="https://api.opentyphoon.ai/v1"
                         )
-                        # **แก้ไข: ลบ repetition_penalty ออก**
                         response = client.chat.completions.create(
                             model="typhoon-v2.1-12b-instruct",
                             messages=[{"role": "user", "content": user_prompt}],
@@ -493,24 +625,18 @@ Outputs:{' | '.join(logic_df[logic_df['type']=='Output']['description'].tolist()
 Outcomes:{' | '.join(logic_df[logic_df['type']=='Outcome']['description'].tolist())}
 """
         
-        # Define a function to overwrite the text area's state with the latest seed
         def refresh_query_text(new_seed):
             st.session_state["issue_query_text"] = new_seed
             st.session_state["ref_seed"] = new_seed 
 
-        # ------------------- การอัปเดตอัตโนมัติ -------------------
-        # A. กรณีโหลดครั้งแรกสุด หรือค่าว่าง ให้ใส่ seed ใหม่และตั้งค่า ref_seed
         if "issue_query_text" not in st.session_state or st.session_state["issue_query_text"] == "":
             st.session_state["issue_query_text"] = seed
             st.session_state["ref_seed"] = seed
             
-        # B. กรณี seed เปลี่ยน และค่าในช่องค้นหายังเป็นค่าเดิมจาก seed เก่า
         elif st.session_state.get("ref_seed") != seed and st.session_state.get("issue_query_text") == st.session_state.get("ref_seed"):
             st.session_state["issue_query_text"] = seed
             st.session_state["ref_seed"] = seed 
-        # --------------------------------------------------------------------------------------------------------------
 
-        # ใช้ Columns เพื่อจัดวางช่องค้นหาและปุ่มให้อยู่ข้างกัน
         c_query_area, c_refresh_btn = st.columns([6, 1])
 
         with c_query_area:
@@ -522,18 +648,16 @@ Outcomes:{' | '.join(logic_df[logic_df['type']=='Outcome']['description'].tolist
             )
         
         with c_refresh_btn:
-            st.markdown("<br>", unsafe_allow_html=True) # เพิ่มช่องว่างจัดแนวปุ่ม
+            st.markdown("<br>", unsafe_allow_html=True) 
             st.button(
                 "🔄 ดึงข้อมูลจากหน้าก่อนหน้า", 
                 on_click=refresh_query_text,
-                args=(seed,), # ส่งค่า seed ล่าสุดไปให้ฟังก์ชัน
+                args=(seed,), 
                 help="คลิกเพื่ออัปเดตช่องค้นหาด้วยข้อมูลล่าสุดจากแท็บ 'ระบุ แผน & 6W2H' และ 'ระบุ Logic Model' (จะล้างข้อมูลที่คุณเคยแก้ไข)",
                 type="secondary"
             )
         
-        # The search button logic
         if st.button("ค้นหาประเด็นที่ใกล้เคียง", type="primary", key="search_button_fix"):
-            # Ensure we use the value stored in the session state for the search
             search_value = st.session_state.get("issue_query_text", seed)
             results = search_candidates(search_value, findings_df, vec, X, top_k=8)
             st.session_state["issue_results"] = results
@@ -748,7 +872,6 @@ Logic Model:
                         {"role": "user", "content": user_prompt}
                     ]
                     
-                    # **แก้ไข: ลบ repetition_penalty ออก**
                     response = client.chat.completions.create(
                         model="typhoon-v2.1-12b-instruct",
                         messages=messages,
@@ -778,7 +901,6 @@ Logic Model:
                     st.success("สร้างคำแนะนำจาก AI เรียบร้อยแล้ว ✅")
 
                 except Exception as e:
-                    # ปรับปรุงการแสดงข้อผิดพลาด API
                     error_type = type(e).__name__
                     if "APIError" in error_type or "AuthenticationError" in error_type:
                          error_message = f"เกิดข้อผิดพลาดในการเชื่อมต่อ API: ({error_type}) โปรดตรวจสอบ API Key หรือขีดจำกัดการใช้งาน (Rate Limit) ของคุณ\nรายละเอียด: {e}"
@@ -798,3 +920,142 @@ Logic Model:
 
     st.markdown("<h4 style='color:blue;'>ร่างรายงานตรวจสอบ (Preview)</h4>", unsafe_allow_html=True)
     st.markdown(f"<div style='background-color: #f0f2f6; border: 1px solid #ccc; padding: 10px; border-radius: 5px; height: 400px; overflow-y: scroll;'>{st.session_state.get('gen_report', '')}</div>", unsafe_allow_html=True)
+
+# ----------------- Tab 9: PA Chat Assistant (ถาม-ตอบเอกสาร) -----------------
+with tab_chatbot:
+    # 1. Sidebar for Configuration
+    with st.sidebar:
+        st.subheader("🛠️ ตั้งค่าการใช้งาน Chatbot")
+        
+        api_key_chatbot = st.session_state.api_key_chatbot_standalone
+
+        if not api_key_chatbot:
+            st.markdown("💡 **ยังไม่มี API Key?** คลิก [ที่นี่](https://playground.opentyphoon.ai/settings/api-key) เพื่อรับ key ฟรี!")
+            st.session_state.api_key_chatbot_standalone = st.text_input(
+                "กรุณากรอก OpenTyphoon API Key สำหรับ Chatbot:",
+                type="password",
+                value=st.session_state.api_key_chatbot_standalone,
+                key="api_key_input_chatbot"
+            )
+        else:
+            st.success("Chatbot API Key ถูกโหลดแล้ว")
+
+        st.divider()
+
+        # สถานะบริบทจากโฟลเดอร์ Doc/
+        local_chars = len(st.session_state.doc_context_local)
+        if local_chars > 0:
+            st.success(f"📂 **Doc/** : โหลดแล้ว {local_chars:,} ตัวอักษร")
+        else:
+            st.warning(f"📂 **Doc/** : ไม่พบเอกสารในโฟลเดอร์ '{DOC_FOLDER}'")
+
+        st.subheader("⬆️ อัปโหลดเอกสารชั่วคราว (Ad-hoc)")
+        uploaded_files = st.file_uploader(
+            "อัปโหลดไฟล์ PDF, TXT, หรือ CSV (ใช้เฉพาะการสนทนานี้)",
+            type=["pdf", "txt", "csv"],
+            accept_multiple_files=True,
+            key="chatbot_uploader"
+        )
+        
+        if st.button("ประมวลผลเอกสารที่อัปโหลด", type="primary"):
+            if uploaded_files:
+                existing_len = len(st.session_state.doc_context_local)
+                uploaded_context, chars_added = process_documents(uploaded_files, 'uploaded', MAX_CHARS_LIMIT, existing_len)
+                st.session_state.doc_context_uploaded = uploaded_context
+                if chars_added > 0:
+                    st.success(f"โหลดเอกสารที่อัปโหลดเสร็จสิ้น ({chars_added:,} ตัวอักษร)")
+                else:
+                    st.info("ไม่พบเอกสารที่ประมวลผลได้")
+
+            else:
+                st.session_state.doc_context_uploaded = ""
+                st.info("ไม่มีไฟล์ที่อัปโหลด")
+
+        uploaded_chars = len(st.session_state.doc_context_uploaded)
+        if uploaded_chars > 0:
+            st.info(f"💾 **Uploaded** : พร้อมใช้ {uploaded_chars:,} ตัวอักษร")
+            if st.button("ล้างเอกสารที่อัปโหลด", key="clear_uploaded_doc"):
+                st.session_state.doc_context_uploaded = ""
+                st.rerun()
+        
+        st.divider()
+
+        total_chars = local_chars + uploaded_chars
+        st.metric(label="บริบทรวมทั้งหมด (Max 100K)", value=f"{total_chars:,} ตัวอักษร")
+
+        if st.button("🗑️ ล้างประวัติแชททั้งหมด", key="clear_chat_history"):
+            st.session_state.chatbot_messages = [
+                {"role": "assistant", "content": "สวัสดีครับ ผมคือผู้ช่วย AI อัจฉริยะ (PA Assistant) ผมพร้อมตอบคำถามโดยอ้างอิงจากเอกสารภายในที่เกี่ยวกับการตรวจสอบครับ"}
+            ]
+            st.rerun()
+    
+    # 2. Chat Display
+    st.subheader("🤖 PA Chat Assistant")
+    for message in st.session_state.chatbot_messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    # 3. Chat Input and Processing
+    if prompt := st.chat_input("สอบถามเกี่ยวกับเอกสารที่โหลด/อัปโหลดไว้...", key="chat_input_box"):
+
+        api_key_chatbot = st.session_state.api_key_chatbot_standalone
+
+        if not api_key_chatbot:
+            st.error("กรุณากรอก **OpenTyphoon API Key** ในแถบด้านข้าง (Sidebar) ก่อนใช้งาน")
+            st.stop()
+        
+        full_doc_context = st.session_state.doc_context_local + st.session_state.doc_context_uploaded
+        doc_context = full_doc_context or "ไม่พบเอกสารภายใน"
+
+        st.session_state.chatbot_messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
+
+        with st.chat_message("assistant"):
+            with st.spinner("กำลังประมวลผลคำตอบ..."):
+                try:
+                    client = OpenAI(
+                        api_key=api_key_chatbot,
+                        base_url="https://api.opentyphoon.ai/v1"
+                    )
+
+                    system_prompt = f"""
+คุณคือผู้ช่วย AI อัจฉริยะ **(PA Assistant)** ที่เชี่ยวชาญการให้ข้อมูลเพื่อ **อ้างอิงการปฏิบัติงานสำหรับผู้ตรวจสอบของสำนักงานการตรวจเงินแผ่นดินภูมิภาคและจังหวัด** หน้าที่ของคุณคือตอบคำถามของผู้ใช้ให้ถูกต้องและครบถ้วนที่สุด โดยใช้แหล่งข้อมูลตามลำดับความสำคัญ:
+1.  **เอกสารภายใน (Primary Source):** เนื้อหาจากโฟลเดอร์ "Doc" หรือที่ผู้ใช้เพิ่งอัปโหลด **จงยึดข้อมูลนี้เป็นหลัก**
+2.  **ความรู้ทั่วไปจากอินเทอร์เน็ต (Secondary Source):** ใช้ความรู้ที่คุณมีจากการฝึกฝน (ซึ่งเทียบเท่าการค้นหาข้อมูลบนอินเทอร์เน็ต) เพื่อตอบคำถาม โดยเน้นข้อมูลที่เกี่ยวข้องกับการตรวจสอบ (Audit) ของภาครัฐ
+3.  **ความรู้ทั่วไป (Tertiary Source):** ใช้เมื่อไม่พบคำตอบจากแหล่งข้อมูล 1 และ 2
+
+**กฎการตอบ:**
+- เมื่อตอบคำถาม ให้อ้างอิงเสมอว่าข้อมูลมาจากแหล่งใด (เช่น "จากเอกสาร [ชื่อไฟล์] ระบุว่า...", "จากความรู้ทั่วไปเกี่ยวกับการตรวจสอบ" หรือ "จากความรู้ทั่วไป") หากไม่ทราบชื่อไฟล์ให้บอกว่า "จากเอกสารที่ให้มา"
+- หากข้อมูลในเอกสารภายในขัดแย้งกับข้อมูลภายนอก **ให้ยึดข้อมูลในเอกสารภายในเป็นหลัก**
+- หากไม่พบคำตอบจากทุกแหล่งข้อมูล ให้ตอบว่า "ขออภัยครับ ไม่พบข้อมูลที่เกี่ยวข้องทั้งในเอกสารและฐานข้อมูลของผม"
+
+---
+**บริบทจากเอกสารภายใน (Primary Source):**
+{doc_context}
+---
+
+จากข้อมูลข้างต้นนี้ จงตอบคำถามล่าสุดของผู้ใช้
+"""
+
+                    messages_for_api = [
+                        {"role": "system", "content": system_prompt}
+                    ]
+                    for msg in st.session_state.chatbot_messages[-10:]:
+                        messages_for_api.append(msg)
+
+                    response_stream = client.chat.completions.create(
+                        model="typhoon-v2.1-12b-instruct",
+                        messages=messages_for_api,
+                        temperature=0.5,
+                        max_tokens=3072,
+                        stream=True
+                    )
+
+                    response = st.write_stream(response_stream)
+                    st.session_state.chatbot_messages.append({"role": "assistant", "content": response})
+
+                except Exception as e:
+                    error_message = f"เกิดข้อผิดพลาด: {e}"
+                    st.error(error_message)
+                    st.session_state.chatbot_messages.append({"role": "assistant", "content": error_message})
