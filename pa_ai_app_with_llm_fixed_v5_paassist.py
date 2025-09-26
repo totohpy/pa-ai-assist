@@ -150,7 +150,7 @@ kpis_df = st.session_state["kpis"]
 risks_df = st.session_state["risks"]
 audit_issues_df = st.session_state["audit_issues"]
 
-st.title("🧭 Planning Studio – Performance Audit ###(แนะนำประเด็นการตรวจสอบ)")
+st.title("🧭 Planning Studio – Performance Audit")
 
 # ----------------- START: Custom CSS for Styling and Responsiveness (ปรับปรุงแท็บและมือถือ) -----------------
 st.markdown("""
