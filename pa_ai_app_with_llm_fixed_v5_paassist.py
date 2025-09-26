@@ -442,7 +442,7 @@ with tab_risk:
 
 with tab_issue:
     st.subheader("🔎 แนะนำประเด็นตรวจจากรายงานเก่า (Issue Suggestions)")
-    st.write("***กรุณาอัพโหลดฐานข้อมูล***")
+    st.write("***กรุณาอัพโหลดฐานข้อมูล (ถ้าไม่มีจะใช้ฐานข้อมูลในระบบ)***")
 
     
     with st.container(border=True):
@@ -452,7 +452,7 @@ with tab_issue:
             file_name="FindingsLibrary.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
-        uploaded = st.file_uploader("อัปโหลด FindingsLibrary.csv หรือ .xlsx (ถ้าไม่มีใช้ฐานข้อมูลที่มีในระบบ)", type=["csv", "xlsx", "xls"])
+        uploaded = st.file_uploader("อัปโหลด FindingsLibrary.csv หรือ .xlsx", type=["csv", "xlsx", "xls"])
     
     findings_df = load_findings(uploaded=uploaded)
     
@@ -480,7 +480,7 @@ Outcomes:{' | '.join(logic_df[logic_df['type']=='Outcome']['description'].tolist
         with c_query_area:
             # st.text_area จะใช้ค่าที่ผู้ใช้พิมพ์เป็นหลัก หากมีการพิมพ์แล้ว
             query_text = st.text_area(
-                "***สรุปบริบทที่ใช้ค้นหา (แก้ไขได้):***", 
+                "**สรุปบริบทที่ใช้ค้นหา (แก้ไขได้):**", 
                 seed, 
                 height=140, 
                 key="issue_query_text"
