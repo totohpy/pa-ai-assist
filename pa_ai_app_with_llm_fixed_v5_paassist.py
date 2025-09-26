@@ -910,29 +910,37 @@ with tab_chatbot:
                         )
                         
                         # ----------------------- **ส่วนที่แก้ไข** -----------------------
-                        # เปลี่ยนจากการใช้ st.write_stream เป็นการวนลูป manual เพื่อเพิ่มความเสถียร
-                        full_response = ""
-                        placeholder = st.empty() 
+                        # ... (โค้ดก่อนหน้า: การเตรียม system_prompt และ messages_for_api)
 
-                        for chunk in response_stream:
-                            # ดึง content จาก chunk.choices[0].delta.content
-                            content = chunk.choices[0].delta.content
-                            if content is not None:
-                                full_response += content
-                                # อัปเดต placeholder เพื่อแสดงผลแบบสตรีมมิ่ง
-                                placeholder.markdown(full_response) 
-                        
-                        # บันทึกข้อความฉบับเต็มลงใน session state
-                        st.session_state.chatbot_messages.append({"role": "assistant", "content": full_response})
-                        # ----------------------------------------------------------------
+                    response_stream = client.chat.completions.create(
+                        model="typhoon-v2.1-12b-instruct",
+                        messages=messages_for_api,
+                        temperature=0.5,
+                        max_tokens=3072,
+                        top_p=0.9, # <-- เพิ่มพารามิเตอร์
+                        repetition_penalty=1.1, # <-- เพิ่มพารามิเตอร์
+                        stream=True
+                    )
+                    
+                    # FIX: การวนลูป manual เพื่อเพิ่มความเสถียร (ตามที่แก้ไขไปแล้วในขั้นตอนก่อนหน้า)
+                    full_response = ""
+                    placeholder = st.empty() 
 
-                    except Exception as e:
-                        # ปรับปรุงการแสดงข้อผิดพลาดให้มีรายละเอียดมากขึ้น
-                        error_type = type(e).__name__
-                        if "APIError" in error_type or "AuthenticationError" in error_type:
-                             error_message = f"เกิดข้อผิดพลาดในการเชื่อมต่อ API: ({error_type}) โปรดตรวจสอบ API Key หรือขีดจำกัดการใช้งาน (Rate Limit) ของคุณ\nรายละเอียด: {e}"
-                        else:
-                             error_message = f"เกิดข้อผิดพลาดขณะสตรีม: ({error_type}) โปรดลองอีกครั้ง\nรายละเอียด: {e}"
+                    for chunk in response_stream:
+                        content = chunk.choices[0].delta.content
+                        if content is not None:
+                            full_response += content
+                            placeholder.markdown(full_response) 
+                    
+                    st.session_state.chatbot_messages.append({"role": "assistant", "content": full_response})
 
-                        st.error(error_message)
-                        st.session_state.chatbot_messages.append({"role": "assistant", "content": error_message})
+                except Exception as e:
+                    # FIX: ปรับปรุงการแสดงข้อผิดพลาดให้มีรายละเอียดมากขึ้น
+                    error_type = type(e).__name__
+                    if "APIError" in error_type or "AuthenticationError" in error_type:
+                         error_message = f"เกิดข้อผิดพลาดในการเชื่อมต่อ API: ({error_type}) โปรดตรวจสอบ API Key หรือขีดจำกัดการใช้งาน (Rate Limit) ของคุณ\nรายละเอียด: {e}"
+                    else:
+                         error_message = f"เกิดข้อผิดพลาดขณะสตรีม: ({error_type}) โปรดลองอีกครั้ง\nรายละเอียด: {e}"
+
+                    st.error(error_message)
+                    st.session_state.chatbot_messages.append({"role": "assistant", "content": error_message})
