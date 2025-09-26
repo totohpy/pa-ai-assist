@@ -156,7 +156,7 @@ audit_issues_df = st.session_state["audit_issues"]
 
 st.title("🧭 Planning Studio – Performance Audit")
 
-# ----------------- START: Custom CSS for Styling Buttons -----------------
+# ----------------- START: Custom CSS for Styling Buttons (Simple) -----------------
 st.markdown("""
 <style>
 /* 1. GLOBAL FONT/BACKGROUND ADJUSTMENTS */
@@ -171,6 +171,8 @@ body {
     margin: 5px 5px 5px 0px !important;
     font-weight: bold !important;
     transition: background-color 0.3s, color 0.3s;
+    /* Custom border and shadow for all buttons, to look like tabs */
+    border: 1px solid #007bff; 
     box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);
 }
 
@@ -182,25 +184,22 @@ h4 {
 }
 </style>
 """, unsafe_allow_html=True)
-# ----------------- END: Custom CSS for Styling Buttons -----------------
+# ----------------- END: Custom CSS for Styling Buttons (Simple) -----------------
 
 
-# ----------------- CUSTOM TAB IMPLEMENTATION -----------------
-# 1. กำหนดชื่อแท็บและสีตามกลุ่ม
-TABS = {
-    # Group 1: การวางแผนหลัก (สีน้ำเงินเข้ม #007bff)
-    "1. ระบุ แผน & 6W2H": {"color": "#007bff", "key": "tab_plan"},
-    "2. ระบุ Logic Model": {"color": "#007bff", "key": "tab_logic"},
-    "3. ระบุ Methods": {"color": "#007bff", "key": "tab_method"},
-    "4. ระบุ KPIs": {"color": "#007bff", "key": "tab_kpi"},
-    "5. ระบุ Risks": {"color": "#007bff", "key": "tab_risk"},
-    # Group 2: เครื่องมือช่วย (สีม่วง/น้ำตาลม่วง #6f42c1)
-    "6. ค้นหาข้อตรวจพบที่ผ่านมา": {"color": "#6f42c1", "key": "tab_issue"},
-    "7. สรุปข้อมูล (Preview)": {"color": "#6f42c1", "key": "tab_preview"},
-    # Group 3: AI Assistant (สีเหลืองทอง/ส้มทอง #ffc107)
-    "✨ ให้ PA Assist ช่วย": {"color": "#ffc107", "key": "tab_assist"},
-    "🤖 คุยกับ PA Chatbot": {"color": "#ffc107", "key": "tab_chatbot"},
-}
+# ----------------- CUSTOM TAB IMPLEMENTATION (Using st.button) -----------------
+# 1. กำหนดชื่อแท็บ
+TABS = [
+    "1. ระบุ แผน & 6W2H", 
+    "2. ระบุ Logic Model", 
+    "3. ระบุ Methods", 
+    "4. ระบุ KPIs", 
+    "5. ระบุ Risks", 
+    "6. ค้นหาข้อตรวจพบที่ผ่านมา", 
+    "7. สรุปข้อมูล (Preview)", 
+    "✨ ให้ PA Assist ช่วย",     
+    "🤖 คุยกับ PA Chatbot"
+]
 
 # 2. สร้าง Function เพื่อเปลี่ยนหน้าเมื่อคลิกปุ่ม
 def set_tab(tab_name):
@@ -208,46 +207,21 @@ def set_tab(tab_name):
 
 # 3. แสดงผลปุ่มทั้งหมดใน st.columns
 cols = st.columns(len(TABS))
-for i, (tab_name, props) in enumerate(TABS.items()):
+for i, tab_name in enumerate(TABS):
     is_active = (st.session_state.current_tab == tab_name)
-    color = props["color"]
     
-    # กำหนดสไตล์ของปุ่มตามสถานะ (Active/Inactive)
-    if is_active:
-        style = f"""
-            background-color: {color} !important;
-            color: {'white' if color != '#ffc107' else '#333'} !important; /* ให้สีทองตัวอักษรเป็นสีดำ */
-            border-color: {color} !important;
-            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2) !important;
-        """
-        button_type = "primary" # ใช้ primary เพื่อให้สีดูเข้มกว่า
-    else:
-        style = f"""
-            background-color: white !important;
-            color: {color} !important;
-            border-color: {color} !important;
-        """
-        button_type = "secondary"
+    # ใช้ type="primary" สำหรับแท็บที่ถูกเลือก เพื่อให้ Streamlit ใช้สีหลัก (สีน้ำเงิน) ไฮไลต์
+    button_type = "primary" if is_active else "secondary"
 
-    # ใช้ st.markdown เพื่อใส่ Custom CSS ให้ปุ่มแต่ละปุ่ม
-    button_html = f"""
-    <button style="{style}" onclick="window.parent.postMessage({{streamlit: {{eventType: 'SET_PAGE_STATE', state: {{current_tab: '{tab_name}'}}}}}, '*')" 
-    class="stButton">
-        {tab_name}
-    </button>
-    """
-    
-    # ใช้ st.button และกำหนด key/on_click function
     with cols[i]:
-        # เนื่องจาก Streamlit 2024.03.1+ อนุญาตให้ใส่ CSS ให้ปุ่มได้ง่ายขึ้น เราจะใช้ st.button โดยปรับ style ผ่าน CSS หลัก
-        # และใช้ Type ในการกำหนดสีพื้นหลังเฉพาะ Active Tab
+        # ใช้ st.button แบบปกติ พร้อมฟังก์ชัน on_click
         st.button(
             tab_name,
             key=f"tab_btn_{i}",
             on_click=set_tab,
             args=(tab_name,),
-            # เราจะไม่ใช้ type="primary" ที่นี่โดยตรง เพราะจะทำให้ปุ่มทั้งหมดเป็นสีน้ำเงิน
-            # แต่เราจะใช้ st.session_state ในการควบคุมการแสดงผลด้านล่างแทน
+            type=button_type, 
+            use_container_width=True # ทำให้ปุ่มเต็มความกว้างของคอลัมน์
         )
 
 
