@@ -31,6 +31,9 @@ def init_state():
     ss.setdefault("gen_findings", "")
     ss.setdefault("gen_report", "")
     ss.setdefault("issue_results", pd.DataFrame())
+    # **เพิ่ม state สำหรับเก็บค่า Seed อ้างอิงและข้อความค้นหา**
+    ss.setdefault("ref_seed", "") 
+    ss.setdefault("issue_query_text", "")
     # Initialize chat history
     ss.setdefault("chatbot_messages", [
         {"role": "assistant", "content": "สวัสดีครับ ผมคือผู้ช่วยตรวจสอบ (PA Chatbot) ผมพร้อมตอบคำถามจากคู่มือการตรวจสอบ PA และข้อมูลบนอินเทอร์เน็ตแล้วครับ"}
@@ -141,6 +144,36 @@ def create_excel_template():
     processed_data = output.getvalue()
     return processed_data
 
+# Function to read PDFs from a folder
+@st.cache_data(show_spinner="กำลังอ่านเอกสาร'Doc'...")
+def load_docs_from_folder(folder_path="Doc"):
+    if not os.path.isdir(folder_path):
+        return "", f"Warning: ไม่พบโฟลเดอร์ '{folder_path}' ในระบบ"
+    
+    all_text = ""
+    try:
+        pdf_files = [f for f in os.listdir(folder_path) if f.lower().endswith(".pdf")]
+    except Exception as e:
+        return "", f"Error: ไม่สามารถเข้าถึงโฟลเดอร์ '{folder_path}': {e}"
+    
+    if not pdf_files:
+        return "", "Warning: ไม่พบไฟล์ PDF ในโฟลเดอร์ 'Doc'"
+
+    for filename in pdf_files:
+        try:
+            filepath = os.path.join(folder_path, filename)
+            with open(filepath, 'rb') as f:
+                reader = PdfReader(f)
+                text = ""
+                for page in reader.pages:
+                    text += page.extract_text() or ""
+            all_text += f"\n\n--- เนื้อหาจากไฟล์: {filename} ---\n\n{text}"
+        except Exception as e:
+            st.warning(f"ไม่สามารถอ่านไฟล์ {filename}: {e}")
+            
+    return all_text.strip(), f"ประมวลผลข้อมูลในระบบเรียบร้อยแล้ว"
+
+
 # ----------------- App UI -----------------
 init_state()
 plan = st.session_state["plan"]
@@ -152,65 +185,91 @@ audit_issues_df = st.session_state["audit_issues"]
 
 st.title("🧭 Planning Studio – Performance Audit")
 
-# ----------------- START: Custom CSS for Styling and Responsiveness (ปรับปรุงแท็บและมือถือ) -----------------
+# ----------------- START: Custom CSS (User's preferred multi-color tabs) -----------------
 st.markdown("""
 <style>
-/* 1. GLOBAL FONT/BACKGROUND ADJUSTMENTS */
-/* ทำให้ฟอนต์ดูดีขึ้นและมีช่องว่างเพิ่มขึ้น */
-body {
-    font-family: 'Kanit', sans-serif; /* แนะนำให้ใช้ฟอนต์ที่อ่านง่าย */
-}
+/* ---- Global Font ---- */
+body { font-family: 'Kanit', sans-serif; }
 
-/* 2. STYLE TABS AS COLORED BUTTONS (Custom Tabs) */
-/* การจัดรูปแบบสำหรับปุ่มแท็บทั้งหมด */
+/* ---- Base Style for Tabs (Button Look) ---- */
 button[data-baseweb="tab"] {
-    border: 1px solid #007bff; /* ขอบสีน้ำเงิน */
-    border-radius: 8px; /* มุมโค้งมน */
-    padding: 10px 15px; /* เพิ่มช่องว่างภายใน */
-    margin: 5px 5px 5px 0px; /* เพิ่มช่องว่างระหว่างปุ่ม */
+    border: 1px solid #007bff;
+    border-radius: 8px;
+    padding: 10px 15px;
+    margin: 5px 5px 5px 0px;
     transition: background-color 0.3s, color 0.3s;
     font-weight: bold;
-    color: #007bff !important; /* สีตัวอักษรเริ่มต้น */
+    color: #007bff !important;
     background-color: #ffffff;
-    box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1); /* เพิ่มเงานิดหน่อย */
+    box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);
+    /* Remove default Streamlit tab line/highlight */
+    border-bottom: none !important; 
+    &::after { content: none !important; }
 }
-
-/* การจัดรูปแบบสำหรับแท็บที่ถูกเลือก (Active Tab) */
 button[data-baseweb="tab"][aria-selected="true"] {
-    background-color: #007bff; /* พื้นหลังสีน้ำเงินเข้ม */
-    color: white !important; /* ตัวอักษรสีขาว */
-    border: 1px solid #007bff;
-    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
 }
 
-/* ซ่อนเส้นแบ่งแนวนอน และให้แท็บขึ้นบรรทัดใหม่บนมือถือ */
-div[data-baseweb="tab-list"] {
-    border-bottom: none !important;
-    margin-bottom: 15px;
-    flex-wrap: wrap; /* สำคัญสำหรับมือถือ */
+/* ---- Group 1: 1-5 (Blue - Planning) ---- */
+div[data-baseweb="tab-list"] button:nth-of-type(1),
+div[data-baseweb="tab-list"] button:nth-of-type(2),
+div[data-baseweb="tab-list"] button:nth-of-type(3),
+div[data-baseweb="tab-list"] button:nth-of-type(4),
+div[data-baseweb="tab-list"] button:nth-of-type(5) {
+    border-color: #007bff;
+    color: #007bff !important;
+}
+div[data-baseweb="tab-list"] button:nth-of-type(1)[aria-selected="true"],
+div[data-baseweb="tab-list"] button:nth-of-type(2)[aria-selected="true"],
+div[data-baseweb="tab-list"] button:nth-of-type(3)[aria-selected="true"],
+div[data-baseweb="tab-list"] button:nth-of-type(4)[aria-selected="true"],
+div[data-baseweb="tab-list"] button:nth-of-type(5)[aria-selected="true"] {
+    background-color: #007bff;
+    color: white !important;
 }
 
-/* 3. MOBILE RESPONSIVENESS ADJUSTMENTS */
-/* ปรับปรุงการแสดงผลบนมือถือ: บังคับให้คอลัมน์แสดงเต็มความกว้าง */
+/* ---- Group 2: 6-7 (Purple - Analysis/Review) ---- */
+div[data-baseweb="tab-list"] button:nth-of-type(6),
+div[data-baseweb="tab-list"] button:nth-of-type(7) {
+    border-color: #6f42c1;
+    color: #6f42c1 !important;
+}
+div[data-baseweb="tab-list"] button:nth-of-type(6)[aria-selected="true"],
+div[data-baseweb="tab-list"] button:nth-of-type(7)[aria-selected="true"] {
+    background-color: #6f42c1;
+    color: white !important;
+}
+
+/* ---- Group 3: 8-9 (Gold - AI/Assist) ---- */
+div[data-baseweb="tab-list"] button:nth-of-type(8),
+div[data-baseweb="tab-list"] button:nth-of-type(9) {
+    border-color: #ffc107;
+    color: #cc9900 !important;
+    box-shadow: 0 0 5px rgba(255, 193, 7, 0.5);
+}
+div[data-baseweb="tab-list"] button:nth-of-type(8)[aria-selected="true"],
+div[data-baseweb="tab-list"] button:nth-of-type(9)[aria-selected="true"] {
+    background-color: #ffc107;
+    border-color: #ffc107;
+    color: #333333 !important;
+}
+
+/* ---- Container/Layout/Responsiveness ---- */
+div[data-baseweb="tab-list"] { border-bottom: none !important; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
 @media (max-width: 768px) {
-    /* ใช้ class ที่ Streamlit ใช้สำหรับ Column (อาจมีการเปลี่ยนแปลงในอนาคต แต่ทำงานได้ในปัจจุบัน) */
-    .st-emotion-cache-18ni2cb, .st-emotion-cache-1jm69l4 {
+    .st-emotion-cache-18ni2cb, .st-emotion-cache-1jm69l4, [data-testid="stColumn"] {
         width: 100% !important;
         margin-bottom: 1rem;
     }
 }
 
-/* 4. STYLE HEADERS */
-/* ปรับรูปแบบ H4 ในแท็บ Assist ให้เข้ากับสีน้ำเงิน */
-h4 {
-    color: #007bff !important;
-    border-bottom: 2px solid #e0e0e0;
-    padding-bottom: 5px;
-}
+/* ---- Headers ---- */
+h4 { color: #007bff !important; border-bottom: 2px solid #e0e0e0; padding-bottom: 5px; }
 </style>
 """, unsafe_allow_html=True)
 # ----------------- END: Custom CSS -----------------
 
+# ----------------- Tab Definitions -----------------
 tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_assist, tab_chatbot = st.tabs([
     "1. ระบุ แผน & 6W2H", 
     "2. ระบุ Logic Model", 
@@ -219,10 +278,11 @@ tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_
     "5. ระบุ Risks", 
     "6. ค้นหาข้อตรวจพบที่ผ่านมา", 
     "7. สรุปข้อมูล (Preview)", 
-    "✨ ให้ PA Assist ช่วย",      # ชื่อแท็บใหม่
-    "🤖 คุยกับ PA Chatbot"         # ชื่อแท็บใหม่
-])
+    "✨ ให้ PA Assist ช่วย",
+    "🤖 คุยกับ PA Chatbot"
+]) 
 
+# ----------------- Tab 1: ระบุ แผน & 6W2H -----------------
 with tab_plan:
     st.subheader("ข้อมูลแผน (Plan) - กรุณาระบุข้อมูล")
     with st.container(border=True):
@@ -248,7 +308,7 @@ with tab_plan:
         st.markdown("💡 **ยังไม่มี API Key?** คลิก [ที่นี่](https://playground.opentyphoon.ai/settings/api-key) เพื่อรับ key ฟรี!")
         api_key_6w2h = st.text_input("กรุณากรอก API Key เพื่อใช้บริการ AI:", type="password", key="api_key_6w2h")
 
-        if st.button("🚀 สร้าง 6W2H จากข้อความ", type="primary"):
+        if st.button("🚀 สร้าง 6W2H จากข้อความ", type="primary", key="6w2h_button"):
             if not uploaded_text:
                 st.error("กรุณาวางข้อความในช่องก่อน")
             elif not api_key_6w2h:
@@ -293,22 +353,14 @@ How Much: [ข้อความ]
                                 key, value = line.split(':', 1)
                                 normalized_key = key.strip().lower().replace(' ', '_')
                                 value = value.strip()
-                                if normalized_key == 'how_much':
-                                    st.session_state.plan['how_much'] = value
-                                elif normalized_key == 'whom':
-                                    st.session_state.plan['whom'] = value
-                                elif normalized_key == 'who':
-                                    st.session_state.plan['who'] = value
-                                elif normalized_key == 'what':
-                                    st.session_state.plan['what'] = value
-                                elif normalized_key == 'where':
-                                    st.session_state.plan['where'] = value
-                                elif normalized_key == 'when':
-                                    st.session_state.plan['when'] = value
-                                elif normalized_key == 'why':
-                                    st.session_state.plan['why'] = value
-                                elif normalized_key == 'how':
-                                    st.session_state.plan['how'] = value
+                                if normalized_key == 'how_much': st.session_state.plan['how_much'] = value
+                                elif normalized_key == 'whom': st.session_state.plan['whom'] = value
+                                elif normalized_key == 'who': st.session_state.plan['who'] = value
+                                elif normalized_key == 'what': st.session_state.plan['what'] = value
+                                elif normalized_key == 'where': st.session_state.plan['where'] = value
+                                elif normalized_key == 'when': st.session_state.plan['when'] = value
+                                elif normalized_key == 'why': st.session_state.plan['why'] = value
+                                elif normalized_key == 'how': st.session_state.plan['how'] = value
 
                         st.success("สร้าง 6W2H เรียบร้อยแล้ว! กรุณาตรวจสอบข้อมูลแล้วคัดลอกไปวางตามรายละเอียดด้านล่าง")
                         st.balloons()
@@ -330,6 +382,7 @@ How Much: [ข้อความ]
             st.session_state.plan["how"] = st.text_area("How (อย่างไร)", value=st.session_state.plan["how"], key="how_input")
             st.session_state.plan["how_much"] = st.text_input("How much (เท่าไร)", value=st.session_state.plan["how_much"], key="how_much_input")
 
+# ----------------- Tab 2: Logic Model -----------------
 with tab_logic:
     st.subheader("ระบุข้อมูล Logic Model: Input → Activities → Output → Outcome → Impact")
     st.dataframe(logic_df, use_container_width=True, hide_index=True)
@@ -355,6 +408,7 @@ with tab_logic:
                     st.session_state["logic_items"] = pd.concat([logic_df, new_row], ignore_index=True)
                     st.rerun()
 
+# ----------------- Tab 3: Methods -----------------
 with tab_method:
     st.subheader("ระบุวิธีการเก็บข้อมูล (Methods)")
     st.dataframe(methods_df, use_container_width=True, hide_index=True)
@@ -371,7 +425,7 @@ with tab_method:
             with c3:
                 data_source = st.text_input("แหล่งข้อมูล", value="", key="method_data_source")
                 frequency = st.text_input("ความถี่", value="ครั้งเดียว", key="method_frequency")
-                if st.button("เพิ่ม Method", type="primary"):
+                if st.button("เพิ่ม Method", type="primary", key="add_method_btn"):
                     new_row = pd.DataFrame([{
                         "method_id": next_id("MT", methods_df, "method_id"),
                         "plan_id": plan["plan_id"],
@@ -382,6 +436,7 @@ with tab_method:
                     st.session_state["methods"] = pd.concat([methods_df, new_row], ignore_index=True)
                     st.rerun()
 
+# ----------------- Tab 4: KPIs -----------------
 with tab_kpi:
     st.subheader("ระบุตัวชี้วัด (KPIs)")
     st.dataframe(kpis_df, use_container_width=True, hide_index=True)
@@ -402,7 +457,7 @@ with tab_kpi:
                 freq = st.text_input("ความถี่", value="รายไตรมาส")
                 data_src = st.text_input("แหล่งข้อมูล", value="", key="kpi_data_source")
                 quality = st.text_input("ข้อกำหนดคุณภาพข้อมูล", value="ถูกต้อง/ทันเวลา", key="kpi_quality")
-                if st.button("เพิ่ม KPI", type="primary"):
+                if st.button("เพิ่ม KPI", type="primary", key="add_kpi_btn"):
                     new_row = pd.DataFrame([{
                         "kpi_id": next_id("KPI", kpis_df, "kpi_id"),
                         "plan_id": plan["plan_id"],
@@ -414,6 +469,7 @@ with tab_kpi:
                     st.session_state["kpis"] = pd.concat([kpis_df, new_row], ignore_index=True)
                     st.rerun()
 
+# ----------------- Tab 5: Risks -----------------
 with tab_risk:
     st.subheader("ระบุความเสี่ยง (Risks)")
     st.dataframe(risks_df, use_container_width=True, hide_index=True)
@@ -429,7 +485,7 @@ with tab_risk:
             with c3:
                 mitigation = st.text_area("มาตรการลดความเสี่ยง")
                 hypothesis = st.text_input("สมมุติฐานที่ต้องทดสอบ")
-                if st.button("เพิ่ม Risk", type="primary"):
+                if st.button("เพิ่ม Risk", type="primary", key="add_risk_btn"):
                     new_row = pd.DataFrame([{
                         "risk_id": next_id("RSK", risks_df, "risk_id"),
                         "plan_id": plan["plan_id"],
@@ -440,6 +496,7 @@ with tab_risk:
                     st.session_state["risks"] = pd.concat([risks_df, new_row], ignore_index=True)
                     st.rerun()
 
+# ----------------- Tab 6: ค้นหาข้อตรวจพบที่ผ่านมา -----------------
 with tab_issue:
     st.subheader("🔎 แนะนำประเด็นตรวจจากรายงานเก่า (Issue Suggestions)")
     st.write("***กรุณาอัพโหลดฐานข้อมูล (ถ้าไม่มีจะใช้ฐานข้อมูลในระบบ)***")
@@ -473,15 +530,18 @@ Outcomes:{' | '.join(logic_df[logic_df['type']=='Outcome']['description'].tolist
         def refresh_query_text(new_seed):
             # ฟังก์ชันนี้จะสั่งให้ st.session_state["issue_query_text"] ถูกเขียนทับด้วยค่า seed ใหม่
             st.session_state["issue_query_text"] = new_seed
+        
+        # ตั้งค่าเริ่มต้นของ query text หากยังไม่มีหรือเป็นค่าว่าง
+        if "issue_query_text" not in st.session_state or st.session_state["issue_query_text"] == "":
+            st.session_state["issue_query_text"] = seed
 
         # ใช้ Columns เพื่อจัดวางช่องค้นหาและปุ่มให้อยู่ข้างกัน
         c_query_area, c_refresh_btn = st.columns([6, 1])
 
         with c_query_area:
-            # st.text_area จะใช้ค่าที่ผู้ใช้พิมพ์เป็นหลัก หากมีการพิมพ์แล้ว
             query_text = st.text_area(
                 "*สรุปบริบทที่ใช้ค้นหา (แก้ไขได้):*", 
-                seed, 
+                st.session_state["issue_query_text"], 
                 height=140, 
                 key="issue_query_text"
             )
@@ -581,7 +641,8 @@ Outcomes:{' | '.join(logic_df[logic_df['type']=='Outcome']['description'].tolist
             st.divider()
         st.markdown("### ประเด็นที่ถูกเพิ่มเข้าแผน")
         st.dataframe(st.session_state["audit_issues"], use_container_width=True, hide_index=True)
-        
+
+# ----------------- Tab 7: สรุปข้อมูล (Preview) -----------------
 with tab_preview:
     st.subheader("สรุปแผน (Preview)")
     with st.container(border=True):
@@ -643,6 +704,7 @@ with tab_preview:
     df_download_link(plan_df, "plan.csv", "⬇️ ดาวน์โหลด Plan (CSV)")
     st.success("พร้อมเชื่อม Glide / Sheets ต่อได้ทันที")
     
+# ----------------- Tab 8: ให้ PA Assist ช่วย -----------------
 with tab_assist:
     st.subheader("💡 PA Audit Assist (ขับเคลื่อนด้วย LLM)")
     st.write("🤖 สร้างคำแนะนำประเด็นการตรวจสอบจาก AI")
@@ -716,7 +778,6 @@ Logic Model:
                         messages=messages,
                         temperature=0.7,
                         max_tokens=2048,
-                        top_p=0.9,
                     )
 
                     full_response = response.choices[0].message.content
@@ -740,7 +801,6 @@ Logic Model:
                     st.success("สร้างคำแนะนำจาก AI เรียบร้อยแล้ว ✅")
 
                 except Exception as e:
-                    # ✅ เพิ่มส่วนนี้เพื่อจัดการข้อผิดพลาด
                     st.error(f"เกิดข้อผิดพลาดในการเรียกใช้ AI: {e}")
                     st.session_state["gen_issues"] = ""
                     st.session_state["gen_findings"] = ""
@@ -756,38 +816,10 @@ Logic Model:
     st.markdown(f"<div style='background-color: #f0f2f6; border: 1px solid #ccc; padding: 10px; border-radius: 5px; height: 400px; overflow-y: scroll;'>{st.session_state.get('gen_report', '')}</div>", unsafe_allow_html=True)
 
 
+# ----------------- Tab 9: คุยกับ PA Chatbot -----------------
 with tab_chatbot:
-    st.subheader("🤖 PA Chatbot")
+    st.subheader("🤖 คุยกับ PA Chatbot")
     st.write("ถาม-ตอบข้อสงสัย โดยอ้างอิงข้อมูลจากคู่มือการตรวจสอบ เอกสารภายใน และข้อมูลจากอินเทอร์เน็ต")
-
-    # Function to read PDFs from a folder
-    @st.cache_data(show_spinner="กำลังอ่านเอกสาร'Doc'...")
-    def load_docs_from_folder(folder_path="Doc"):
-        if not os.path.isdir(folder_path):
-            return None, f"Error: ไม่พบโฟลเดอร์ '{folder_path}' ในระบบ กรุณาสร้างโฟลเดอร์นี้ในตำแหน่งเดียวกับแอป"
-        
-        all_text = ""
-        try:
-            pdf_files = [f for f in os.listdir(folder_path) if f.lower().endswith(".pdf")]
-        except Exception as e:
-            return None, f"Error: ไม่สามารถเข้าถึงโฟลเดอร์ '{folder_path}': {e}"
-        
-        if not pdf_files:
-            return "", "Warning: ไม่พบไฟล์ PDF ในโฟลเดอร์ 'Doc'"
-
-        for filename in pdf_files:
-            try:
-                filepath = os.path.join(folder_path, filename)
-                with open(filepath, 'rb') as f:
-                    reader = PdfReader(f)
-                    text = ""
-                    for page in reader.pages:
-                        text += page.extract_text() or ""
-                all_text += f"\n\n--- เนื้อหาจากไฟล์: {filename} ---\n\n{text}"
-            except Exception as e:
-                st.warning(f"ไม่สามารถอ่านไฟล์ {filename}: {e}")
-                
-        return all_text.strip(), f"ประมวลผลข้อมูลในระบบเรียบร้อยแล้ว"
 
     # Load documents on first run or if context is empty
     if "doc_context_loaded" not in st.session_state:
@@ -801,12 +833,10 @@ with tab_chatbot:
         
     api_key_chatbot = st.text_input("กรุณากรอก API Key เพื่อใช้บริการ AI:", type="password", key="api_key_chatbot")
 
-    # ✅ เพิ่ม container สำหรับแสดงผลแชท
-    with st.container(height=500): 
-        # Display chat messages from history on app rerun
-        for message in st.session_state.chatbot_messages:
-            with st.chat_message(message["role"]):
-                st.markdown(message["content"])
+    # Display chat messages from history on app rerun
+    for message in st.session_state.chatbot_messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
     # Accept user input
     if prompt := st.chat_input("ถามคำถามจากเอกสารหรือข้อมูลทั่วไป..."):
@@ -818,7 +848,6 @@ with tab_chatbot:
         
         # Add user message to chat history regardless of context
         st.session_state.chatbot_messages.append({"role": "user", "content": prompt})
-        
         # Display user message in chat message container
         with st.chat_message("user"):
             st.markdown(prompt)
@@ -872,7 +901,6 @@ with tab_chatbot:
                         st.session_state.chatbot_messages.append({"role": "assistant", "content": response})
 
                     except Exception as e:
-                        # ✅ เพิ่มส่วนนี้เพื่อจัดการกับข้อผิดพลาด
                         error_message = f"เกิดข้อผิดพลาด: {e}"
                         st.error(error_message)
                         st.session_state.chatbot_messages.append({"role": "assistant", "content": error_message})
