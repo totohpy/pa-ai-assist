@@ -140,8 +140,6 @@ def create_excel_template():
     processed_data = output.getvalue()
     return processed_data
 
-# ลบฟังก์ชัน load_docs_from_folder ออก
-
 # ----------------- App UI -----------------
 init_state()
 plan = st.session_state["plan"]
@@ -303,13 +301,13 @@ How Much: [ข้อความ]
                             api_key=api_key_6w2h,
                             base_url="https://api.opentyphoon.ai/v1"
                         )
+                        # **แก้ไข: ลบ repetition_penalty ออก**
                         response = client.chat.completions.create(
                             model="typhoon-v2.1-12b-instruct",
                             messages=[{"role": "user", "content": user_prompt}],
                             temperature=0.7,
                             max_tokens=1024,
                             top_p=0.9,
-                            repetition_penalty=1.1,
                         )
                         llm_output = response.choices[0].message.content
                         
@@ -750,13 +748,13 @@ Logic Model:
                         {"role": "user", "content": user_prompt}
                     ]
                     
+                    # **แก้ไข: ลบ repetition_penalty ออก**
                     response = client.chat.completions.create(
                         model="typhoon-v2.1-12b-instruct",
                         messages=messages,
                         temperature=0.7,
                         max_tokens=2048,
                         top_p=0.9,
-                        repetition_penalty=1.1,
                     )
 
                     full_response = response.choices[0].message.content
