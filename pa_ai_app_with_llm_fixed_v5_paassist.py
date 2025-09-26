@@ -212,7 +212,7 @@ h4 {
 # ----------------- END: Custom CSS -----------------
 
 tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_assist, tab_chatbot = st.tabs([
-    "1. แผน & 6W2H", 
+    "1. ระบุแผน & 6W2H", 
     "2. Logic Model", 
     "3. Methods", 
     "4. KPIs", 
