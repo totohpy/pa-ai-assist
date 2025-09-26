@@ -152,76 +152,86 @@ audit_issues_df = st.session_state["audit_issues"]
 
 st.title("🧭 Planning Studio – Performance Audit")
 
-# ----------------- START: Custom CSS for Styling and Responsiveness (ปรับปรุงแท็บและมือถือ) -----------------
-st.markdown("""
-<style>
-/* 1. GLOBAL FONT/BACKGROUND ADJUSTMENTS */
-/* ทำให้ฟอนต์ดูดีขึ้นและมีช่องว่างเพิ่มขึ้น */
-body {
-    font-family: 'Kanit', sans-serif; /* แนะนำให้ใช้ฟอนต์ที่อ่านง่าย */
-}
-
 /* 2. STYLE TABS AS COLORED BUTTONS (Custom Tabs) */
-/* การจัดรูปแบบสำหรับปุ่มแท็บทั้งหมด */
+
+/* สไตล์พื้นฐานสำหรับปุ่มแท็บทั้งหมด */
 button[data-baseweb="tab"] {
-    border: 1px solid #007bff; /* ขอบสีน้ำเงิน */
-    border-radius: 8px; /* มุมโค้งมน */
-    padding: 10px 15px; /* เพิ่มช่องว่างภายใน */
-    margin: 5px 5px 5px 0px; /* เพิ่มช่องว่างระหว่างปุ่ม */
+    border: 1px solid #007bff;
+    border-radius: 8px;
+    padding: 10px 15px;
+    margin: 5px 5px 5px 0px;
     transition: background-color 0.3s, color 0.3s;
     font-weight: bold;
-    color: #007bff !important; /* สีตัวอักษรเริ่มต้น */
+    color: #007bff !important;
     background-color: #ffffff;
-    box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1); /* เพิ่มเงานิดหน่อย */
+    box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-/* การจัดรูปแบบสำหรับแท็บที่ถูกเลือก (Active Tab) */
+/* สไตล์สำหรับแท็บที่ถูกเลือก (Active Tab) */
 button[data-baseweb="tab"][aria-selected="true"] {
-    background-color: #007bff; /* พื้นหลังสีน้ำเงินเข้ม */
-    color: white !important; /* ตัวอักษรสีขาว */
+    background-color: #007bff; /* Default Blue for active state */
+    color: white !important;
     border: 1px solid #007bff;
     box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
 }
+
+/* --- การกำหนดสีสำหรับแต่ละกลุ่ม (ใช้ nth-child) --- */
+
+/* Group 1: 1-5 (การวางแผนหลัก: สีน้ำเงินเข้ม #007bff) */
+/* แท็บ 1, 2, 3, 4, 5 */
+div[data-baseweb="tab-list"] > div:nth-child(1) button,
+div[data-baseweb="tab-list"] > div:nth-child(2) button,
+div[data-baseweb="tab-list"] > div:nth-child(3) button,
+div[data-baseweb="tab-list"] > div:nth-child(4) button,
+div[data-baseweb="tab-list"] > div:nth-child(5) button {
+    border-color: #007bff;
+    color: #007bff !important;
+}
+div[data-baseweb="tab-list"] > div:nth-child(1) button[aria-selected="true"],
+div[data-baseweb="tab-list"] > div:nth-child(2) button[aria-selected="true"],
+div[data-baseweb="tab-list"] > div:nth-child(3) button[aria-selected="true"],
+div[data-baseweb="tab-list"] > div:nth-child(4) button[aria-selected="true"],
+div[data-baseweb="tab-list"] > div:nth-child(5) button[aria-selected="true"] {
+    background-color: #007bff;
+    border-color: #007bff;
+}
+
+/* Group 2: 6-7 (การค้นหาและสรุป: สีม่วง #6f42c1) */
+/* แท็บ 6, 7 */
+div[data-baseweb="tab-list"] > div:nth-child(6) button,
+div[data-baseweb="tab-list"] > div:nth-child(7) button {
+    border-color: #6f42c1;
+    color: #6f42c1 !important;
+}
+div[data-baseweb="tab-list"] > div:nth-child(6) button[aria-selected="true"],
+div[data-baseweb="tab-list"] > div:nth-child(7) button[aria-selected="true"] {
+    background-color: #6f42c1;
+    border-color: #6f42c1;
+}
+
+/* Group 3: 8-9 (AI Assistant: สีทอง #cc9900) */
+/* แท็บ 8, 9 */
+div[data-baseweb="tab-list"] > div:nth-child(8) button,
+div[data-baseweb="tab-list"] > div:nth-child(9) button {
+    border-color: #ffcc00;
+    color: #cc9900 !important;
+    box-shadow: 0 0 10px rgba(255, 204, 0, 0.5); /* เพิ่มความโดดเด่น */
+}
+div[data-baseweb="tab-list"] > div:nth-child(8) button[aria-selected="true"],
+div[data-baseweb="tab-list"] > div:nth-child(9) button[aria-selected="true"] {
+    background-color: #ffcc00;
+    border-color: #ffcc00;
+    color: #333333 !important;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+}
+
 
 /* ซ่อนเส้นแบ่งแนวนอน และให้แท็บขึ้นบรรทัดใหม่บนมือถือ */
 div[data-baseweb="tab-list"] {
     border-bottom: none !important;
     margin-bottom: 15px;
-    flex-wrap: wrap; /* สำคัญสำหรับมือถือ */
+    flex-wrap: wrap; 
 }
-
-/* 3. MOBILE RESPONSIVENESS ADJUSTMENTS */
-/* ปรับปรุงการแสดงผลบนมือถือ: บังคับให้คอลัมน์แสดงเต็มความกว้าง */
-@media (max-width: 768px) {
-    /* ใช้ class ที่ Streamlit ใช้สำหรับ Column (อาจมีการเปลี่ยนแปลงในอนาคต แต่ทำงานได้ในปัจจุบัน) */
-    .st-emotion-cache-18ni2cb, .st-emotion-cache-1jm69l4 {
-        width: 100% !important;
-        margin-bottom: 1rem;
-    }
-}
-
-/* 4. STYLE HEADERS */
-/* ปรับรูปแบบ H4 ในแท็บ Assist ให้เข้ากับสีน้ำเงิน */
-h4 {
-    color: #007bff !important;
-    border-bottom: 2px solid #e0e0e0;
-    padding-bottom: 5px;
-}
-</style>
-""", unsafe_allow_html=True)
-# ----------------- END: Custom CSS -----------------
-
-tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_assist, tab_chatbot = st.tabs([
-    "1. ระบุ แผน & 6W2H", 
-    "2. ระบุ Logic Model", 
-    "3. ระบุ Methods", 
-    "4. ระบุ KPIs", 
-    "5. ระบุ Risks", 
-    "6. ค้นหาข้อตรวจพบที่ผ่านมา", 
-    "7. สรุปข้อมูล (Preview)", 
-    "✨ ให้ PA Assist ช่วย",      # ชื่อแท็บใหม่
-    "🤖 คุยกับ PA Chatbot"         # ชื่อแท็บใหม่
-])
 
 with tab_plan:
     st.subheader("ข้อมูลแผน (Plan) - กรุณาระบุข้อมูล")
@@ -480,9 +490,9 @@ Outcomes:{' | '.join(logic_df[logic_df['type']=='Outcome']['description'].tolist
         with c_query_area:
             # st.text_area จะใช้ค่าที่ผู้ใช้พิมพ์เป็นหลัก หากมีการพิมพ์แล้ว
             query_text = st.text_area(
-                "*สรุปบริบทที่ใช้ค้นหา (แก้ไขได้):*", 
+                "**สรุปบริบทที่ใช้ค้นหา (แก้ไขได้):**", 
                 seed, 
-                height=140, 
+                height=160, 
                 key="issue_query_text"
             )
         
