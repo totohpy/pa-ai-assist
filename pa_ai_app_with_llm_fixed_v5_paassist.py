@@ -150,16 +150,7 @@ kpis_df = st.session_state["kpis"]
 risks_df = st.session_state["risks"]
 audit_issues_df = st.session_state["audit_issues"]
 
-st.title("🧭 Planning Studio – Performance Audit (แนะนำประเด็นการตรวจสอบ)")
-
-# ----------------- START: Custom CSS for Styling and Responsiveness (ปรับปรุงแท็บและมือถือ) -----------------
-st.markdown("""
-<style>
-/* 1. GLOBAL FONT/BACKGROUND ADJUSTMENTS */
-/* ทำให้ฟอนต์ดูดีขึ้นและมีช่องว่างเพิ่มขึ้น */
-body {
-    font-family: 'Kanit', sans-serif; /* แนะนำให้ใช้ฟอนต์ที่อ่านง่าย */
-}
+st.title("🧭 Planning Studio – Performance Audit")
 
 /* 2. STYLE TABS AS COLORED BUTTONS (Custom Tabs) */
 
@@ -239,41 +230,8 @@ div[data-baseweb="tab-list"] > div:nth-child(9) button[aria-selected="true"] {
 div[data-baseweb="tab-list"] {
     border-bottom: none !important;
     margin-bottom: 15px;
-    flex-wrap: wrap; /* สำคัญสำหรับมือถือ */
+    flex-wrap: wrap; 
 }
-
-/* 3. MOBILE RESPONSIVENESS ADJUSTMENTS */
-/* ปรับปรุงการแสดงผลบนมือถือ: บังคับให้คอลัมน์แสดงเต็มความกว้าง */
-@media (max-width: 768px) {
-    /* ใช้ class ที่ Streamlit ใช้สำหรับ Column (อาจมีการเปลี่ยนแปลงในอนาคต แต่ทำงานได้ในปัจจุบัน) */
-    .st-emotion-cache-18ni2cb, .st-emotion-cache-1jm69l4 {
-        width: 100% !important;
-        margin-bottom: 1rem;
-    }
-}
-
-/* 4. STYLE HEADERS */
-/* ปรับรูปแบบ H4 ในแท็บ Assist ให้เข้ากับสีน้ำเงิน */
-h4 {
-    color: #007bff !important;
-    border-bottom: 2px solid #e0e0e0;
-    padding-bottom: 5px;
-}
-</style>
-""", unsafe_allow_html=True)
-# ----------------- END: Custom CSS -----------------
-
-tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_assist, tab_chatbot = st.tabs([
-    "1. ระบุ แผน & 6W2H", 
-    "2. ระบุ Logic Model", 
-    "3. ระบุ Methods", 
-    "4. ระบุ KPIs", 
-    "5. ระบุ Risks", 
-    "6. ค้นหาข้อตรวจพบที่ผ่านมา", 
-    "7. สรุปข้อมูล (Preview)", 
-    "✨ ให้ PA Assist ช่วย",      # ชื่อแท็บใหม่
-    "🤖 คุยกับ PA Chatbot"          # ชื่อแท็บใหม่
-])
 
 with tab_plan:
     st.subheader("ข้อมูลแผน (Plan) - กรุณาระบุข้อมูล")
@@ -493,8 +451,10 @@ with tab_risk:
                     st.rerun()
 
 with tab_issue:
-    st.subheader("🔎 ค้นหาข้อตรวจพบที่ผ่านมา")
-    st.write("**กรุณาระบุข้อมูล**")
+    st.subheader("🔎 แนะนำประเด็นตรวจจากรายงานเก่า (Issue Suggestions)")
+    st.write("***กรุณาอัพโหลดฐานข้อมูล (ถ้าไม่มีจะใช้ฐานข้อมูลในระบบ)***")
+
+    
     with st.container(border=True):
         st.download_button(
             label="⬇️ ดาวน์โหลดไฟล์แม่แบบ FindingsLibrary.xlsx",
@@ -502,7 +462,7 @@ with tab_issue:
             file_name="FindingsLibrary.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
-        uploaded = st.file_uploader("อัปโหลด FindingsLibrary.csv หรือ .xlsx (ถ้าไม่มีจะพยายามอ่านจากไฟล์ในโฟลเดอร์)", type=["csv", "xlsx", "xls"])
+        uploaded = st.file_uploader("อัปโหลด FindingsLibrary.csv หรือ .xlsx", type=["csv", "xlsx", "xls"])
     
     findings_df = load_findings(uploaded=uploaded)
     
@@ -512,7 +472,6 @@ with tab_issue:
         st.success(f"พบข้อมูล Findings ทั้งหมด {len(findings_df)} รายการ")
         vec, X = build_tfidf_index(findings_df)
         
-        # โค้ดสำหรับสร้าง Seed Text
         seed = f"""
 Who:{plan.get('who','')} What:{plan.get('what','')} Where:{plan.get('where','')}
 When:{plan.get('when','')} Why:{plan.get('why','')} How:{plan.get('how','')}
@@ -520,7 +479,7 @@ Outputs:{' | '.join(logic_df[logic_df['type']=='Output']['description'].tolist()
 Outcomes:{' | '.join(logic_df[logic_df['type']=='Outcome']['description'].tolist())}
 """
         
-        # [FIXED LOGIC] Define a function to overwrite the text area's state with the latest seed
+        # [FIX] Define a function to overwrite the text area's state with the latest seed
         def refresh_query_text(new_seed):
             # ฟังก์ชันนี้จะสั่งให้ st.session_state["issue_query_text"] ถูกเขียนทับด้วยค่า seed ใหม่
             st.session_state["issue_query_text"] = new_seed
@@ -531,19 +490,19 @@ Outcomes:{' | '.join(logic_df[logic_df['type']=='Outcome']['description'].tolist
         with c_query_area:
             # st.text_area จะใช้ค่าที่ผู้ใช้พิมพ์เป็นหลัก หากมีการพิมพ์แล้ว
             query_text = st.text_area(
-                "สรุปบริบทที่ใช้ค้นหา (แก้ไขได้):", 
+                "**สรุปบริบทที่ใช้ค้นหา (แก้ไขได้):**", 
                 seed, 
-                height=140, 
+                height=160, 
                 key="issue_query_text"
             )
         
         with c_refresh_btn:
             st.markdown("<br>", unsafe_allow_html=True) # เพิ่มช่องว่างจัดแนวปุ่ม
             st.button(
-                "🔄 ดึงข้อมูลใหม่", 
+                "🔄 ดึงข้อมูลจากหน้าก่อนหน้า", 
                 on_click=refresh_query_text,
                 args=(seed,), # ส่งค่า seed ล่าสุดไปให้ฟังก์ชัน
-                help="คลิกเพื่ออัปเดตช่องค้นหาด้วยข้อมูลล่าสุดจากแท็บ 'แผน & 6W2H' และ 'Logic Model' (จะล้างข้อมูลที่คุณเคยแก้ไข)",
+                help="คลิกเพื่ออัปเดตช่องค้นหาด้วยข้อมูลล่าสุดจากแท็บ 'ระบุ แผน & 6W2H' และ 'ระบุ Logic Model' (จะล้างข้อมูลที่คุณเคยแก้ไข)",
                 type="secondary"
             )
         
@@ -922,3 +881,4 @@ with tab_chatbot:
                         error_message = f"เกิดข้อผิดพลาด: {e}"
                         st.error(error_message)
                         st.session_state.chatbot_messages.append({"role": "assistant", "content": error_message})
+
