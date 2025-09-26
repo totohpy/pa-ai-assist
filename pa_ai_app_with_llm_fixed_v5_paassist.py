@@ -22,6 +22,9 @@ st.set_page_config(page_title="Planning Studio (+ PA Assistant)", page_icon="�
 
 # ----------------- Utility Functions สำหรับ RAG Chatbot -----------------
 
+# (*** RAG Utility Functions: read_pdf_text_from_path, read_pdf_text_from_uploaded, get_text_from_file, process_documents, load_local_documents_on_init ยังคงอยู่เหมือนเดิม ***)
+# เนื่องจากโค้ด Utility เหล่านี้มีขนาดยาว ผมจะละไว้ในส่วนนี้ แต่ให้ทราบว่าต้องอยู่ในไฟล์
+
 def read_pdf_text_from_path(file_path):
     """Extracts text content from a PDF file using a local file path."""
     try:
@@ -123,7 +126,6 @@ def load_local_documents_on_init():
     context, total_chars_added = process_documents(supported_files, 'local', MAX_CHARS_LIMIT, 0)
     return context
 
-
 # ----------------- Session Init (รวม RAG State) -----------------
 def init_state():
     ss = st.session_state
@@ -152,9 +154,10 @@ def init_state():
     ss.setdefault("chatbot_messages", [
         {"role": "assistant", "content": "สวัสดีครับ ผมคือผู้ช่วย AI อัจฉริยะ (PA Assistant) ผมพร้อมตอบคำถามโดยอ้างอิงจากเอกสารภายในที่เกี่ยวกับการตรวจสอบครับ"}
     ])
-    # API Key นี้ใช้สำหรับ OpenTyphoon (RAG Chatbot)
     ss.setdefault("api_key_chatbot_standalone", st.secrets.get('OPENAI_API_KEY', '')) 
-    ss.setdefault("local_load_attempted", False) # เพื่อให้โหลด Doc/ แค่ครั้งเดียว
+    ss.setdefault("local_load_attempted", False)
+    # เพิ่ม state สำหรับบอกว่าแท็บไหนถูกเลือกอยู่
+    ss.setdefault("current_tab", "1. ระบุ แผน & 6W2H")
 
 
 def next_id(prefix, df, col):
@@ -258,6 +261,7 @@ def create_excel_template():
 
 # ----------------- App UI -----------------
 init_state()
+
 # *** Initial Load RAG Data ***
 if not st.session_state.doc_context_local and not st.session_state.get('local_load_attempted', False):
     st.session_state.doc_context_local = load_local_documents_on_init()
@@ -276,6 +280,7 @@ st.title("🧭 Planning Studio – Performance Audit")
 # ----------------- START: Custom CSS (User's preferred multi-color tabs) -----------------
 st.markdown("""
 <style>
+/* ... (Custom CSS ยังคงอยู่เหมือนเดิม) ... */
 /* ---- Global Font ---- */
 body { font-family: 'Kanit', sans-serif; }
 
@@ -368,6 +373,10 @@ h4 { color: #007bff !important; border-bottom: 2px solid #e0e0e0; padding-bottom
 # ----------------- END: Custom CSS -----------------
 
 # ----------------- Tab Definitions (เพิ่ม tab_chatbot) -----------------
+# เราสร้างฟังก์ชัน on_click เพื่อบอกว่าตอนนี้เราอยู่แท็บไหน
+def set_current_tab(tab_name):
+    st.session_state.current_tab = tab_name
+
 tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_assist, tab_chatbot = st.tabs([
     "1. ระบุ แผน & 6W2H", 
     "2. ระบุ Logic Model", 
@@ -377,11 +386,13 @@ tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_
     "6. ค้นหาข้อตรวจพบที่ผ่านมา", 
     "7. สรุปข้อมูล (Preview)", 
     "🤖 ให้ PA Assist ช่วยแนะนำประเด็นการตรวจสอบ ✨✨",
-    "💬 PA Chat Assistant (ถาม-ตอบเอกสาร)" # *** แท็บใหม่ ***
+    "💬 PA Chat Assistant (ถาม-ตอบเอกสาร)"
 ]) 
 
 # ----------------- Tab 1: ระบุ แผน & 6W2H -----------------
 with tab_plan:
+    set_current_tab("1. ระบุ แผน & 6W2H")
+    # ... (เนื้อหาของ Tab 1 ยังคงอยู่เหมือนเดิม)
     st.subheader("ข้อมูลแผน (Plan) - กรุณาระบุข้อมูล")
     with st.container(border=True):
         c1, c2, c3 = st.columns([2,2,1])
@@ -483,6 +494,8 @@ How Much: [ข้อความ]
 
 # ----------------- Tab 2: Logic Model -----------------
 with tab_logic:
+    set_current_tab("2. ระบุ Logic Model")
+    # ... (เนื้อหาของ Tab 2 ยังคงอยู่เหมือนเดิม)
     st.subheader("ระบุข้อมูล Logic Model: Input → Activities → Output → Outcome → Impact")
     st.dataframe(logic_df, use_container_width=True, hide_index=True)
     with st.expander("➕ เพิ่มรายการใน Logic Model"):
@@ -509,6 +522,8 @@ with tab_logic:
 
 # ----------------- Tab 3: Methods -----------------
 with tab_method:
+    set_current_tab("3. ระบุ Methods")
+    # ... (เนื้อหาของ Tab 3 ยังคงอยู่เหมือนเดิม)
     st.subheader("ระบุวิธีการเก็บข้อมูล (Methods)")
     st.dataframe(methods_df, use_container_width=True, hide_index=True)
     with st.expander("➕ เพิ่ม Method"):
@@ -537,6 +552,8 @@ with tab_method:
 
 # ----------------- Tab 4: KPIs -----------------
 with tab_kpi:
+    set_current_tab("4. ระบุ KPIs")
+    # ... (เนื้อหาของ Tab 4 ยังคงอยู่เหมือนเดิม)
     st.subheader("ระบุตัวชี้วัด (KPIs)")
     st.dataframe(kpis_df, use_container_width=True, hide_index=True)
     with st.expander("➕ เพิ่ม KPI เอง"):
@@ -570,6 +587,8 @@ with tab_kpi:
 
 # ----------------- Tab 5: Risks -----------------
 with tab_risk:
+    set_current_tab("5. ระบุ Risks")
+    # ... (เนื้อหาของ Tab 5 ยังคงอยู่เหมือนเดิม)
     st.subheader("ระบุความเสี่ยง (Risks)")
     st.dataframe(risks_df, use_container_width=True, hide_index=True)
     with st.expander("➕ เพิ่ม Risk"):
@@ -597,6 +616,8 @@ with tab_risk:
 
 # ----------------- Tab 6: ค้นหาข้อตรวจพบที่ผ่านมา -----------------
 with tab_issue:
+    set_current_tab("6. ค้นหาข้อตรวจพบที่ผ่านมา")
+    # ... (เนื้อหาของ Tab 6 ยังคงอยู่เหมือนเดิม)
     st.subheader("🔎 แนะนำประเด็นตรวจจากรายงานเก่า (Issue Suggestions)")
     st.write("***กรุณาอัพโหลดฐานข้อมูล (ถ้าไม่มีจะใช้ฐานข้อมูลในระบบ)***")
 
@@ -743,6 +764,8 @@ Outcomes:{' | '.join(logic_df[logic_df['type']=='Outcome']['description'].tolist
 
 # ----------------- Tab 7: สรุปข้อมูล (Preview) -----------------
 with tab_preview:
+    set_current_tab("7. สรุปข้อมูล (Preview)")
+    # ... (เนื้อหาของ Tab 7 ยังคงอยู่เหมือนเดิม)
     st.subheader("สรุปแผน (Preview)")
     with st.container(border=True):
         st.markdown(f"**Plan ID:** {plan['plan_id']}  \n**ชื่อแผนงาน:** {plan['plan_title']}  \n**โครงการ:** {plan['program_name']}  \n**หน่วยรับตรวจ:** {plan['who']}")
@@ -802,9 +825,11 @@ with tab_preview:
     plan_df = pd.DataFrame([plan])
     df_download_link(plan_df, "plan.csv", "⬇️ ดาวน์โหลด Plan (CSV)")
     st.success("พร้อมเชื่อม Glide / Sheets ต่อได้ทันที")
-    
+
 # ----------------- Tab 8: ให้ PA Assist ช่วยแนะนำประเด็นการตรวจสอบ -----------------
 with tab_assist:
+    set_current_tab("🤖 ให้ PA Assist ช่วยแนะนำประเด็นการตรวจสอบ ✨✨")
+    # ... (เนื้อหาของ Tab 8 ยังคงอยู่เหมือนเดิม)
     st.subheader("💡 PA Audit Assist (ขับเคลื่อนด้วย LLM)")
     st.write("🤖 สร้างคำแนะนำประเด็นการตรวจสอบจาก AI")
     st.markdown("💡 **ยังไม่มี API Key?** คลิก [ที่นี่](https://playground.opentyphoon.ai/settings/api-key) เพื่อรับ key ฟรี!")
@@ -921,11 +946,18 @@ Logic Model:
     st.markdown("<h4 style='color:blue;'>ร่างรายงานตรวจสอบ (Preview)</h4>", unsafe_allow_html=True)
     st.markdown(f"<div style='background-color: #f0f2f6; border: 1px solid #ccc; padding: 10px; border-radius: 5px; height: 400px; overflow-y: scroll;'>{st.session_state.get('gen_report', '')}</div>", unsafe_allow_html=True)
 
+
 # ----------------- Tab 9: PA Chat Assistant (ถาม-ตอบเอกสาร) -----------------
 with tab_chatbot:
-    # 1. Sidebar for Configuration
-    with st.sidebar:
-        st.subheader("🛠️ ตั้งค่าการใช้งาน Chatbot")
+    set_current_tab("💬 PA Chat Assistant (ถาม-ตอบเอกสาร)")
+    st.subheader("🤖 PA Chat Assistant")
+
+    # แยกส่วนการตั้งค่า (Sidebar เดิม) มาใส่ในคอลัมน์ซ้ายของแท็บนี้
+    col_config, col_chat = st.columns([1, 3])
+    
+    # 1. Configuration (ส่วนที่เคยอยู่ใน Sidebar)
+    with col_config:
+        st.markdown("#### 🛠️ ตั้งค่าการใช้งาน")
         
         api_key_chatbot = st.session_state.api_key_chatbot_standalone
 
@@ -949,7 +981,7 @@ with tab_chatbot:
         else:
             st.warning(f"📂 **Doc/** : ไม่พบเอกสารในโฟลเดอร์ '{DOC_FOLDER}'")
 
-        st.subheader("⬆️ อัปโหลดเอกสารชั่วคราว (Ad-hoc)")
+        st.markdown("#### ⬆️ อัปโหลดเอกสารชั่วคราว")
         uploaded_files = st.file_uploader(
             "อัปโหลดไฟล์ PDF, TXT, หรือ CSV (ใช้เฉพาะการสนทนานี้)",
             type=["pdf", "txt", "csv"],
@@ -957,7 +989,7 @@ with tab_chatbot:
             key="chatbot_uploader"
         )
         
-        if st.button("ประมวลผลเอกสารที่อัปโหลด", type="primary"):
+        if st.button("ประมวลผลเอกสารที่อัปโหลด", type="primary", use_container_width=True):
             if uploaded_files:
                 existing_len = len(st.session_state.doc_context_local)
                 uploaded_context, chars_added = process_documents(uploaded_files, 'uploaded', MAX_CHARS_LIMIT, existing_len)
@@ -974,7 +1006,7 @@ with tab_chatbot:
         uploaded_chars = len(st.session_state.doc_context_uploaded)
         if uploaded_chars > 0:
             st.info(f"💾 **Uploaded** : พร้อมใช้ {uploaded_chars:,} ตัวอักษร")
-            if st.button("ล้างเอกสารที่อัปโหลด", key="clear_uploaded_doc"):
+            if st.button("ล้างเอกสารที่อัปโหลด", key="clear_uploaded_doc", use_container_width=True):
                 st.session_state.doc_context_uploaded = ""
                 st.rerun()
         
@@ -983,43 +1015,44 @@ with tab_chatbot:
         total_chars = local_chars + uploaded_chars
         st.metric(label="บริบทรวมทั้งหมด (Max 100K)", value=f"{total_chars:,} ตัวอักษร")
 
-        if st.button("🗑️ ล้างประวัติแชททั้งหมด", key="clear_chat_history"):
+        if st.button("🗑️ ล้างประวัติแชททั้งหมด", key="clear_chat_history", use_container_width=True):
             st.session_state.chatbot_messages = [
                 {"role": "assistant", "content": "สวัสดีครับ ผมคือผู้ช่วย AI อัจฉริยะ (PA Assistant) ผมพร้อมตอบคำถามโดยอ้างอิงจากเอกสารภายในที่เกี่ยวกับการตรวจสอบครับ"}
             ]
             st.rerun()
     
-    # 2. Chat Display
-    st.subheader("🤖 PA Chat Assistant")
-    for message in st.session_state.chatbot_messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+    # 2. Chat Display & Input
+    with col_chat:
+        # แสดงประวัติการสนทนา
+        for message in st.session_state.chatbot_messages:
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
 
-    # 3. Chat Input and Processing
-    if prompt := st.chat_input("สอบถามเกี่ยวกับเอกสารที่โหลด/อัปโหลดไว้...", key="chat_input_box"):
+        # ช่องป้อนคำถาม
+        if prompt := st.chat_input("สอบถามเกี่ยวกับเอกสารที่โหลด/อัปโหลดไว้...", key="chat_input_box"):
 
-        api_key_chatbot = st.session_state.api_key_chatbot_standalone
+            api_key_chatbot = st.session_state.api_key_chatbot_standalone
 
-        if not api_key_chatbot:
-            st.error("กรุณากรอก **OpenTyphoon API Key** ในแถบด้านข้าง (Sidebar) ก่อนใช้งาน")
-            st.stop()
-        
-        full_doc_context = st.session_state.doc_context_local + st.session_state.doc_context_uploaded
-        doc_context = full_doc_context or "ไม่พบเอกสารภายใน"
+            if not api_key_chatbot:
+                st.error("กรุณากรอก **OpenTyphoon API Key** ในคอลัมน์ด้านซ้ายมือ (Configuration) ก่อนใช้งาน")
+                st.stop()
+            
+            full_doc_context = st.session_state.doc_context_local + st.session_state.doc_context_uploaded
+            doc_context = full_doc_context or "ไม่พบเอกสารภายใน"
 
-        st.session_state.chatbot_messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
+            st.session_state.chatbot_messages.append({"role": "user", "content": prompt})
+            with st.chat_message("user"):
+                st.markdown(prompt)
 
-        with st.chat_message("assistant"):
-            with st.spinner("กำลังประมวลผลคำตอบ..."):
-                try:
-                    client = OpenAI(
-                        api_key=api_key_chatbot,
-                        base_url="https://api.opentyphoon.ai/v1"
-                    )
+            with st.chat_message("assistant"):
+                with st.spinner("กำลังประมวลผลคำตอบ..."):
+                    try:
+                        client = OpenAI(
+                            api_key=api_key_chatbot,
+                            base_url="https://api.opentyphoon.ai/v1"
+                        )
 
-                    system_prompt = f"""
+                        system_prompt = f"""
 คุณคือผู้ช่วย AI อัจฉริยะ **(PA Assistant)** ที่เชี่ยวชาญการให้ข้อมูลเพื่อ **อ้างอิงการปฏิบัติงานสำหรับผู้ตรวจสอบของสำนักงานการตรวจเงินแผ่นดินภูมิภาคและจังหวัด** หน้าที่ของคุณคือตอบคำถามของผู้ใช้ให้ถูกต้องและครบถ้วนที่สุด โดยใช้แหล่งข้อมูลตามลำดับความสำคัญ:
 1.  **เอกสารภายใน (Primary Source):** เนื้อหาจากโฟลเดอร์ "Doc" หรือที่ผู้ใช้เพิ่งอัปโหลด **จงยึดข้อมูลนี้เป็นหลัก**
 2.  **ความรู้ทั่วไปจากอินเทอร์เน็ต (Secondary Source):** ใช้ความรู้ที่คุณมีจากการฝึกฝน (ซึ่งเทียบเท่าการค้นหาข้อมูลบนอินเทอร์เน็ต) เพื่อตอบคำถาม โดยเน้นข้อมูลที่เกี่ยวข้องกับการตรวจสอบ (Audit) ของภาครัฐ
@@ -1038,24 +1071,24 @@ with tab_chatbot:
 จากข้อมูลข้างต้นนี้ จงตอบคำถามล่าสุดของผู้ใช้
 """
 
-                    messages_for_api = [
-                        {"role": "system", "content": system_prompt}
-                    ]
-                    for msg in st.session_state.chatbot_messages[-10:]:
-                        messages_for_api.append(msg)
+                        messages_for_api = [
+                            {"role": "system", "content": system_prompt}
+                        ]
+                        for msg in st.session_state.chatbot_messages[-10:]:
+                            messages_for_api.append(msg)
 
-                    response_stream = client.chat.completions.create(
-                        model="typhoon-v2.1-12b-instruct",
-                        messages=messages_for_api,
-                        temperature=0.5,
-                        max_tokens=3072,
-                        stream=True
-                    )
+                        response_stream = client.chat.completions.create(
+                            model="typhoon-v2.1-12b-instruct",
+                            messages=messages_for_api,
+                            temperature=0.5,
+                            max_tokens=3072,
+                            stream=True
+                        )
 
-                    response = st.write_stream(response_stream)
-                    st.session_state.chatbot_messages.append({"role": "assistant", "content": response})
+                        response = st.write_stream(response_stream)
+                        st.session_state.chatbot_messages.append({"role": "assistant", "content": response})
 
-                except Exception as e:
-                    error_message = f"เกิดข้อผิดพลาด: {e}"
-                    st.error(error_message)
-                    st.session_state.chatbot_messages.append({"role": "assistant", "content": error_message})
+                    except Exception as e:
+                        error_message = f"เกิดข้อผิดพลาด: {e}"
+                        st.error(error_message)
+                        st.session_state.chatbot_messages.append({"role": "assistant", "content": error_message})
