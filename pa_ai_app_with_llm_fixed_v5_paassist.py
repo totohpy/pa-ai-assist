@@ -821,7 +821,7 @@ with tab_preview:
 with tab_assist:
     set_current_tab("💡 Assistant แนะนำประเด็นการตรวจสอบ")
     # ... (เนื้อหาของ Tab 8 ยังคงอยู่เหมือนเดิม)
-    st.subheader("💡 AI Assistant - สรุปและวิเคราะห์เบื้องต้น")
+    st.subheader("💡 AI Assistant - สรุปและแนะนำประเด็นการตรวจสอบเบื้องต้น")
 
     # *** ใช้ API Key Global และกำหนด Callback เพื่อบันทึก Key ***
     def save_api_key_global_assist():
