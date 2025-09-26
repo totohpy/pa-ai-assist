@@ -2,6 +2,6 @@ streamlit
 pandas
 scikit-learn
 openai
-PyPDF2
 openpyxl  # จำเป็นสำหรับการอ่าน/เขียนไฟล์ .xlsx (โดยเฉพาะฟังก์ชัน create_excel_template)
 xlsxwriter # จำเป็นสำหรับการเขียนไฟล์ .xlsx (ใน create_excel_template)
+PyPDF2==3.0.1
