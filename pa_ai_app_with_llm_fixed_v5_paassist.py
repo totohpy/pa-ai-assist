@@ -1011,11 +1011,11 @@ with tab_chatbot:
         
         # 1. เอกสารที่โหลดจากโฟลเดอร์ Doc
         local_context_len = len(st.session_state.doc_context_local)
-        st.markdown(f"**เอกสารในโฟลเดอร์ `Doc`:** {local_context_len:,} ตัวอักษร (โหลดอัตโนมัติ)")
+        st.markdown(f"**เอกสารในฐานข้อมูล:** {local_context_len:,} ตัวอักษร (โหลดอัตโนมัติ)")
         
         # 2. เอกสารที่ผู้ใช้อัปโหลด
         uploaded_files = st.file_uploader(
-            "อัปโหลดเอกสารเพิ่มเติม (PDF/TXT/CSV)", 
+            "อัปโหลดเอกสารเพิ่มเติม เพื่อให้ PA Chat Assistant ประมวลผลก่อนตอบ  (PDF/TXT/CSV)", 
             type=["pdf", "txt", "csv"], 
             accept_multiple_files=True
         )
