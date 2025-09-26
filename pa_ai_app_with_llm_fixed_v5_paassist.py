@@ -162,32 +162,34 @@ body {
 }
 
 /* 2. STYLE TABS AS COLORED BUTTONS (Custom Tabs) */
-/* การจัดรูปแบบสำหรับปุ่มแท็บทั้งหมด */
-button[data-baseweb="tab"] {
+
+/* เลือก Container ของ Tab List เพื่อลบขอบด้านล่าง */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 8px; /* เพิ่มช่องว่างระหว่างแท็บ */
+    border-bottom: none !important;
+    flex-wrap: wrap; 
+    margin-bottom: 15px;
+}
+
+/* เลือก Tab Buttons ทั้งหมด */
+.stTabs [data-baseweb="tab"] {
     border: 1px solid #007bff; /* ขอบสีน้ำเงิน */
-    border-radius: 8px; /* มุมโค้งมน */
-    padding: 10px 15px; /* เพิ่มช่องว่างภายใน */
-    margin: 5px 5px 5px 0px; /* เพิ่มช่องว่างระหว่างปุ่ม */
-    transition: background-color 0.3s, color 0.3s;
+    border-radius: 8px;
+    padding: 10px 15px;
+    transition: background-color 0.3s, color 0.3s, box-shadow 0.3s;
     font-weight: bold;
     color: #007bff !important; /* สีตัวอักษรเริ่มต้น */
     background-color: #ffffff;
-    box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1); /* เพิ่มเงานิดหน่อย */
+    box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);
+    white-space: nowrap; /* ป้องกันข้อความในปุ่มขึ้นบรรทัดใหม่ */
 }
 
-/* การจัดรูปแบบสำหรับแท็บที่ถูกเลือก (Active Tab) */
-button[data-baseweb="tab"][aria-selected="true"] {
-    background-color: #007bff; /* พื้นหลังสีน้ำเงินเข้ม */
+/* เลือก Tab Button ที่กำลัง Active (ถูกเลือก) */
+.stTabs [aria-selected="true"] {
+    background-color: #007bff !important; /* พื้นหลังสีน้ำเงินเข้ม */
     color: white !important; /* ตัวอักษรสีขาว */
-    border: 1px solid #007bff;
+    border-color: #007bff !important; /* ขอบสีน้ำเงินเข้ม */
     box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
-}
-
-/* ซ่อนเส้นแบ่งแนวนอน และให้แท็บขึ้นบรรทัดใหม่บนมือถือ */
-div[data-baseweb="tab-list"] {
-    border-bottom: none !important;
-    margin-bottom: 15px;
-    flex-wrap: wrap; /* สำคัญสำหรับมือถือ */
 }
 
 /* 3. MOBILE RESPONSIVENESS ADJUSTMENTS */
