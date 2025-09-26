@@ -530,10 +530,20 @@ Outcomes:{' | '.join(logic_df[logic_df['type']=='Outcome']['description'].tolist
         def refresh_query_text(new_seed):
             # ฟังก์ชันนี้จะสั่งให้ st.session_state["issue_query_text"] ถูกเขียนทับด้วยค่า seed ใหม่
             st.session_state["issue_query_text"] = new_seed
-        
-        # ตั้งค่าเริ่มต้นของ query text หากยังไม่มีหรือเป็นค่าว่าง
+            st.session_state["ref_seed"] = new_seed # <-- ADDED: Update the reference seed
+
+        # ------------------- ส่วนที่แก้ไข: การอัปเดตอัตโนมัติ (เพื่อแก้ปัญหาที่ข้อความไม่ดึงค่า seed ใหม่) -------------------
+        # **A. กรณีโหลดครั้งแรกสุด หรือค่าว่าง ให้ใส่ seed ใหม่และตั้งค่า ref_seed**
         if "issue_query_text" not in st.session_state or st.session_state["issue_query_text"] == "":
             st.session_state["issue_query_text"] = seed
+            st.session_state["ref_seed"] = seed
+            
+        # **B. กรณี seed เปลี่ยน และค่าในช่องค้นหายังเป็นค่าเดิมจาก seed เก่า**
+        #    (แสดงว่าผู้ใช้ยังไม่เคยแก้ไขเอง) -> ให้ทำการอัปเดตช่องค้นหาอัตโนมัติ
+        elif st.session_state.get("ref_seed") != seed and st.session_state.get("issue_query_text") == st.session_state.get("ref_seed"):
+            st.session_state["issue_query_text"] = seed
+            st.session_state["ref_seed"] = seed # อัปเดต ref_seed ใหม่
+        # --------------------------------------------------------------------------------------------------------------
 
         # ใช้ Columns เพื่อจัดวางช่องค้นหาและปุ่มให้อยู่ข้างกัน
         c_query_area, c_refresh_btn = st.columns([6, 1])
