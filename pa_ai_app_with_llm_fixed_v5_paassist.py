@@ -31,6 +31,9 @@ def init_state():
     ss.setdefault("gen_findings", "")
     ss.setdefault("gen_report", "")
     ss.setdefault("issue_results", pd.DataFrame())
+    # **เพิ่ม state สำหรับเก็บค่า Seed อ้างอิง**
+    ss.setdefault("ref_seed", "") 
+    ss.setdefault("issue_query_text", "")
     # Initialize chat history
     ss.setdefault("chatbot_messages", [
         {"role": "assistant", "content": "สวัสดีครับ ผมคือผู้ช่วยตรวจสอบ (PA Chatbot) ผมพร้อมตอบคำถามจากคู่มือการตรวจสอบ PA และข้อมูลบนอินเทอร์เน็ตแล้วครับ"}
@@ -513,6 +516,7 @@ with tab_issue:
         st.success(f"พบข้อมูล Findings ทั้งหมด {len(findings_df)} รายการ")
         vec, X = build_tfidf_index(findings_df)
         
+        # 1. สร้าง Seed ใหม่ล่าสุดจากข้อมูลในหน้าก่อนหน้า
         seed = f"""
 Who:{plan.get('who','')} What:{plan.get('what','')} Where:{plan.get('where','')}
 When:{plan.get('when','')} Why:{plan.get('why','')} How:{plan.get('how','')}
@@ -520,19 +524,27 @@ Outputs:{' | '.join(logic_df[logic_df['type']=='Output']['description'].tolist()
 Outcomes:{' | '.join(logic_df[logic_df['type']=='Outcome']['description'].tolist())}
 """
         
+        # 2. ตรรกะสำหรับการอัปเดตอัตโนมัติ (เฉพาะเมื่อผู้ใช้ไม่ได้แก้ไข)
+        if st.session_state["issue_query_text"] == st.session_state["ref_seed"]:
+            st.session_state["issue_query_text"] = seed
+        
+        # 3. อัปเดตค่าอ้างอิงสำหรับรอบถัดไป
+        st.session_state["ref_seed"] = seed
+
+
         # [FIX] Define a function to overwrite the text area's state with the latest seed
         def refresh_query_text(new_seed):
-            # ฟังก์ชันนี้จะสั่งให้ st.session_state["issue_query_text"] ถูกเขียนทับด้วยค่า seed ใหม่
             st.session_state["issue_query_text"] = new_seed
-
+            st.session_state["ref_seed"] = new_seed # สำคัญ: อัปเดตค่าอ้างอิงด้วย
+        
         # ใช้ Columns เพื่อจัดวางช่องค้นหาและปุ่มให้อยู่ข้างกัน
         c_query_area, c_refresh_btn = st.columns([6, 1])
 
         with c_query_area:
-            # st.text_area จะใช้ค่าที่ผู้ใช้พิมพ์เป็นหลัก หากมีการพิมพ์แล้ว
+            # st.text_area จะดึงค่าจาก st.session_state["issue_query_text"] มาใช้
             query_text = st.text_area(
                 "*สรุปบริบทที่ใช้ค้นหา (แก้ไขได้):*", 
-                seed, 
+                value=st.session_state["issue_query_text"], 
                 height=140, 
                 key="issue_query_text"
             )
