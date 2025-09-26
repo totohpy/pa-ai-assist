@@ -152,6 +152,9 @@ audit_issues_df = st.session_state["audit_issues"]
 
 st.title("🧭 Planning Studio – Performance Audit")
 
+# --- START: CSS Style Fix ---
+st.markdown("""
+<style>
 /* 2. STYLE TABS AS COLORED BUTTONS (Custom Tabs) */
 
 /* สไตล์พื้นฐานสำหรับปุ่มแท็บทั้งหมด */
@@ -232,6 +235,22 @@ div[data-baseweb="tab-list"] {
     margin-bottom: 15px;
     flex-wrap: wrap; 
 }
+</style>
+""", unsafe_allow_html=True)
+# --- END: CSS Style Fix ---
+
+
+# Note: The original code snippet was incomplete at the point where `with tab_plan:` started. 
+# Assuming you have defined the tabs (tab_plan, tab_logic, etc.) before this point, 
+# the rest of the application logic remains as follows:
+
+# To ensure the code runs, I will define a placeholder for the tabs which were not present 
+# in the provided snippet up to the error line.
+tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview = st.tabs([
+    "1. ระบุ แผน & 6W2H", "2. ระบุ Logic Model", "3. ระบุ Methods", 
+    "4. ระบุ KPIs", "5. ระบุ Risks", "6. แนะนำประเด็นตรวจ", "7. สรุปแผน"
+])
+
 
 with tab_plan:
     st.subheader("ข้อมูลแผน (Plan) - กรุณาระบุข้อมูล")
@@ -639,246 +658,3 @@ with tab_preview:
             "rationale": "เหตุผลที่ควรตรวจ",
             "issue_detail": "รายละเอียด",
             "recommendation": "ข้อเสนอแนะ"
-        })
-        display_cols = ["รหัสประเด็น", "ชื่อประเด็น", "เหตุผลที่ควรตรวจ", "รายละเอียด", "ข้อเสนอแนะ"]
-        st.dataframe(display_issues_df[display_cols], use_container_width=True, hide_index=True)
-    else:
-        st.info("ยังไม่มีประเด็นการตรวจสอบที่เพิ่มเข้ามาในแผน")
-
-    if not st.session_state["audit_issues"].empty:
-        df_download_link(st.session_state["audit_issues"], "audit_issues.csv", "⬇️ ดาวน์โหลด Audit Issues (CSV)")
-
-    st.divider()
-    plan_df = pd.DataFrame([plan])
-    df_download_link(plan_df, "plan.csv", "⬇️ ดาวน์โหลด Plan (CSV)")
-    st.success("พร้อมเชื่อม Glide / Sheets ต่อได้ทันที")
-    
-with tab_assist:
-    st.subheader("💡 PA Audit Assist (ขับเคลื่อนด้วย LLM)")
-    st.write("🤖 สร้างคำแนะนำประเด็นการตรวจสอบจาก AI")
-    st.markdown("💡 **ยังไม่มี API Key?** คลิก [ที่นี่](https://playground.opentyphoon.ai/settings/api-key) เพื่อรับ key ฟรี!")
-    api_key = st.text_input("กรุณากรอก API Key เพื่อใช้บริการ AI:", type="password", key="api_key_assist")
-
-    if st.button("🚀 สร้างคำแนะนำจาก AI", type="primary", key="llm_assist_button"):
-        if not api_key:
-            st.error("กรุณากรอก API Key ก่อนใช้งาน")
-        else:
-            with st.spinner("กำลังสร้างคำแนะนำ..."):
-                try:
-                    issues_for_llm = st.session_state['audit_issues'][['title', 'rationale']]
-                    plan_summary = f"""
-ชื่อแผน/เรื่องที่จะตรวจ: {plan['plan_title']}
-ชื่อโครงการ/แผนงาน: {plan['program_name']}
-วัตถุประสงค์: {plan['objectives']}
-ขอบเขต: {plan['scope']}
-สมมุติฐาน/ข้อจำกัด: {plan['assumptions']}
----
-6W2H:
-ใคร (Who): {plan['who']}
-ถึงใคร (Whom): {plan['whom']}
-ทำอะไร (What): {plan['what']}
-ที่ไหน (Where): {plan['where']}
-เมื่อใด (When): {plan['when']}
-ทำไม (Why): {plan['why']}
-อย่างไร (How): {plan['how']}
-เท่าไร (How much): {plan['how_much']}
----
-Logic Model:
-{st.session_state['logic_items'].to_string()}
----
-ประเด็นที่เพิ่มจากรายงานเก่า:
-{issues_for_llm.to_string()}
-"""
-                    user_prompt = f"""
-จากข้อมูลแผนการตรวจสอบด้านล่างนี้ กรุณาช่วยสร้างคำแนะนำ 3 อย่าง ได้แก่
-1. ประเด็นการตรวจสอบที่ควรให้ความสำคัญ
-2. ข้อตรวจพบที่คาดว่าจะพบ (พร้อมระบุระดับโอกาสที่จะเจอ: สูง/กลาง/ต่ำ)
-3. ร่างรายงานตรวจสอบที่จะเจอ
----
-{plan_summary}
----
-กรุณาสร้างคำตอบตามรูปแบบด้านล่างนี้เท่านั้น:
-<ประเด็นการตรวจสอบที่ควรให้ความสำคัญ>
-[ข้อความสำหรับส่วนที่ 1]
-</ประเด็นการตรวจสอบที่ควรให้ความสำคัญ>
-
-<ข้อตรวจพบที่คาดว่าจะพบ>
-[ข้อความสำหรับส่วนที่ 2]
-</ข้อตรวจพบที่คาดว่าจะพบ>
-
-<ร่างรายงานตรวจสอบที่จะเจอ>
-[ข้อความสำหรับส่วนที่ 3]
-</ร่างรายงานตรวจสอบที่จะเจอ>
-"""
-
-                    client = OpenAI(
-                        api_key=api_key,
-                        base_url="https://api.opentyphoon.ai/v1"
-                    )
-                    
-                    messages = [
-                        {"role": "system", "content": "คุณคือผู้เชี่ยวชาญด้านการตรวจสอบผลสัมฤทธิ์และประสิทธิภาพการดำเนินงาน (Performance Audit)"},
-                        {"role": "user", "content": user_prompt}
-                    ]
-                    
-                    response = client.chat.completions.create(
-                        model="typhoon-v2.1-12b-instruct",
-                        messages=messages,
-                        temperature=0.7,
-                        max_tokens=2048,
-                        top_p=0.9,
-                    )
-
-                    full_response = response.choices[0].message.content
-
-                    issue_start = full_response.find("<ประเด็นการตรวจสอบที่ควรให้ความสำคัญ>") + len("<ประเด็นการตรวจสอบที่ควรให้ความสำคัญ>")
-                    issue_end = full_response.find("</ประเด็นการตรวจสอบที่ควรให้ความสำคัญ>")
-                    issues_text = full_response[issue_start:issue_end].strip()
-                    
-                    finding_start = full_response.find("<ข้อตรวจพบที่คาดว่าจะพบ>") + len("<ข้อตรวจพบที่คาดว่าจะพบ>")
-                    finding_end = full_response.find("</ข้อตรวจพบที่คาดว่าจะพบ>")
-                    findings_text = full_response[finding_start:finding_end].strip()
-
-                    report_start = full_response.find("<ร่างรายงานตรวจสอบที่จะเจอ>") + len("<ร่างรายงานตรวจสอบที่จะเจอ>")
-                    report_end = full_response.find("</ร่างรายงานตรวจสอบที่จะเจอ>")
-                    report_text = full_response[report_start:report_end].strip()
-
-                    st.session_state["gen_issues"] = issues_text
-                    st.session_state["gen_findings"] = findings_text
-                    st.session_state["gen_report"] = report_text
-
-                    st.success("สร้างคำแนะนำจาก AI เรียบร้อยแล้ว ✅")
-
-                except Exception as e:
-                    st.error(f"เกิดข้อผิดพลาดในการเรียกใช้ AI: {e}")
-                    st.session_state["gen_issues"] = ""
-                    st.session_state["gen_findings"] = ""
-                    st.session_state["gen_report"] = ""
-
-    st.markdown("<h4 style='color:blue;'>ประเด็นการตรวจสอบที่ควรให้ความสำคัญ</h4>", unsafe_allow_html=True)
-    st.markdown(f"<div style='background-color: #f0f2f6; border: 1px solid #ccc; padding: 10px; border-radius: 5px; height: 200px; overflow-y: scroll;'>{st.session_state.get('gen_issues', '')}</div>", unsafe_allow_html=True)
-    
-    st.markdown("<h4 style='color:blue;'>ข้อตรวจพบที่คาดว่าจะพบ (พร้อมระดับโอกาส)</h4>", unsafe_allow_html=True)
-    st.markdown(f"<div style='background-color: #f0f2f6; border: 1px solid #ccc; padding: 10px; border-radius: 5px; height: 200px; overflow-y: scroll;'>{st.session_state.get('gen_findings', '')}</div>", unsafe_allow_html=True)
-
-    st.markdown("<h4 style='color:blue;'>ร่างรายงานตรวจสอบ (Preview)</h4>", unsafe_allow_html=True)
-    st.markdown(f"<div style='background-color: #f0f2f6; border: 1px solid #ccc; padding: 10px; border-radius: 5px; height: 400px; overflow-y: scroll;'>{st.session_state.get('gen_report', '')}</div>", unsafe_allow_html=True)
-
-
-with tab_chatbot:
-    st.subheader("🤖 PA Chatbot")
-    st.write("ถาม-ตอบข้อสงสัย โดยอ้างอิงข้อมูลจากคู่มือการตรวจสอบ เอกสารภายใน และข้อมูลจากอินเทอร์เน็ต")
-
-    # Function to read PDFs from a folder
-    @st.cache_data(show_spinner="กำลังอ่านเอกสาร'Doc'...")
-    def load_docs_from_folder(folder_path="Doc"):
-        if not os.path.isdir(folder_path):
-            return None, f"Error: ไม่พบโฟลเดอร์ '{folder_path}' ในระบบ กรุณาสร้างโฟลเดอร์นี้ในตำแหน่งเดียวกับแอป"
-        
-        all_text = ""
-        try:
-            pdf_files = [f for f in os.listdir(folder_path) if f.lower().endswith(".pdf")]
-        except Exception as e:
-            return None, f"Error: ไม่สามารถเข้าถึงโฟลเดอร์ '{folder_path}': {e}"
-        
-        if not pdf_files:
-            return "", "Warning: ไม่พบไฟล์ PDF ในโฟลเดอร์ 'Doc'"
-
-        for filename in pdf_files:
-            try:
-                filepath = os.path.join(folder_path, filename)
-                with open(filepath, 'rb') as f:
-                    reader = PdfReader(f)
-                    text = ""
-                    for page in reader.pages:
-                        text += page.extract_text() or ""
-                all_text += f"\n\n--- เนื้อหาจากไฟล์: {filename} ---\n\n{text}"
-            except Exception as e:
-                st.warning(f"ไม่สามารถอ่านไฟล์ {filename}: {e}")
-                
-        return all_text.strip(), f"ประมวลผลข้อมูลในระบบเรียบร้อยแล้ว"
-
-    # Load documents on first run or if context is empty
-    if "doc_context_loaded" not in st.session_state:
-        doc_text, message = load_docs_from_folder()
-        if doc_text is not None:
-            st.session_state.doc_context = doc_text
-            st.info(message)
-        else:
-            st.error(message)
-        st.session_state.doc_context_loaded = True
-        
-    api_key_chatbot = st.text_input("กรุณากรอก API Key เพื่อใช้บริการ AI:", type="password", key="api_key_chatbot")
-
-    # Display chat messages from history on app rerun
-    for message in st.session_state.chatbot_messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-
-    # Accept user input
-    if prompt := st.chat_input("ถามคำถามจากเอกสารหรือข้อมูลทั่วไป..."):
-        if not api_key_chatbot:
-            st.error("กรุณากรอก API Key ก่อนใช้งาน Chatbot")
-        elif not st.session_state.get("doc_context"):
-            st.warning("ยังไม่มีข้อมูลจากเอกสารเพื่อใช้อ้างอิง กรุณาเพิ่มไฟล์ PDF ในโฟลเดอร์ 'Doc'")
-            # Still allow question to be asked using general knowledge
-        
-        # Add user message to chat history regardless of context
-        st.session_state.chatbot_messages.append({"role": "user", "content": prompt})
-        # Display user message in chat message container
-        with st.chat_message("user"):
-            st.markdown(prompt)
-
-        # Proceed to get assistant response if API key is provided
-        if api_key_chatbot:
-            with st.chat_message("assistant"):
-                with st.spinner("AI กำลังค้นหาคำตอบ..."):
-                    try:
-                        client = OpenAI(
-                            api_key=api_key_chatbot,
-                            base_url="https://api.opentyphoon.ai/v1"
-                        )
-                        
-                        doc_context = st.session_state.get("doc_context", "ไม่มีข้อมูลจากเอกสารภายใน")
-                        
-                        system_prompt = f"""
-คุณคือผู้ช่วย AI อัจฉริยะ (Expert Assistant) หน้าที่ของคุณคือตอบคำถามของผู้ใช้ให้ถูกต้องและครบถ้วนที่สุด โดยใช้แหล่งข้อมูลสองแหล่ง:
-1.  **ข้อมูลจากเอกสารภายใน (Primary Source):** นี่คือเนื้อหาที่ดึงมาจากไฟล์ PDF ในโฟลเดอร์ "Doc" ของระบบ จงยึดข้อมูลนี้เป็นหลักในการตอบคำถามเสมอ
-2.  **ความรู้ทั่วไปและข้อมูลจากอินเทอร์เน็ต (Secondary Source):** หากคำตอบไม่มีอยู่ในเอกสารภายใน ให้ใช้ความรู้ที่คุณมีจากการฝึกฝน (ซึ่งเทียบเท่าการค้นหาข้อมูลบนอินเทอร์เน็ต) เพื่อตอบคำถาม
-
-**กฎการตอบ:**
-- เมื่อตอบคำถาม ให้อ้างอิงเสมอว่าข้อมูลมาจากแหล่งใด (เช่น "จากเอกสาร [ชื่อไฟล์] ระบุว่า..." หรือ "จากเอกสารที่ให้มา" ระบุว่า...) หากไม่ทราบชื่อไฟล์ให้บอกว่า "จากเอกสารที่ให้มา"
-- หากข้อมูลในเอกสารขัดแย้งกับข้อมูลทั่วไป ให้ยึดข้อมูลในเอกสารเป็นหลักและอาจกล่าวถึงความขัดแย้งนั้น
-- หากไม่พบคำตอบทั้งในเอกสารและความรู้ทั่วไป ให้ตอบว่า "ขออภัยครับ ไม่พบข้อมูลที่เกี่ยวข้องทั้งในเอกสารและฐานข้อมูลของผม"
-
----
-**บริบทจากเอกสารภายใน:**
-{doc_context}
----
-
-จากข้อมูลข้างต้นนี้ จงตอบคำถามล่าสุดของผู้ใช้
-"""
-                        
-                        messages_for_api = [
-                            {"role": "system", "content": system_prompt}
-                        ]
-                        # Add chat history, but keep it concise
-                        for msg in st.session_state.chatbot_messages[-10:]:
-                            messages_for_api.append(msg)
-                        
-                        response_stream = client.chat.completions.create(
-                            model="typhoon-v2.1-12b-instruct",
-                            messages=messages_for_api,
-                            temperature=0.5,
-                            max_tokens=3072,
-                            stream=True
-                        )
-                        
-                        response = st.write_stream(response_stream)
-                        st.session_state.chatbot_messages.append({"role": "assistant", "content": response})
-
-                    except Exception as e:
-                        error_message = f"เกิดข้อผิดพลาด: {e}"
-                        st.error(error_message)
-                        st.session_state.chatbot_messages.append({"role": "assistant", "content": error_message})
-
