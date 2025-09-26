@@ -540,7 +540,7 @@ Outcomes:{' | '.join(logic_df[logic_df['type']=='Outcome']['description'].tolist
 
         with c_query_area:
             query_text = st.text_area(
-                "###สรุปบริบทที่ใช้ค้นหา (แก้ไขได้):", 
+                "**สรุปบริบทที่ใช้ค้นหา (แก้ไขได้):**", 
                 st.session_state["issue_query_text"], 
                 height=140, 
                 key="issue_query_text"
