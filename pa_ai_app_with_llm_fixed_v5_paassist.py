@@ -588,7 +588,8 @@ with tab_kpi:
         with c1:
             level = st.selectbox("ระดับ", ["Process","Output","Outcome","Impact"], key="kpi_level")
         with c2:
-            name = st.text_input("ชื่อตัวชี้วัด", key="kpi_name", required=True)
+            # *** แก้ไข: ลบ required=True ออกจาก st.text_input ***
+            name = st.text_input("ชื่อตัวชี้วัด", key="kpi_name") 
             
         c3, c4 = st.columns(2)
         with c3:
