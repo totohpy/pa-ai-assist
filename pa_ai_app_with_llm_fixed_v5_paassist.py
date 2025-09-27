@@ -454,7 +454,7 @@ with tab_assist:
     st.markdown("<h4 style='color:blue;'>ร่างรายงานตรวจสอบ (Preview)</h4>", unsafe_allow_html=True)
     st.markdown(f"<div style='background-color: #f0f2f6; border: 1px solid #ccc; padding: 10px; border-radius: 5px; height: 400px; overflow-y: scroll;'>{st.session_state.get('gen_report', '')}</div>", unsafe_allow_html=True)
 
-# ----------------- Tab 9: PA Chat (ถาม-ตอบ) - (โค้ดที่แก้ไขล่าสุด) -----------------
+# ----------------- Tab 9: PA Chat (ถาม-ตอบ) - (โค้ดปรับปรุงใหม่) -----------------
 with tab_chatbot:
     st.subheader("💬 PA Chat - ผู้ช่วยอัจฉริยะ (RAG)")
     
@@ -467,7 +467,7 @@ with tab_chatbot:
     current_uploaded_file_names = {f.name for f in uploaded_files}
     if uploaded_files and st.session_state.get('last_uploaded_files') != current_uploaded_file_names:
         with st.spinner("กำลังประมวลผลเอกสารที่อัปโหลด..."):
-            st.session_state.doc_context_uploaded, _ = process_documents(uploaded_files, 'uploaded', MAX_CHARS_LIMIT, len(st.session_state.doc_context_local))
+            st.session_state.doc_context_uploaded, _ = process_documents(uploaded_files, 'uploaded', MAX_CHARS_LIMIT, len(st.session_state.get('doc_context_local', '')))
             st.session_state.last_uploaded_files = current_uploaded_file_names
             st.session_state.chatbot_messages.append({"role": "assistant", "content": "อัปเดตเอกสารใหม่เรียบร้อยแล้วครับ"})
             st.rerun()
@@ -508,16 +508,44 @@ with tab_chatbot:
                     st.session_state.chatbot_messages.append({"role": "assistant", "content": error_message})
                 else:
                     try:
-                        # --- MODIFIED ---: รวม context จาก 2 แหล่ง
+                        # --- MODIFIED: ปรับปรุงการสร้าง Prompt ---
+
+                        # 1. สร้างบริบททั้งหมด
                         doc_context = st.session_state.get('doc_context_local', '') + st.session_state.get('doc_context_uploaded', '')
                         
+                        # 2. สร้าง System Prompt เพื่อกำหนดบทบาทของ AI (สั้นๆ)
+                        system_prompt = "คุณคือผู้ช่วย AI เชี่ยวชาญด้านการตรวจสอบผลการดำเนินงาน (Performance Audit) จงตอบคำถามโดยยึดข้อมูลจาก 'บริบทที่แนบมา' เป็นหลักสำคัญที่สุด"
+
+                        # 3. เตรียมประวัติการสนทนา (ไม่รวมคำถามล่าสุดที่เพิ่งพิมพ์)
+                        history = st.session_state.chatbot_messages[:-1]
+
+                        # 4. สร้าง User Prompt สุดท้ายที่รวม 'บริบท' และ 'คำถามล่าสุด' เข้าด้วยกัน
+                        final_user_prompt = f"""จากข้อมูลในบริบทต่อไปนี้:
+---
+**บริบทจากเอกสาร:**
+{doc_context}
+---
+
+จงตอบคำถามนี้: "{prompt}"
+"""
+                        # 5. รวมทั้งหมดเพื่อส่งให้ API
+                        messages_for_api = [
+                            {"role": "system", "content": system_prompt}
+                        ] + history[-10:] + [
+                            {"role": "user", "content": final_user_prompt}
+                        ]
+
                         client = OpenAI(api_key=api_key, base_url="https://api.opentyphoon.ai/v1")
-                        system_prompt = f"""คุณคือผู้ช่วย AI สำหรับการตรวจสอบผลการดำเนินงาน (Performance Audit) คุณจะใช้ข้อมูลจาก 'บริบทจากเอกสาร' เป็นหลักในการตอบคำถาม \n---**บริบทจากเอกสาร:**\n{doc_context}\n---"""
-                        messages_for_api = [{"role": "system", "content": system_prompt}] + st.session_state.chatbot_messages[-10:]
-                        
-                        response_stream = client.chat.completions.create(model="typhoon-v2.1-12b-instruct", messages=messages_for_api, temperature=0.5, max_tokens=3072, stream=True)
+                        response_stream = client.chat.completions.create(
+                            model="typhoon-v2.1-12b-instruct", 
+                            messages=messages_for_api, 
+                            temperature=0.5, 
+                            max_tokens=3072, 
+                            stream=True
+                        )
                         response = message_placeholder.write_stream(response_stream)
                         st.session_state.chatbot_messages.append({"role": "assistant", "content": response})
+
                     except Exception as e:
                         error_message = f"เกิดข้อผิดพลาดขณะทำงาน: {e}"
                         message_placeholder.error(error_message)
