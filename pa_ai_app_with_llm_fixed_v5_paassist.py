@@ -29,7 +29,6 @@ with st.sidebar:
 # ----------------- ฟังก์ชันสำหรับ Chatbot -----------------
 MAX_CHARS_LIMIT = 200000
 
-# --- NEW FUNCTION ---: ฟังก์ชันใหม่สำหรับอ่านไฟล์จากโฟลเดอร์ในเครื่อง
 @st.cache_data(show_spinner=False)
 def load_local_documents(folder_path="Doc"):
     """อ่านไฟล์ทั้งหมดจากโฟลเดอร์ 'Doc' ที่ระบุ"""
@@ -38,7 +37,9 @@ def load_local_documents(folder_path="Doc"):
         return text # คืนค่าว่างถ้าไม่พบโฟลเดอร์
 
     try:
-        for filename in os.listdir(folder_path):
+        files_in_doc = os.listdir(folder_path)
+        progress_bar = st.sidebar.progress(0, text=f"กำลังโหลดเอกสารจาก 'Doc'... (0/{len(files_in_doc)})")
+        for i, filename in enumerate(files_in_doc):
             if len(text) >= MAX_CHARS_LIMIT:
                 st.warning(f"ถึงขีดจำกัดข้อมูลจากโฟลเดอร์ 'Doc' แล้ว ({MAX_CHARS_LIMIT:,} ตัวอักษร)")
                 break
@@ -57,8 +58,10 @@ def load_local_documents(folder_path="Doc"):
                     df = pd.read_csv(file_path)
                     text += df.head(15).to_string()
             except Exception as e:
-                # ข้ามไฟล์ที่มีปัญหาในการอ่าน
                 print(f"Could not read file {filename}: {e}")
+            
+            progress_bar.progress((i + 1) / len(files_in_doc), text=f"กำลังโหลดเอกสาร... ({i+1}/{len(files_in_doc)})")
+        progress_bar.empty()
                 
     except Exception as e:
         st.error(f"เกิดข้อผิดพลาดในการเข้าถึงโฟลเดอร์ 'Doc': {e}")
@@ -89,7 +92,6 @@ def process_documents(files, source_type, limit, current_len=0):
 # ----------------- Session Init -----------------
 def init_state():
     ss = st.session_state
-    # --- โค้ดเดิม ---
     ss.setdefault("plan", {"plan_id": "PLN-" + datetime.now().strftime("%y%m%d-%H%M%S"),"plan_title": "","program_name": "","who": "", "what": "", "where": "", "when": "", "why": "", "how": "", "how_much": "", "whom": "","objectives": "", "scope": "", "assumptions": "", "status": "Draft"})
     ss.setdefault("logic_items", pd.DataFrame(columns=["item_id","plan_id","type","description","metric","unit","target","source"]))
     ss.setdefault("methods", pd.DataFrame(columns=["method_id","plan_id","type","tool_ref","sampling","questions","linked_issue","data_source","frequency"]))
@@ -104,17 +106,14 @@ def init_state():
     ss.setdefault("issue_query_text", "")
     ss.setdefault('api_key_global', '')
     
-    # --- MODIFIED ---: แก้ไขส่วนของ Chatbot
     ss.setdefault('chatbot_messages', [{"role": "assistant", "content": "สวัสดีครับ ผมคือ PA Chat ผู้ช่วยอัจฉริยะด้านการตรวจสอบ"}])
     ss.setdefault('doc_context_uploaded', "")
     ss.setdefault('last_uploaded_files', set())
 
-    # โหลดเอกสารจากโฟลเดอร์ 'Doc' แค่ครั้งแรกที่เปิด session
     if 'doc_context_local' not in ss:
         ss.doc_context_local = load_local_documents()
-        if ss.doc_context_local:
+        if ss.doc_context_local and os.path.isdir('Doc'):
              ss.chatbot_messages.append({"role": "assistant", "content": f"ผมได้โหลดเอกสาร {len(os.listdir('Doc'))} ฉบับจากโฟลเดอร์ 'Doc' เป็นฐานความรู้เรียบร้อยแล้วครับ"})
-
 
 def next_id(prefix, df, col):
     if df.empty: return f"{prefix}-001"
@@ -194,20 +193,16 @@ st.markdown("""<style> body { font-family: 'Kanit', sans-serif; } button[data-ba
 tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_assist, tab_chatbot = st.tabs(["1. ระบุ แผน & 6W2H", "2. ระบุ Logic Model", "3. ระบุ Methods", "4. ระบุ KPIs", "5. ระบุ Risks", "6. ค้นหาข้อตรวจพบที่ผ่านมา", "7. สรุปข้อมูล (Preview)", "🤖 ให้ PA Assist ช่วยแนะนำประเด็นการตรวจสอบ ✨✨", "💬 PA Chat (ถาม-ตอบ)"]) 
 
 with tab_plan:
-    # ... (โค้ด Tab 1 ไม่มีการเปลี่ยนแปลง) ...
     st.subheader("ข้อมูลแผน (Plan) - กรุณาระบุข้อมูล")
     with st.container(border=True):
         c1, c2, c3 = st.columns([2,2,1])
-        with c1:
-            plan["plan_title"] = st.text_input("ชื่อแผน/เรื่องที่จะตรวจ", plan["plan_title"])
-            plan["program_name"] = st.text_input("ชื่อโครงการ/แผนงาน", plan["program_name"])
-            plan["objectives"] = st.text_area("วัตถุประสงค์การตรวจ", plan["objectives"])
-        with c2:
-            plan["scope"] = st.text_area("ขอบเขตการตรวจ", plan["scope"])
-            plan["assumptions"] = st.text_area("สมมุติฐาน/ข้อจำกัดข้อมูล", plan["assumptions"])
-        with c3:
-            st.text_input("Plan ID", plan["plan_id"], disabled=True)
-            plan["status"] = st.selectbox("สถานะ", ["Draft","Published"], index=0)
+        plan["plan_title"] = c1.text_input("ชื่อแผน/เรื่องที่จะตรวจ", plan["plan_title"])
+        plan["program_name"] = c1.text_input("ชื่อโครงการ/แผนงาน", plan["program_name"])
+        plan["objectives"] = c1.text_area("วัตถุประสงค์การตรวจ", plan["objectives"])
+        plan["scope"] = c2.text_area("ขอบเขตการตรวจ", plan["scope"])
+        plan["assumptions"] = c2.text_area("สมมุติฐาน/ข้อจำกัดข้อมูล", plan["assumptions"])
+        c3.text_input("Plan ID", plan["plan_id"], disabled=True)
+        plan["status"] = c3.selectbox("สถานะ", ["Draft","Published"], index=0)
 
     st.divider()
     st.subheader("สรุปเรื่องที่ตรวจสอบ (6W2H)")
@@ -247,7 +242,6 @@ with tab_plan:
         st.session_state.plan["how_much"] = cc3.text_input("How much (เท่าไร)", value=st.session_state.plan["how_much"], key="how_much_input")
 
 with tab_logic:
-    # ... (โค้ด Tab 2 ไม่มีการเปลี่ยนแปลง) ...
     st.subheader("ระบุข้อมูล Logic Model: Input → Activities → Output → Outcome → Impact")
     st.dataframe(logic_df, use_container_width=True, hide_index=True)
     with st.expander("➕ เพิ่มรายการใน Logic Model"):
@@ -265,7 +259,6 @@ with tab_logic:
                 st.rerun()
 
 with tab_method:
-    # ... (โค้ด Tab 3 ไม่มีการเปลี่ยนแปลง) ...
     st.subheader("ระบุวิธีการเก็บข้อมูล (Methods)")
     st.dataframe(methods_df, use_container_width=True, hide_index=True)
     with st.expander("➕ เพิ่ม Method"):
@@ -284,7 +277,6 @@ with tab_method:
                 st.rerun()
 
 with tab_kpi:
-    # ... (โค้ด Tab 4 ไม่มีการเปลี่ยนแปลง) ...
     st.subheader("ระบุตัวชี้วัด (KPIs)")
     st.dataframe(kpis_df, use_container_width=True, hide_index=True)
     with st.expander("➕ เพิ่ม KPI เอง"):
@@ -307,7 +299,6 @@ with tab_kpi:
                 st.rerun()
 
 with tab_risk:
-    # ... (โค้ด Tab 5 ไม่มีการเปลี่ยนแปลง) ...
     st.subheader("ระบุความเสี่ยง (Risks)")
     st.dataframe(risks_df, use_container_width=True, hide_index=True)
     with st.expander("➕ เพิ่ม Risk"):
@@ -325,7 +316,6 @@ with tab_risk:
                 st.rerun()
 
 with tab_issue:
-    # ... (โค้ด Tab 6 ไม่มีการเปลี่ยนแปลง) ...
     st.subheader("🔎 แนะนำประเด็นตรวจจากรายงานเก่า (Issue Suggestions)")
     st.write("***กรุณาอัพโหลดฐานข้อมูล (ถ้าไม่มีจะใช้ฐานข้อมูลในระบบ)***")
     with st.container(border=True):
@@ -388,7 +378,6 @@ with tab_issue:
         st.dataframe(st.session_state["audit_issues"], use_container_width=True, hide_index=True)
 
 with tab_preview:
-    # ... (โค้ด Tab 7 ไม่มีการเปลี่ยนแปลง) ...
     st.subheader("สรุปแผน (Preview)")
     with st.container(border=True):
         st.markdown(f"**Plan ID:** {plan['plan_id']}  \n**ชื่อแผนงาน:** {plan['plan_title']}  \n**โครงการ:** {plan['program_name']}  \n**หน่วยรับตรวจ:** {plan['who']}")
@@ -427,19 +416,16 @@ with tab_preview:
     df_download_link(plan_df, "plan.csv", "⬇️ ดาวน์โหลด Plan (CSV)")
     st.success("พร้อมเชื่อม Glide / Sheets ต่อได้ทันที")
 
-    # ----------------- Tab 8: ให้ PA Assist ช่วย (โค้ดปรับปรุงตามตัวอย่างที่ work) -----------------
 with tab_assist:
     st.subheader("💡 PA Audit Assist (ขับเคลื่อนด้วย LLM)")
     st.write("🤖 สร้างคำแนะนำประเด็นการตรวจสอบจาก AI")
 
     if st.button("🚀 สร้างคำแนะนำจาก AI", type="primary", key="llm_assist_button"):
-        # เปลี่ยนมาใช้ API Key กลางจาก Sidebar เพื่อความสะดวก
         if not st.session_state.api_key_global:
             st.error("กรุณากรอก API Key ที่ Sidebar ด้านซ้ายก่อนใช้งาน")
         else:
             with st.spinner("กำลังสร้างคำแนะนำ..."):
                 try:
-                    # ใช้การสร้าง plan_summary ที่ละเอียดตามต้นฉบับของคุณ
                     issues_for_llm = st.session_state['audit_issues'][['title', 'rationale']]
                     plan_summary = f"""
 ชื่อแผน/เรื่องที่จะตรวจ: {plan['plan_title']}
@@ -464,7 +450,6 @@ Logic Model:
 ประเด็นที่เพิ่มจากรายงานเก่า:
 {issues_for_llm.to_string()}
 """
-                    # ใช้ user_prompt ที่มีโครงสร้างชัดเจนตามต้นฉบับของคุณ
                     user_prompt = f"""
 จากข้อมูลแผนการตรวจสอบด้านล่างนี้ กรุณาช่วยสร้างคำแนะนำ 3 อย่าง ได้แก่
 1. ประเด็นการตรวจสอบที่ควรให้ความสำคัญ
@@ -488,7 +473,7 @@ Logic Model:
 """
 
                     client = OpenAI(
-                        api_key=st.session_state.api_key_global, # ใช้ API Key กลาง
+                        api_key=st.session_state.api_key_global,
                         base_url="https://api.opentyphoon.ai/v1"
                     )
                     
@@ -506,7 +491,6 @@ Logic Model:
 
                     full_response = response.choices[0].message.content
 
-                    # ใช้วิธีแยกข้อความ (Parsing) ที่แน่นอนตามต้นฉบับของคุณ
                     issue_start = full_response.find("<ประเด็นการตรวจสอบที่ควรให้ความสำคัญ>") + len("<ประเด็นการตรวจสอบที่ควรให้ความสำคัญ>")
                     issue_end = full_response.find("</ประเด็นการตรวจสอบที่ควรให้ความสำคัญ>")
                     issues_text = full_response[issue_start:issue_end].strip()
@@ -530,22 +514,23 @@ Logic Model:
                     st.session_state["gen_issues"] = ""
                     st.session_state["gen_findings"] = ""
                     st.session_state["gen_report"] = ""
-
-    st.markdown("<h4 style='color:blue;'>ประเด็นการตรวจสอบที่ควรให้ความสำคัญ</h4>", unsafe_allow_html=True)
-    st.markdown(f"<div style='background-color: #f0f2f6; border: 1px solid #ccc; padding: 10px; border-radius: 5px; height: 200px; overflow-y: scroll;'>{st.session_state.get('gen_issues', '')}</div>", unsafe_allow_html=True)
     
-    st.markdown("<h4 style='color:blue;'>ข้อตรวจพบที่คาดว่าจะพบ (พร้อมระดับโอกาส)</h4>", unsafe_allow_html=True)
-    st.markdown(f"<div style='background-color: #f0f2f6; border: 1px solid #ccc; padding: 10px; border-radius: 5px; height: 200px; overflow-y: scroll;'>{st.session_state.get('gen_findings', '')}</div>", unsafe_allow_html=True)
+    # --- MODIFIED: เปลี่ยนมาใช้ Expander ตามคำแนะนำ ---
+    st.subheader("ผลลัพธ์จาก AI")
 
-    st.markdown("<h4 style='color:blue;'>ร่างรายงานตรวจสอบ (Preview)</h4>", unsafe_allow_html=True)
-    st.markdown(f"<div style='background-color: #f0f2f6; border: 1px solid #ccc; padding: 10px; border-radius: 5px; height: 400px; overflow-y: scroll;'>{st.session_state.get('gen_report', '')}</div>", unsafe_allow_html=True)
+    with st.expander("1. ประเด็นการตรวจสอบที่ควรให้ความสำคัญ", expanded=True):
+        st.write(st.session_state.get('gen_issues', "ยังไม่มีข้อมูล กด 'สร้างคำแนะนำจาก AI' เพื่อเริ่มต้น"))
+
+    with st.expander("2. ข้อตรวจพบที่คาดว่าจะพบ (พร้อมระดับโอกาส)"):
+        st.write(st.session_state.get('gen_findings', "ยังไม่มีข้อมูล"))
+
+    with st.expander("3. ร่างรายงานตรวจสอบ (Preview)"):
+        st.write(st.session_state.get('gen_report', "ยังไม่มีข้อมูล"))
 
 
-# ----------------- Tab 9: PA Chat (ถาม-ตอบ) - (อัปเดต System Prompt ตามที่ต้องการ) -----------------
 with tab_chatbot:
     st.subheader("💬 PA Chat - ผู้ช่วยอัจฉริยะ (RAG)")
     
-    # --- UI and Logic for File Uploader ---
     uploaded_files = st.file_uploader(
         "อัปโหลดเอกสารเพื่อเป็นบริบทให้ AI (PDF, TXT, CSV) - ข้อมูลจะถูกรวมกับเอกสารในโฟลเดอร์ 'Doc'",
         type=['pdf', 'txt', 'csv'],
@@ -564,16 +549,16 @@ with tab_chatbot:
         st.session_state.chatbot_messages.append({"role": "assistant", "content": "ได้ทำการล้างเอกสารที่อัปโหลดออกแล้วครับ"})
         st.rerun()
 
-    # --- Display Context Info ---
     local_len = len(st.session_state.get('doc_context_local', ''))
     uploaded_len = len(st.session_state.get('doc_context_uploaded', ''))
-    if local_len > 0:
-        st.info(f"💾 บริบทจากโฟลเดอร์ 'Doc': {local_len:,} ตัวอักษร")
-    if uploaded_len > 0:
-        st.info(f"📤 บริบทจากไฟล์ที่อัปโหลด: {uploaded_len:,} ตัวอักษร")
-    st.success(f"✅ บริบทรวมทั้งหมด: {(local_len + uploaded_len):,} ตัวอักษร (จำกัดสูงสุด: {MAX_CHARS_LIMIT:,})")
+    
+    with st.expander("ดูรายละเอียดบริบท (Context) ที่ใช้"):
+        if local_len > 0:
+            st.info(f"💾 บริบทจากโฟลเดอร์ 'Doc': {local_len:,} ตัวอักษร")
+        if uploaded_len > 0:
+            st.info(f"📤 บริบทจากไฟล์ที่อัปโหลด: {uploaded_len:,} ตัวอักษร")
+        st.success(f"✅ บริบทรวมทั้งหมด: {(local_len + uploaded_len):,} ตัวอักษร (จำกัดสูงสุด: {MAX_CHARS_LIMIT:,})")
 
-    # --- Chat Interface ---
     chat_container = st.container(height=500, border=True)
     with chat_container:
         for message in st.session_state.chatbot_messages:
@@ -595,30 +580,22 @@ with tab_chatbot:
                     st.session_state.chatbot_messages.append({"role": "assistant", "content": error_message})
                 else:
                     try:
-                        # --- MODIFIED: ใช้ System Prompt ที่คุณให้มา ---
-
-                        # 1. สร้างบริบททั้งหมดจาก 2 แหล่ง
                         doc_context = st.session_state.get('doc_context_local', '') + st.session_state.get('doc_context_uploaded', '')
                         
-                        # 2. นำ System Prompt ที่คุณให้มาใช้งาน
                         system_prompt = f"""
 คุณคือผู้ช่วย AI อัจฉริยะ (Expert Assistant) หน้าที่ของคุณคือตอบคำถามของผู้ใช้ให้ถูกต้องและครบถ้วนที่สุด โดยใช้แหล่งข้อมูลสองแหล่ง:
 1.  **ข้อมูลจากเอกสารภายใน (Primary Source):** นี่คือเนื้อหาที่ดึงมาจากไฟล์ PDF ในโฟลเดอร์ "Doc" ของระบบ จงยึดข้อมูลนี้เป็นหลักในการตอบคำถามเสมอ
 2.  **ความรู้ทั่วไปและข้อมูลจากอินเทอร์เน็ต (Secondary Source):** หากคำตอบไม่มีอยู่ในเอกสารภายใน ให้ใช้ความรู้ที่คุณมีจากการฝึกฝน (ซึ่งเทียบเท่าการค้นหาข้อมูลบนอินเทอร์เน็ต) เพื่อตอบคำถาม
-
 **กฎการตอบ:**
 - เมื่อตอบคำถาม ให้อ้างอิงเสมอว่าข้อมูลมาจากแหล่งใด (เช่น "จากเอกสาร [ชื่อไฟล์] ระบุว่า..." หรือ "จากเอกสารที่ให้มา" ระบุว่า...) หากไม่ทราบชื่อไฟล์ให้บอกว่า "จากเอกสารที่ให้มา"
 - หากข้อมูลในเอกสารขัดแย้งกับข้อมูลทั่วไป ให้ยึดข้อมูลในเอกสารเป็นหลักและอาจกล่าวถึงความขัดแย้งนั้น
 - หากไม่พบคำตอบทั้งในเอกสารและความรู้ทั่วไป ให้ตอบว่า "ขออภัยครับ ไม่พบข้อมูลที่เกี่ยวข้องทั้งในเอกสารและฐานข้อมูลของผม"
-
 ---
 **บริบทจากเอกสารภายใน:**
 {doc_context}
 ---
-
 จากข้อมูลข้างต้นนี้ จงตอบคำถามล่าสุดของผู้ใช้
 """
-                        # 3. รวม System Prompt และประวัติการสนทนาทั้งหมดเพื่อส่งให้ API
                         messages_for_api = [
                             {"role": "system", "content": system_prompt}
                         ] + st.session_state.chatbot_messages[-10:]
