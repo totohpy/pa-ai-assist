@@ -11,12 +11,12 @@ import io
 from PyPDF2 import PdfReader
 
 # ตั้งค่าหน้าเพจ
-st.set_page_config(page_title="Planning Studio (+ Issue Suggestions)", page_icon="🧭", layout="wide")
+st.set_page_config(page_title="Planning Studio (+ Findings Suggestions)", page_icon="🧭", layout="wide")
 
 # ----------------- ⚙️ การตั้งค่ากลาง -----------------
 with st.sidebar:
     st.title("⚙️ การตั้งค่ากลาง")
-    st.info("API Key ที่กรอกด้านล่างนี้จะถูกใช้กับทุกฟีเจอร์ AI ในแอปพลิเคชัน")
+    st.info("API Key ที่กรอกด้านล่างนี้จะถูกใช้กับทุกฟีเจอร์ AI, ดูรายละเอียด ? ")
     st.session_state.api_key_global = st.text_input(
         "กรุณากรอก API Key (OpenTyphoon)",
         type="password",
@@ -24,24 +24,24 @@ with st.sidebar:
         help="คลิกที่นี่เพื่อรับ Key ฟรี: https://playground.opentyphoon.ai/settings/api-key"
     )
     st.markdown("---")
-    st.markdown("Planning Studio Web App")
+    st.markdown("PA Planning Studio Web App By PAO1 DataCenter")
 
 # ----------------- ฟังก์ชันสำหรับ Chatbot -----------------
 MAX_CHARS_LIMIT = 200000
 
 @st.cache_data(show_spinner=False)
 def load_local_documents(folder_path="Doc"):
-    """อ่านไฟล์ทั้งหมดจากโฟลเดอร์ 'Doc' ที่ระบุ"""
+    """อ่านไฟล์ทั้งหมดจากคลังข้อมูล"""
     text = ""
     if not os.path.isdir(folder_path):
         return text # คืนค่าว่างถ้าไม่พบโฟลเดอร์
 
     try:
         files_in_doc = os.listdir(folder_path)
-        progress_bar = st.sidebar.progress(0, text=f"กำลังโหลดเอกสารจาก 'Doc'... (0/{len(files_in_doc)})")
+        progress_bar = st.sidebar.progress(0, text=f"กำลังโหลดเอกสารจากคลังข้อมูล... (0/{len(files_in_doc)})")
         for i, filename in enumerate(files_in_doc):
             if len(text) >= MAX_CHARS_LIMIT:
-                st.warning(f"ถึงขีดจำกัดข้อมูลจากโฟลเดอร์ 'Doc' แล้ว ({MAX_CHARS_LIMIT:,} ตัวอักษร)")
+                st.warning(f"ถึงขีดจำกัดข้อมูลจากคลังข้อมูลแล้ว ({MAX_CHARS_LIMIT:,} ตัวอักษร)")
                 break
             
             file_path = os.path.join(folder_path, filename)
@@ -113,7 +113,7 @@ def init_state():
     if 'doc_context_local' not in ss:
         ss.doc_context_local = load_local_documents()
         if ss.doc_context_local and os.path.isdir('Doc'):
-             ss.chatbot_messages.append({"role": "assistant", "content": f"ผมได้โหลดเอกสาร {len(os.listdir('Doc'))} ฉบับจากโฟลเดอร์ 'Doc' เป็นฐานความรู้เรียบร้อยแล้วครับ"})
+             ss.chatbot_messages.append({"role": "assistant", "content": f"ผมได้โหลดเอกสาร {len(os.listdir('Doc'))} ฉบับ เป็นฐานความรู้เรียบร้อยแล้วครับ"})
 
 def next_id(prefix, df, col):
     if df.empty: return f"{prefix}-001"
@@ -211,7 +211,7 @@ with tab_plan:
         uploaded_text = st.text_area("ระบุข้อความเกี่ยวกับเรื่องที่จะตรวจสอบ ที่ต้องการให้ AI ช่วยสรุป 6W2H", height=200, key="uploaded_text")
         
         if st.button("🚀 สร้าง 6W2H จากข้อความ", type="primary", key="6w2h_button"):
-            if not uploaded_text: st.error("กรุณาวางข้อความในช่องก่อน")
+            if not uploaded_text: st.error("กรุณาวางข้อความในช่อง")
             elif not st.session_state.api_key_global: st.error("กรุณากรอก API Key ที่ Sidebar ด้านซ้ายก่อนใช้งาน")
             else:
                 with st.spinner("กำลังประมวลผล..."):
@@ -225,11 +225,11 @@ with tab_plan:
                                 key, value = line.split(':', 1)
                                 normalized_key = key.strip().lower().replace(' ', '_')
                                 if normalized_key in st.session_state.plan: st.session_state.plan[normalized_key] = value.strip()
-                        st.success("สร้าง 6W2H เรียบร้อยแล้ว! กรุณาตรวจสอบข้อมูลด้านล่าง")
+                        st.success("สร้าง 6W2H เรียบร้อยแล้ว! กรุณาตรวจสอบข้อมูล แล้วนำไปกรอบในช่องด้านล่าง")
                         st.balloons()
                     except Exception as e: st.error(f"เกิดข้อผิดพลาดในการเรียกใช้ AI: {e}")
         
-    st.markdown("##### ⭐กรุณาระบุข้อมูล เพื่อนำไปใช้ประมวลผล")
+    st.markdown("##### ⭐กรุณาระบุข้อมูลทั้งหมด/บางส่วน เพื่อใช้ประมวลผล")
     with st.container(border=True):
         cc1, cc2, cc3 = st.columns(3)
         st.session_state.plan["who"] = cc1.text_input("Who (ใคร)", value=st.session_state.plan["who"], key="who_input")
@@ -316,11 +316,11 @@ with tab_risk:
                 st.rerun()
 
 with tab_issue:
-    st.subheader("🔎 แนะนำประเด็นตรวจจากรายงานเก่า (Issue Suggestions)")
+    st.subheader("🔎 แนะนำประเด็นตรวจจากรายงานเก่า (Audit Findings Suggestions)")
 
     # --- MODIFIED: เปลี่ยนจาก container เป็น expander ---
     with st.expander("อัปโหลดและจัดการฐานข้อมูลข้อตรวจพบ (Findings Library)"):
-        st.write("คุณสามารถอัปโหลดไฟล์ .csv หรือ .xlsx ที่มีข้อมูลข้อตรวจพบเก่าเพื่อใช้ในการค้นหา หรือดาวน์โหลดไฟล์แม่แบบไปใช้งาน")
+        st.write("คุณสามารถอัปโหลดไฟล์ .csv หรือ .xlsx ที่มีข้อมูลข้อตรวจพบเก่าเพื่อใช้ในการค้นหา หรือดาวน์โหลดไฟล์แม่แบบไปใช้งาน ถ้าไม่มีจะใช้ข้อมูลในฐานข้อมูลที่มีอยู่")
         st.download_button(
             label="⬇️ ดาวน์โหลดไฟล์แม่แบบ FindingsLibrary.xlsx",
             data=create_excel_template(),
@@ -408,7 +408,7 @@ Outcomes:{' | '.join(logic_df[logic_df['type']=='Outcome']['description'].tolist
                         st.text_input("วิธีเก็บข้อมูลที่เสนอ", key=f"mth_{i}", value="สัมภาษณ์/สังเกต/ตรวจเอกสาร")
     
                     with c2:
-                        st.button(f"➕ เพิ่มเข้าแผน", key=f"add_{i}", type="secondary", on_click=lambda i=i, title=title_txt, r=row: (
+                        st.button(f"➕ เพิ่มเข้าแผน/ประเด็นที่สนใจ", key=f"add_{i}", type="secondary", on_click=lambda i=i, title=title_txt, r=row: (
                             st.session_state.update(audit_issues=pd.concat([st.session_state["audit_issues"], pd.DataFrame([{"issue_id": next_id("ISS", st.session_state["audit_issues"], "issue_id"),"plan_id": plan.get("plan_id",""),"title": title,"rationale": st.session_state.get(f"rat_{i}", ""),"linked_kpi": st.session_state.get(f"kpi_{i}", ""),"proposed_methods": st.session_state.get(f"mth_{i}", ""),"source_finding_id": r.get("finding_id", ""),"issue_detail": r.get("issue_detail", ""),"recommendation": r.get("recommendation", "")}])], ignore_index=True))
                         ))
                             
@@ -441,7 +441,7 @@ with tab_preview:
         st.markdown("### Risks")
         st.dataframe(st.session_state["risks"], use_container_width=True, hide_index=True)
         df_download_link(st.session_state["risks"], "risks.csv", "⬇️ ดาวน์โหลด Risks (CSV)")
-    st.markdown("### Audit Issues ที่เพิ่มเข้ามา")
+    st.markdown("### Audit Findings ที่เพิ่มเข้ามา")
     if not st.session_state["audit_issues"].empty:
         display_issues_df = st.session_state["audit_issues"].copy().rename(columns={"issue_id": "รหัสประเด็น", "title": "ชื่อประเด็น","rationale": "เหตุผลที่ควรตรวจ", "issue_detail": "รายละเอียด","recommendation": "ข้อเสนอแนะ"})
         display_cols = ["รหัสประเด็น", "ชื่อประเด็น", "เหตุผลที่ควรตรวจ", "รายละเอียด", "ข้อเสนอแนะ"]
@@ -449,14 +449,14 @@ with tab_preview:
     else:
         st.info("ยังไม่มีประเด็นการตรวจสอบที่เพิ่มเข้ามาในแผน")
     if not st.session_state["audit_issues"].empty:
-        df_download_link(st.session_state["audit_issues"], "audit_issues.csv", "⬇️ ดาวน์โหลด Audit Issues (CSV)")
+        df_download_link(st.session_state["audit_issues"], "audit_issues.csv", "⬇️ ดาวน์โหลด Audit Findings (CSV)")
     st.divider()
     plan_df = pd.DataFrame([plan])
     df_download_link(plan_df, "plan.csv", "⬇️ ดาวน์โหลด Plan (CSV)")
     st.success("พร้อมเชื่อม Glide / Sheets ต่อได้ทันที")
 
 with tab_assist:
-    st.subheader("💡 PA Audit Assist (ขับเคลื่อนด้วย LLM)")
+    st.subheader("💡 PA Audit Assistant (AI/LLM)")
     st.write("🤖 สร้างคำแนะนำประเด็นการตรวจสอบจาก AI")
 
     if st.button("🚀 สร้างคำแนะนำจาก AI", type="primary", key="llm_assist_button"):
@@ -568,7 +568,7 @@ Logic Model:
 
 
 with tab_chatbot:
-    st.subheader("💬 PA Chat - ผู้ช่วยอัจฉริยะ (RAG)")
+    st.subheader("💬 PA Chat - ผู้ช่วยอัจฉริยะ (Typhoon AI)")
     
     # --- MODIFIED: เพิ่ม Expander ครอบส่วนอัปโหลดไฟล์ ---
     with st.expander("อัปโหลดเอกสารเพิ่มเติม (PDF, TXT, CSV)"):
@@ -597,12 +597,12 @@ with tab_chatbot:
     local_len = len(st.session_state.get('doc_context_local', ''))
     uploaded_len = len(st.session_state.get('doc_context_uploaded', ''))
     
-    with st.expander("ดูรายละเอียดบริบท (Context) ที่ใช้"):
+    with st.expander("ดูรายละเอียดข้อมูล (Context) ที่ใช้ตอบ"):
         if local_len > 0:
-            st.info(f"💾 บริบทจากโฟลเดอร์ 'Doc': {local_len:,} ตัวอักษร")
+            st.info(f"💾 เนื้อหา (Context) ในคลังข้อมูล 'คู่มือการตรวจสอบ': {local_len:,} ตัวอักษร")
         if uploaded_len > 0:
-            st.info(f"📤 บริบทจากไฟล์ที่อัปโหลด: {uploaded_len:,} ตัวอักษร")
-        st.success(f"✅ บริบทรวมทั้งหมด: {(local_len + uploaded_len):,} ตัวอักษร (จำกัดสูงสุด: {MAX_CHARS_LIMIT:,})")
+            st.info(f"📤 เนื้อหาจากไฟล์ที่อัปโหลด: {uploaded_len:,} ตัวอักษร")
+        st.success(f"✅ เนื้อหารวมทั้งหมด: {(local_len + uploaded_len):,} ตัวอักษร (จำกัดสูงสุด: {MAX_CHARS_LIMIT:,})")
 
     chat_container = st.container(height=500, border=True)
     with chat_container:
