@@ -402,81 +402,166 @@ with tab_risk:
                     st.session_state["risks"] = pd.concat([risks_df, new_row], ignore_index=True)
                     st.rerun()
 
-# ----------------- โค้ดเดิม: Tab 6, 7 -----------------
+# ----------------- Tab 6: ค้นหาข้อตรวจพบที่ผ่านมา (โค้ดต้นฉบับที่ถูกต้อง) -----------------
 with tab_issue:
     st.subheader("🔎 แนะนำประเด็นตรวจจากรายงานเก่า (Issue Suggestions)")
     st.write("***กรุณาอัพโหลดฐานข้อมูล (ถ้าไม่มีจะใช้ฐานข้อมูลในระบบ)***")
+
+    
     with st.container(border=True):
-        st.download_button(label="⬇️ ดาวน์โหลดไฟล์แม่แบบ FindingsLibrary.xlsx",data=create_excel_template(),file_name="FindingsLibrary.xlsx",mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        st.download_button(
+            label="⬇️ ดาวน์โหลดไฟล์แม่แบบ FindingsLibrary.xlsx",
+            data=create_excel_template(),
+            file_name="FindingsLibrary.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
         uploaded = st.file_uploader("อัปโหลด FindingsLibrary.csv หรือ .xlsx", type=["csv", "xlsx", "xls"])
+    
     findings_df = load_findings(uploaded=uploaded)
+    
     if findings_df.empty:
         st.info("ไม่พบข้อมูล Findings ที่จะนำมาใช้ โปรดอัปโหลดไฟล์ หรือตรวจสอบว่ามีไฟล์ FindingsLibrary.csv อยู่ในโฟลเดอร์เดียวกัน")
     else:
         st.success(f"พบข้อมูล Findings ทั้งหมด {len(findings_df)} รายการ")
         vec, X = build_tfidf_index(findings_df)
-        seed = f"""Who:{plan.get('who','')} What:{plan.get('what','')} Where:{plan.get('where','')} When:{plan.get('when','')} Why:{plan.get('why','')} How:{plan.get('how','')} Outputs:{' | '.join(logic_df[logic_df['type']=='Output']['description'].tolist())} Outcomes:{' | '.join(logic_df[logic_df['type']=='Outcome']['description'].tolist())}"""
+        
+        seed = f"""
+Who:{plan.get('who','')} What:{plan.get('what','')} Where:{plan.get('where','')}
+When:{plan.get('when','')} Why:{plan.get('why','')} How:{plan.get('how','')}
+Outputs:{' | '.join(logic_df[logic_df['type']=='Output']['description'].tolist())}
+Outcomes:{' | '.join(logic_df[logic_df['type']=='Outcome']['description'].tolist())}
+"""
+        
         def refresh_query_text(new_seed):
             st.session_state["issue_query_text"] = new_seed
-            st.session_state["ref_seed"] = new_seed
+            st.session_state["ref_seed"] = new_seed 
+
         if "issue_query_text" not in st.session_state or st.session_state["issue_query_text"] == "":
             st.session_state["issue_query_text"] = seed
             st.session_state["ref_seed"] = seed
         elif st.session_state.get("ref_seed") != seed and st.session_state.get("issue_query_text") == st.session_state.get("ref_seed"):
             st.session_state["issue_query_text"] = seed
-            st.session_state["ref_seed"] = seed
+            st.session_state["ref_seed"] = seed 
+
         c_query_area, c_refresh_btn = st.columns([6, 1])
         with c_query_area:
-            query_text = st.text_area("**สรุปบริบทที่ใช้ค้นหา (แก้ไขได้):**", st.session_state["issue_query_text"], height=140, key="issue_query_text")
+            query_text = st.text_area(
+                "**สรุปบริบทที่ใช้ค้นหา (แก้ไขได้):**", 
+                st.session_state["issue_query_text"], 
+                height=140, 
+                key="issue_query_text"
+            )
         with c_refresh_btn:
             st.markdown("<br>", unsafe_allow_html=True)
-            st.button("🔄 ดึงข้อมูลจากหน้าก่อนหน้า", on_click=refresh_query_text, args=(seed,), help="คลิกเพื่ออัปเดตช่องค้นหาด้วยข้อมูลล่าสุด", type="secondary")
+            st.button(
+                "🔄 ดึงข้อมูลจากหน้าก่อนหน้า", 
+                on_click=refresh_query_text,
+                args=(seed,),
+                help="คลิกเพื่ออัปเดตช่องค้นหาด้วยข้อมูลล่าสุดจากแท็บ 'ระบุ แผน & 6W2H' และ 'ระบุ Logic Model' (จะล้างข้อมูลที่คุณเคยแก้ไข)",
+                type="secondary"
+            )
+        
         if st.button("ค้นหาประเด็นที่ใกล้เคียง", type="primary", key="search_button_fix"):
             search_value = st.session_state.get("issue_query_text", seed)
             results = search_candidates(search_value, findings_df, vec, X, top_k=8)
             st.session_state["issue_results"] = results
             st.success(f"พบประเด็นที่เกี่ยวข้อง {len(results)} รายการ")
+            
         results = st.session_state.get("issue_results", pd.DataFrame())
+        
         if not results.empty:
             st.divider()
             st.subheader("ผลลัพธ์การค้นหา")
             for i, row in results.reset_index(drop=True).iterrows():
                 with st.container(border=True):
                     title_txt = row.get("issue_title", "(ไม่มีชื่อประเด็น)")
-                    st.markdown(f"**{title_txt}** \nหน่วย: {row.get('unit', '-')} • ปี {int(row['year']) if 'year' in row and str(row['year']).isdigit() else row.get('year', '-')}")
+                    year_txt = int(row["year"]) if "year" in row and str(row["year"]).isdigit() else row.get("year", "-")
+                    st.markdown(f"**{title_txt}** \nหน่วย: {row.get('unit', '-')} • โครงการ: {row.get('program', '-')} • ปี {year_txt}")
+                    st.caption(f"สาเหตุ: *{row.get('cause_category', '-')}* — {row.get('cause_detail', '-')}")
+    
                     with st.expander("รายละเอียด/ข้อเสนอแนะ (เดิม)"):
                         st.write(row.get("issue_detail", "-"))
                         st.caption("ข้อเสนอแนะเดิม: " + (row.get("recommendation", "") or "-"))
-                        st.markdown(f"**ผลกระทบที่อาจเกิดขึ้น:** {row.get('outcomes_impact', '-')}  •  <span style='color:red;'>**คะแนนความเกี่ยวข้อง**</span>: {row.get('score', 0):.3f}", unsafe_allow_html=True)
+                        st.markdown(f"**ผลกระทบที่อาจเกิดขึ้น:** {row.get('outcomes_impact','-')}  •  <span style='color:red;'>**คะแนนความเกี่ยวข้อง**</span>: {row.get('score',0):.3f} (<span style='color:blue;'>**Similarity Score**</span>={row.get('sim_score',0):.3f})", unsafe_allow_html=True)
+                        st.caption("💡 **คำอธิบาย:** **คะแนนความเกี่ยวข้อง** = ความคล้ายคลึงของข้อความ + ความรุนแรงของปัญหา + ความใหม่ของข้อมูล")
+    
                     c1, c2 = st.columns([3,1])
                     with c1:
-                        st.text_area("เหตุผลที่ควรตรวจ (สำหรับแผนนี้)", key=f"rat_{i}", value=f"อ้างอิงกรณีเดิม ปี {int(row.get('year', 0))}")
+                        st.text_area("เหตุผลที่ควรตรวจ (สำหรับแผนนี้)", key=f"rat_{i}", value=f"อ้างอิงกรณีเดิม ปี {year_txt} | หน่วย: {row.get('unit', '-')}")
+                        st.text_input("KPI ที่เกี่ยว (ถ้ามี)", key=f"kpi_{i}")
+                        st.text_input("วิธีเก็บข้อมูลที่เสนอ", key=f"mth_{i}", value="สัมภาษณ์/สังเกต/ตรวจเอกสาร")
+    
                     with c2:
                         if st.button("➕ เพิ่มเข้าแผน", key=f"add_{i}", type="secondary"):
-                            new = pd.DataFrame([{"issue_id": next_id("ISS", audit_issues_df, "issue_id"),"plan_id": plan.get("plan_id",""),"title": title_txt,"rationale": st.session_state.get(f"rat_{i}", ""),"source_finding_id": row.get("finding_id", ""),"issue_detail": row.get("issue_detail", ""),"recommendation": row.get("recommendation", "")}])
-                            st.session_state["audit_issues"] = pd.concat([audit_issues_df, new], ignore_index=True)
+                            new_row = pd.DataFrame([{"issue_id": next_id("ISS", audit_issues_df, "issue_id"),"plan_id": plan.get("plan_id",""),"title": title_txt,"rationale": st.session_state.get(f"rat_{i}", ""),"linked_kpi": st.session_state.get(f"kpi_{i}", ""),"proposed_methods": st.session_state.get(f"mth_{i}", ""),"source_finding_id": row.get("finding_id", ""),"issue_detail": row.get("issue_detail", ""),"recommendation": row.get("recommendation", "")}])
+                            st.session_state["audit_issues"] = pd.concat([audit_issues_df, new_row], ignore_index=True)
                             st.success("เพิ่มประเด็นเข้าแผนแล้ว ✅")
                             st.rerun()
-        if not st.session_state.get("issue_results", pd.DataFrame()).empty: st.divider()
+                            
+        if not st.session_state.get("issue_results", pd.DataFrame()).empty:
+            st.divider()
         st.markdown("### ประเด็นที่ถูกเพิ่มเข้าแผน")
         st.dataframe(st.session_state["audit_issues"], use_container_width=True, hide_index=True)
 
+# ----------------- Tab 7: สรุปข้อมูล (Preview) (โค้ดต้นฉบับที่ถูกต้อง) -----------------
 with tab_preview:
     st.subheader("สรุปแผน (Preview)")
     with st.container(border=True):
         st.markdown(f"**Plan ID:** {plan['plan_id']}  \n**ชื่อแผนงาน:** {plan['plan_title']}  \n**โครงการ:** {plan['program_name']}  \n**หน่วยรับตรวจ:** {plan['who']}")
     st.markdown("### สรุปเรื่องที่ตรวจสอบ (จาก 6W2H)")
     with st.container(border=True):
-        st.markdown(f"- **Who**: {plan['who']}\n- **Whom**: {plan['whom']}\n- **What**: {plan['what']}\n- **Where**: {plan['where']}\n- **When**: {plan['when']}\n- **Why**: {plan['why']}\n- **How**: {plan['how']}\n- **How much**: {plan['how_much']}")
+        intro = f"""
+- **Who**: {plan['who']}
+- **Whom**: {plan['whom']}
+- **What**: {plan['what']}
+- **Where**: {plan['where']}
+- **When**: {plan['when']}
+- **Why**: {plan['why']}
+- **How**: {plan['how']}
+- **How much**: {plan['how_much']}
+"""
+        st.markdown(intro)
+
     c1, c2 = st.columns(2)
     with c1:
         st.markdown("### Logic Model")
         st.dataframe(st.session_state["logic_items"], use_container_width=True, hide_index=True)
+        df_download_link(st.session_state["logic_items"], "logic_items.csv", "⬇️ ดาวน์โหลด Logic Items (CSV)")
     with c2:
         st.markdown("### Methods")
         st.dataframe(st.session_state["methods"], use_container_width=True, hide_index=True)
+        df_download_link(st.session_state["methods"], "methods.csv", "⬇️ ดาวน์โหลด Methods (CSV)")
+
+    c3, c4 = st.columns(2)
+    with c3:
+        st.markdown("### KPIs")
+        st.dataframe(st.session_state["kpis"], use_container_width=True, hide_index=True)
+        df_download_link(st.session_state["kpis"], "kpis.csv", "⬇️ ดาวน์โหลด KPIs (CSV)")
+    with c4:
+        st.markdown("### Risks")
+        st.dataframe(st.session_state["risks"], use_container_width=True, hide_index=True)
+        df_download_link(st.session_state["risks"], "risks.csv", "⬇️ ดาวน์โหลด Risks (CSV)")
+
     st.markdown("### Audit Issues ที่เพิ่มเข้ามา")
-    st.dataframe(st.session_state["audit_issues"], use_container_width=True, hide_index=True)
+    if not st.session_state["audit_issues"].empty:
+        display_issues_df = st.session_state["audit_issues"].copy()
+        display_issues_df = display_issues_df.rename(columns={
+            "issue_id": "รหัสประเด็น", "title": "ชื่อประเด็น",
+            "rationale": "เหตุผลที่ควรตรวจ", "issue_detail": "รายละเอียด",
+            "recommendation": "ข้อเสนอแนะ"
+        })
+        display_cols = ["รหัสประเด็น", "ชื่อประเด็น", "เหตุผลที่ควรตรวจ", "รายละเอียด", "ข้อเสนอแนะ"]
+        st.dataframe(display_issues_df[display_cols], use_container_width=True, hide_index=True)
+    else:
+        st.info("ยังไม่มีประเด็นการตรวจสอบที่เพิ่มเข้ามาในแผน")
+
+    if not st.session_state["audit_issues"].empty:
+        df_download_link(st.session_state["audit_issues"], "audit_issues.csv", "⬇️ ดาวน์โหลด Audit Issues (CSV)")
+
+    st.divider()
+    plan_df = pd.DataFrame([plan])
+    df_download_link(plan_df, "plan.csv", "⬇️ ดาวน์โหลด Plan (CSV)")
+    st.success("พร้อมเชื่อม Glide / Sheets ต่อได้ทันที")
 
 # ----------------- Tab 8: PA Assist (โค้ดเดิม - แต่ใช้ API Key กลาง) -----------------
 with tab_assist:
