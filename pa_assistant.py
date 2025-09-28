@@ -195,7 +195,71 @@ with st.expander("💡 คำแนะนำการใช้งาน (คล�
         "กรุณากรอกข้อมูลในแท็บ **'1. ระบุ แผน & 6W2H'** ก่อน เพื่อให้ AI ได้รับบริบทที่ครบถ้วนและให้คำแนะนำที่แม่นยำที่สุด"
     )
 
-st.markdown("""<style> body { font-family: 'Kanit', sans-serif; } button[data-baseweb="tab"] { border: 1px solid #007bff; border-radius: 8px; padding: 10px 15px; margin: 5px 5px 5px 0px; font-weight: bold; color: #007bff !important; background-color: #ffffff; box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1); border-bottom: none !important; &::after { content: none !important; } } button[data-baseweb="tab"][aria-selected="true"] { box-shadow: 2px 2px 5px rgba(0,0,0,0.2); } div[data-baseweb="tab-list"] button:nth-of-type(-n+5) { border-color: #007bff; color: #007bff !important; } div[data-baseweb="tab-list"] button:nth-of-type(-n+5)[aria-selected="true"] { background-color: #007bff; color: white !important; } div[data-baseweb="tab-list"] button:nth-of-type(6), div[data-baseweb="tab-list"] button:nth-of-type(7) { border-color: #6f42c1; color: #6f42c1 !important; } div[data-baseweb="tab-list"] button:nth-of-type(6)[aria-selected="true"], div[data-baseweb="tab-list"] button:nth-of-type(7)[aria-selected="true"] { background-color: #6f42c1; color: white !important; } div[data-baseweb="tab-list"] button:nth-of-type(8) { border-color: #ffc107; color: #cc9900 !important; } div[data-baseweb="tab-list"] button:nth-of-type(8)[aria-selected="true"] { background-color: #ffc107; color: #333333 !important; } div[data-baseweb="tab-list"] button:nth-of-type(9) { border-color: #28a745; color: #28a745 !important; } div[data-baseweb="tab-list"] button:nth-of-type(9)[aria-selected="true"] { background-color: #28a745; color: white !important; } div[data-baseweb="tab-list"] { border-bottom: none !important; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; } h4 { color: #007bff !important; border-bottom: 2px solid #e0e0e0; padding-bottom: 5px; } </style>""", unsafe_allow_html=True)
+# --- st.markdown ที่แก้ไขแล้ว ---
+st.markdown("""
+<style> 
+    body { font-family: 'Kanit', sans-serif; } 
+
+    /* --- Base Style for All Tabs (ลักษณะปุ่มทึบ) --- */
+    button[data-baseweb="tab"] {
+        border-radius: 8px;
+        padding: 10px 18px;
+        margin: 5px 5px 5px 0px;
+        font-weight: bold;
+        color: white !important; /* ตัวหนังสือสีขาว */
+        border: none; /* ไม่มีเส้นขอบ */
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* เพิ่มเงาเล็กน้อย */
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; /* ทำให้การเคลื่อนไหวสมูท */
+    }
+
+    /* --- สไตล์ของแท็บที่ถูกเลือก (ดึงให้ลอยขึ้น) --- */
+    button[data-baseweb="tab"][aria-selected="true"] {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        transform: translateY(-2px);
+    }
+    
+    /* --- สไตล์เมื่อนำเมาส์ไปชี้ (ลอยขึ้นเล็กน้อย) --- */
+    button[data-baseweb="tab"]:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+    }
+
+    /* --- Group 1: 1-5 (สีน้ำเงิน) --- */
+    div[data-baseweb="tab-list"] button:nth-of-type(-n+5) {
+        background-color: #0d6efd; /* สีน้ำเงินหลัก */
+    }
+
+    /* --- Group 2: 6-7 (สีม่วง) --- */
+    div[data-baseweb="tab-list"] button:nth-of-type(6), 
+    div[data-baseweb="tab-list"] button:nth-of-type(7) {
+        background-color: #6f42c1; /* สีม่วง */
+    }
+
+    /* --- Group 3: 8 (สีทอง) --- */
+    div[data-baseweb="tab-list"] button:nth-of-type(8) {
+        background-color: #ffc107; /* สีทอง */
+        color: #343a40 !important; /* เปลี่ยนสีตัวหนังสือสำหรับพื้นหลังสีอ่อน */
+    }
+
+    /* --- Group 4: 9 (สีเขียว) --- */
+    div[data-baseweb="tab-list"] button:nth-of-type(9) {
+        background-color: #198754; /* สีเขียว */
+    }
+
+    /* --- General Layout --- */
+    div[data-baseweb="tab-list"] { 
+        border-bottom: none !important; 
+        margin-bottom: 15px; 
+        flex-wrap: wrap; 
+        gap: 10px; 
+    } 
+    h4 { 
+        color: #007bff !important; 
+        border-bottom: 2px solid #e0e0e0; 
+        padding-bottom: 5px; 
+    } 
+</style>
+""", unsafe_allow_html=True)
 
 tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_assist, tab_chatbot = st.tabs(["1. ระบุ แผน & 6W2H", "2. ระบุ Logic Model", "3. ระบุ Methods", "4. ระบุ KPIs", "5. ระบุ Risks", "6. ค้นหาข้อตรวจพบที่ผ่านมา", "7. สรุปข้อมูล (Preview)", "🤖 ให้ PA Assistant แนะนำประเด็นการตรวจสอบ ✨✨", "💬 PA Chat (ถาม-ตอบ)"]) 
 
