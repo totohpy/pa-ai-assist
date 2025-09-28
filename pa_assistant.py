@@ -203,8 +203,8 @@ st.markdown("""
     /* --- Base Style for All Tabs (ลักษณะปุ่มทึบ) --- */
     button[data-baseweb="tab"] {
         border-radius: 8px;
-        padding: 8px 14px; /* --- MODIFIED: ลด Padding ภายในปุ่ม --- */
-        margin: 2px; /* --- MODIFIED: ปรับ Margin เล็กน้อย --- */
+        padding: 6px 12px; /* --- MODIFIED: ลด Padding ภายในปุ่มลงอีก --- */
+        margin: 0; /* --- MODIFIED: ลบ margin เพื่อให้ gap ควบคุมระยะห่างอย่างเดียว --- */
         font-weight: bold;
         color: white !important; 
         border: none;
@@ -212,11 +212,11 @@ st.markdown("""
         transition: all 0.2s ease-in-out;
     }
 
-    /* --- สไตล์ของแท็บที่ถูกเลือก (ดึงให้ลอยขึ้นและสีสว่างขึ้น) --- */
+    /* --- สไตล์ของแท็บที่ถูกเลือก (ดึงให้ลอยขึ้นและสีสว่างขึ้นมาก) --- */
     button[data-baseweb="tab"][aria-selected="true"] {
         box-shadow: 0 4px 12px rgba(0,0,0,0.25);
         transform: translateY(-2px);
-        filter: brightness(115%); /* --- NEW: ทำให้สีสว่างขึ้น 15% --- */
+        filter: brightness(140%); /* --- NEW: ทำให้สีสว่างขึ้นมาก 40% --- */
     }
     
     /* --- สไตล์เมื่อนำเมาส์ไปชี้ (ลอยขึ้นเล็กน้อย) --- */
@@ -252,7 +252,7 @@ st.markdown("""
         border-bottom: none !important; 
         margin-bottom: 15px; 
         flex-wrap: wrap; 
-        gap: 6px; /* --- MODIFIED: ลดระยะห่างระหว่างปุ่ม --- */
+        gap: 2px; /* --- MODIFIED: ลดระยะห่างระหว่างปุ่มให้ชิดกันมากที่สุด --- */
     } 
     h4 { 
         color: #007bff !important; 
