@@ -9,7 +9,6 @@ from openai import OpenAI
 import os
 import io
 from PyPDF2 import PdfReader
-import streamlit.components.v1 as components
 
 # ตั้งค่าหน้าเพจ
 st.set_page_config(page_title="Planning Studio (+ Findings Suggestions)", page_icon="🧭", layout="wide")
@@ -84,7 +83,8 @@ def init_state():
     ss.setdefault('api_key_global', '')
     ss.setdefault('chatbot_messages', [{"role": "assistant", "content": "สวัสดีครับ ผมคือ PA Chat ผู้ช่วยอัจฉริยะด้านการตรวจสอบ"}])
     ss.setdefault('doc_context_uploaded', ""); ss.setdefault('last_uploaded_files', set())
-    ss.setdefault("active_tab", 0)
+    # --- MODIFIED ---: เปลี่ยนมาใช้ session_state ตัวนี้ในการควบคุมแท็บ
+    ss.setdefault("active_tab", "1. ระบุ แผน & 6W2H")
     if 'doc_context_local' not in ss:
         ss.doc_context_local = load_local_documents()
         if ss.doc_context_local and os.path.isdir('Doc'):
@@ -99,13 +99,6 @@ def next_id(prefix, df, col):
 def df_download_link(df: pd.DataFrame, filename: str, label: str):
     buf = BytesIO(); df.to_csv(buf, index=False, encoding="utf-8-sig")
     st.download_button(label, data=buf.getvalue(), file_name=filename, mime="text/csv")
-
-def create_next_tab_button(next_tab_index, label="แท็บถัดไป »"):
-    def switch_tab():
-        st.session_state.active_tab = next_tab_index
-    st.divider()
-    _, col2 = st.columns([8, 2])
-    col2.button(label, on_click=switch_tab, use_container_width=True, key=f"next_tab_btn_{next_tab_index}")
 
 @st.cache_data(show_spinner=False)
 def load_findings(uploaded=None):
@@ -163,78 +156,4 @@ audit_issues_df = st.session_state["audit_issues"]
 
 st.title("🧭 Planning Studio – Performance Audit")
 
-st.markdown("""<style> body { font-family: 'Kanit', sans-serif; } button[data-baseweb="tab"] { border: 1px solid #007bff; border-radius: 8px; padding: 10px 15px; margin: 5px 5px 5px 0px; font-weight: bold; color: #007bff !important; background-color: #ffffff; box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1); border-bottom: none !important; &::after { content: none !important; } } button[data-baseweb="tab"][aria-selected="true"] { box-shadow: 2px 2px 5px rgba(0,0,0,0.2); } div[data-baseweb="tab-list"] button:nth-of-type(-n+5) { border-color: #007bff; color: #007bff !important; } div[data-baseweb="tab-list"] button:nth-of-type(-n+5)[aria-selected="true"] { background-color: #007bff; color: white !important; } div[data-baseweb="tab-list"] button:nth-of-type(6), div[data-baseweb="tab-list"] button:nth-of-type(7) { border-color: #6f42c1; color: #6f42c1 !important; } div[data-baseweb="tab-list"] button:nth-of-type(6)[aria-selected="true"], div[data-baseweb="tab-list"] button:nth-of-type(7)[aria-selected="true"] { background-color: #6f42c1; color: white !important; } div[data-baseweb="tab-list"] button:nth-of-type(8) { border-color: #ffc107; color: #cc9900 !important; } div[data-baseweb="tab-list"] button:nth-of-type(8)[aria-selected="true"] { background-color: #ffc107; color: #333333 !important; } div[data-baseweb="tab-list"] button:nth-of-type(9) { border-color: #28a745; color: #28a745 !important; } div[data-baseweb="tab-list"] button:nth-of-type(9)[aria-selected="true"] { background-color: #28a745; color: white !important; } div[data-baseweb="tab-list"] { border-bottom: none !important; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; } h4 { color: #007bff !important; border-bottom: 2px solid #e0e0e0; padding-bottom: 5px; } </style>""", unsafe_allow_html=True)
-
-tab_names = ["1. ระบุ แผน & 6W2H", "2. ระบุ Logic Model", "3. ระบุ Methods", "4. ระบุ KPIs", "5. ระบุ Risks", "6. ค้นหาข้อตรวจพบที่ผ่านมา", "7. สรุปข้อมูล (Preview)", "🤖 ให้ PA Assistant แนะนำประเด็นการตรวจสอบ ✨✨", "💬 PA Chat (ถาม-ตอบ)"]
-tabs = st.tabs(tab_names) 
-
-if "active_tab" in st.session_state:
-    active_tab_js = f"""
-    <script>
-        var tab_buttons = parent.document.querySelectorAll('button[data-baseweb="tab"]');
-        var tab_index = {st.session_state.active_tab};
-        if (tab_buttons.length > tab_index && tab_buttons[tab_index].getAttribute('aria-selected') === 'false') {{
-            tab_buttons[tab_index].click();
-        }}
-    </script>
-    """
-    components.html(active_tab_js, height=0, width=0)
-
-with tabs[0]:
-    st.subheader("ข้อมูลแผน (Plan) - กรุณาระบุข้อมูล")
-    # ... content ...
-    create_next_tab_button(1)
-
-with tabs[1]:
-    st.subheader("ระบุข้อมูล Logic Model: Input → Activities → Output → Outcome → Impact")
-    st.dataframe(logic_df, use_container_width=True, hide_index=True)
-    with st.expander("➕ เพิ่มรายการใน Logic Model"):
-        with st.container(border=True):
-            colA, colB, colC = st.columns(3)
-            typ = colA.selectbox("ประเภท", ["Input","Activity","Output","Outcome","Impact"], key="logic_type")
-            desc = colA.text_input("คำอธิบาย/รายละเอียด", key="logic_desc")
-            metric = colA.text_input("ตัวชี้วัด/metric", key="logic_metric")
-            unit = colB.text_input("หน่วย", value="หน่วย", key="logic_unit")
-            target = colB.text_input("เป้าหมาย", value="", key="logic_target")
-            source = colC.text_input("แหล่งข้อมูล", value="", key="logic_source")
-            # --- FIXED ---: เพิ่ม key ที่ไม่ซ้ำกันให้กับปุ่ม
-            if st.button("เพิ่ม Logic Item", type="primary", key="add_logic_item_btn"):
-                new_row = pd.DataFrame([{"item_id": next_id("LG", logic_df, "item_id"),"plan_id": plan["plan_id"],"type": typ, "description": desc, "metric": metric,"unit": unit, "target": target, "source": source}])
-                st.session_state["logic_items"] = pd.concat([logic_df, new_row], ignore_index=True)
-                st.rerun()
-    create_next_tab_button(2)
-
-with tabs[2]:
-    st.subheader("ระบุวิธีการเก็บข้อมูล (Methods)")
-    # ... content ...
-    create_next_tab_button(3)
-
-with tabs[3]:
-    st.subheader("ระบุตัวชี้วัด (KPIs)")
-    # ... content ...
-    create_next_tab_button(4)
-
-with tabs[4]:
-    st.subheader("ระบุความเสี่ยง (Risks)")
-    # ... content ...
-    create_next_tab_button(5)
-    
-with tabs[5]:
-    st.subheader("🔎 แนะนำประเด็นตรวจจากรายงานเก่า (Audit Findings Suggestions)")
-    # ... content ...
-    create_next_tab_button(6)
-
-with tabs[6]:
-    st.subheader("สรุปแผน (Preview)")
-    # ... content ...
-    create_next_tab_button(7)
-
-with tabs[7]:
-    st.subheader("💡 PA Audit Assistant (AI/LLM)")
-    # ... content ...
-    create_next_tab_button(8)
-
-with tabs[8]:
-    st.subheader("💬 PA Chat - ผู้ช่วยอัจฉริยะ (Typhoon AI)")
-    # ... content ...
-    # No next button on the last tab
+st.markdown("""<style> body { font-family: 'Kanit', sans-serif; } button[data-baseweb="tab"] { border: 1px solid #007bff; border-radius: 8px; padding: 10px 15px; margin: 5px 5px 5px 0px; font-weight: bold; color: #007bff !important; background-color: #ffffff; box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1); border-bottom: none !important; &::after { content: none !important; } } button[data-baseweb="tab"][aria-selected="true"] { box-shadow: 2px 2px 5px rgba(0,0,0,0.2); } div[data-baseweb="tab-list"] button:nth-of-type(-n+5) { border-color: #007bff; color: #007bff !important; } div[data-baseweb="tab-list"] button:nth-of-type(-n+5)[aria-selected="true"] { background-color: #007bff; color: white !important; } div[data-baseweb="tab-list"] button:nth-of-type(6), div[data-baseweb="tab-list"] button:nth-of-type(7) { border-color: #6f42c1; color: #6f42c1 !important; } div[data-baseweb="tab-list"] button:nth-of-type(6)[aria-selected="true"], div[data-baseweb="tab-list"] button:nth-of-type(7)[aria-selected="true"] { background-color: #6f42c1; color: white !important; } div[data-baseweb="tab-list"] button:nth-of-type(8) { border-color: #ffc107; color: #cc9900 !important; } div[data-baseweb="tab-list"] button:nth-of-type(8)[aria-selected="true"] { background-color: #ffc107; color: #333333 !important; } div[data-baseweb="tab-list"] button:nth-of-type(9) { border-color: #28a745; color: #28a_GF_HTML_5e69e403d168e65842189d97d0259b58
