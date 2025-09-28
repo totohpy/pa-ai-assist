@@ -464,7 +464,7 @@ with tab_preview:
     st.success("พร้อมเชื่อมต่อ 🤖 ให้ PA Assistant แนะนำประเด็นการตรวจสอบ ✨✨")
 
 with tab_assist:
-    st.subheader("💡 PA Audit Assistant (ขับเคลื่อนด้วย LLM)")
+    st.subheader("💡 PA Audit Assistant (AI/LLM)")
     st.write("🤖 สร้างคำแนะนำประเด็นการตรวจสอบจาก AI")
 
     if st.button("🚀 สร้างคำแนะนำจาก AI", type="primary", key="llm_assist_button"):
