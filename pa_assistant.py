@@ -104,13 +104,14 @@ def df_download_link(df: pd.DataFrame, filename: str, label: str):
     buf = BytesIO(); df.to_csv(buf, index=False, encoding="utf-8-sig")
     st.download_button(label, data=buf.getvalue(), file_name=filename, mime="text/csv")
 
-# --- NEW ---: ฟังก์ชันสำหรับสร้างปุ่มและจัดการการเปลี่ยนแท็บ
+# --- NEW ---: ฟังก์ชันสำหรับสร้างปุ่มและจัดการการเปลี่ยนแท็บ (ฉบับแก้ไข)
 def create_next_tab_button(next_tab_index, label="แท็บถัดไป »"):
     def switch_tab():
         st.session_state.active_tab = next_tab_index
     st.divider()
     _, col2 = st.columns([8, 2]) # จัดปุ่มไปทางขวา
-    col2.button(label, on_click=switch_tab, use_container_width=True)
+    # --- FIXED ---: เพิ่มพารามิเตอร์ key ที่ไม่ซ้ำกันสำหรับแต่ละปุ่ม
+    col2.button(label, on_click=switch_tab, use_container_width=True, key=f"next_tab_btn_{next_tab_index}")
 
 
 @st.cache_data(show_spinner=False)
