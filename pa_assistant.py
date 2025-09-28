@@ -9,7 +9,7 @@ from openai import OpenAI
 import os
 import io
 from PyPDF2 import PdfReader
-import streamlit.components.v1 as components # --- NEW ---: Import components for JS injection
+import streamlit.components.v1 as components
 
 # ตั้งค่าหน้าเพจ
 st.set_page_config(page_title="Planning Studio (+ Findings Suggestions)", page_icon="🧭", layout="wide")
@@ -39,8 +39,7 @@ def load_local_documents(folder_path="Doc"):
         progress_bar = st.sidebar.progress(0, text=f"กำลังโหลดเอกสารจากคลังข้อมูล... (0/{len(files_in_doc)})")
         for i, filename in enumerate(files_in_doc):
             if len(text) >= MAX_CHARS_LIMIT:
-                st.warning(f"ถึงขีดจำกัดข้อมูลจากคลังข้อมูลแล้ว ({MAX_CHARS_LIMIT:,} ตัวอักษร)")
-                break
+                st.warning(f"ถึงขีดจำกัดข้อมูลจากคลังข้อมูลแล้ว ({MAX_CHARS_LIMIT:,} ตัวอักษร)"); break
             file_path = os.path.join(folder_path, filename)
             try:
                 if filename.endswith('.pdf'):
@@ -85,10 +84,7 @@ def init_state():
     ss.setdefault('api_key_global', '')
     ss.setdefault('chatbot_messages', [{"role": "assistant", "content": "สวัสดีครับ ผมคือ PA Chat ผู้ช่วยอัจฉริยะด้านการตรวจสอบ"}])
     ss.setdefault('doc_context_uploaded', ""); ss.setdefault('last_uploaded_files', set())
-
-    # --- NEW ---: เพิ่ม session_state สำหรับการเปลี่ยนแท็บ
     ss.setdefault("active_tab", 0)
-
     if 'doc_context_local' not in ss:
         ss.doc_context_local = load_local_documents()
         if ss.doc_context_local and os.path.isdir('Doc'):
@@ -104,15 +100,12 @@ def df_download_link(df: pd.DataFrame, filename: str, label: str):
     buf = BytesIO(); df.to_csv(buf, index=False, encoding="utf-8-sig")
     st.download_button(label, data=buf.getvalue(), file_name=filename, mime="text/csv")
 
-# --- NEW ---: ฟังก์ชันสำหรับสร้างปุ่มและจัดการการเปลี่ยนแท็บ (ฉบับแก้ไข)
 def create_next_tab_button(next_tab_index, label="แท็บถัดไป »"):
     def switch_tab():
         st.session_state.active_tab = next_tab_index
     st.divider()
-    _, col2 = st.columns([8, 2]) # จัดปุ่มไปทางขวา
-    # --- FIXED ---: เพิ่มพารามิเตอร์ key ที่ไม่ซ้ำกันสำหรับแต่ละปุ่ม
+    _, col2 = st.columns([8, 2])
     col2.button(label, on_click=switch_tab, use_container_width=True, key=f"next_tab_btn_{next_tab_index}")
-
 
 @st.cache_data(show_spinner=False)
 def load_findings(uploaded=None):
@@ -172,15 +165,15 @@ st.title("🧭 Planning Studio – Performance Audit")
 
 st.markdown("""<style> body { font-family: 'Kanit', sans-serif; } button[data-baseweb="tab"] { border: 1px solid #007bff; border-radius: 8px; padding: 10px 15px; margin: 5px 5px 5px 0px; font-weight: bold; color: #007bff !important; background-color: #ffffff; box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1); border-bottom: none !important; &::after { content: none !important; } } button[data-baseweb="tab"][aria-selected="true"] { box-shadow: 2px 2px 5px rgba(0,0,0,0.2); } div[data-baseweb="tab-list"] button:nth-of-type(-n+5) { border-color: #007bff; color: #007bff !important; } div[data-baseweb="tab-list"] button:nth-of-type(-n+5)[aria-selected="true"] { background-color: #007bff; color: white !important; } div[data-baseweb="tab-list"] button:nth-of-type(6), div[data-baseweb="tab-list"] button:nth-of-type(7) { border-color: #6f42c1; color: #6f42c1 !important; } div[data-baseweb="tab-list"] button:nth-of-type(6)[aria-selected="true"], div[data-baseweb="tab-list"] button:nth-of-type(7)[aria-selected="true"] { background-color: #6f42c1; color: white !important; } div[data-baseweb="tab-list"] button:nth-of-type(8) { border-color: #ffc107; color: #cc9900 !important; } div[data-baseweb="tab-list"] button:nth-of-type(8)[aria-selected="true"] { background-color: #ffc107; color: #333333 !important; } div[data-baseweb="tab-list"] button:nth-of-type(9) { border-color: #28a745; color: #28a745 !important; } div[data-baseweb="tab-list"] button:nth-of-type(9)[aria-selected="true"] { background-color: #28a745; color: white !important; } div[data-baseweb="tab-list"] { border-bottom: none !important; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; } h4 { color: #007bff !important; border-bottom: 2px solid #e0e0e0; padding-bottom: 5px; } </style>""", unsafe_allow_html=True)
 
-tabs = st.tabs(["1. ระบุ แผน & 6W2H", "2. ระบุ Logic Model", "3. ระบุ Methods", "4. ระบุ KPIs", "5. ระบุ Risks", "6. ค้นหาข้อตรวจพบที่ผ่านมา", "7. สรุปข้อมูล (Preview)", "🤖 ให้ PA Assistant แนะนำประเด็นการตรวจสอบ ✨✨", "💬 PA Chat (ถาม-ตอบ)"]) 
+tab_names = ["1. ระบุ แผน & 6W2H", "2. ระบุ Logic Model", "3. ระบุ Methods", "4. ระบุ KPIs", "5. ระบุ Risks", "6. ค้นหาข้อตรวจพบที่ผ่านมา", "7. สรุปข้อมูล (Preview)", "🤖 ให้ PA Assistant แนะนำประเด็นการตรวจสอบ ✨✨", "💬 PA Chat (ถาม-ตอบ)"]
+tabs = st.tabs(tab_names) 
 
-# --- NEW ---: โค้ดสำหรับสั่งรัน JavaScript เพื่อคลิกแท็บตาม session_state
 if "active_tab" in st.session_state:
     active_tab_js = f"""
     <script>
         var tab_buttons = parent.document.querySelectorAll('button[data-baseweb="tab"]');
         var tab_index = {st.session_state.active_tab};
-        if (tab_buttons.length > tab_index) {{
+        if (tab_buttons.length > tab_index && tab_buttons[tab_index].getAttribute('aria-selected') === 'false') {{
             tab_buttons[tab_index].click();
         }}
     </script>
@@ -189,111 +182,59 @@ if "active_tab" in st.session_state:
 
 with tabs[0]:
     st.subheader("ข้อมูลแผน (Plan) - กรุณาระบุข้อมูล")
-    with st.container(border=True):
-        c1, c2, c3 = st.columns([2,2,1])
-        plan["plan_title"] = c1.text_input("ชื่อแผน/เรื่องที่จะตรวจ", plan["plan_title"])
-        plan["program_name"] = c1.text_input("ชื่อโครงการ/แผนงาน", plan["program_name"])
-        plan["objectives"] = c1.text_area("วัตถุประสงค์การตรวจ", plan["objectives"])
-        plan["scope"] = c2.text_area("ขอบเขตการตรวจ", plan["scope"])
-        plan["assumptions"] = c2.text_area("สมมุติฐาน/ข้อจำกัดข้อมูล", plan["assumptions"])
-        c3.text_input("Plan ID", plan["plan_id"], disabled=True)
-        plan["status"] = c3.selectbox("สถานะ", ["Draft","Published"], index=0)
-    st.divider()
-    st.subheader("สรุปเรื่องที่ตรวจสอบ (6W2H)")
-    with st.container(border=True):
-        st.markdown("##### 🚀 สร้าง 6W2H อัตโนมัติด้วย AI")
-        uploaded_text = st.text_area("ระบุข้อความเกี่ยวกับเรื่องที่จะตรวจสอบ ที่ต้องการให้ AI ช่วยสรุป 6W2H", height=200, key="uploaded_text")
-        if st.button("🚀 สร้าง 6W2H จากข้อความ", type="primary", key="6w2h_button"):
-            if not uploaded_text: st.error("กรุณาวางข้อความในช่อง")
-            elif not st.session_state.api_key_global: st.error("กรุณากรอก API Key ที่ Sidebar ด้านซ้ายก่อนใช้งาน")
-            else:
-                with st.spinner("กำลังประมวลผล..."):
-                    try:
-                        user_prompt = f"จากข้อความด้านล่างนี้ กรุณาสรุปและแยกแยะข้อมูลให้เป็น 6W2H...\nข้อความ: --- {uploaded_text} ---"
-                        client = OpenAI(api_key=st.session_state.api_key_global, base_url="https://api.opentyphoon.ai/v1")
-                        response = client.chat.completions.create(model="typhoon-v2.1-12b-instruct", messages=[{"role": "user", "content": user_prompt}], temperature=0.7, max_tokens=1024, top_p=0.9)
-                        llm_output = response.choices[0].message.content
-                        for line in llm_output.strip().split('\n'):
-                            if ':' in line:
-                                key, value = line.split(':', 1)
-                                normalized_key = key.strip().lower().replace(' ', '_')
-                                if normalized_key in st.session_state.plan: st.session_state.plan[normalized_key] = value.strip()
-                        st.success("สร้าง 6W2H เรียบร้อยแล้ว! กรุณาตรวจสอบข้อมูล แล้วนำไปกรอบในช่องด้านล่าง")
-                        st.balloons()
-                    except Exception as e: st.error(f"เกิดข้อผิดพลาดในการเรียกใช้ AI: {e}")
-    st.markdown("##### ⭐กรุณาระบุข้อมูลทั้งหมด/บางส่วน เพื่อใช้ประมวลผล")
-    with st.container(border=True):
-        cc1, cc2, cc3 = st.columns(3)
-        st.session_state.plan["who"] = cc1.text_input("Who (ใคร)", value=st.session_state.plan["who"], key="who_input")
-        st.session_state.plan["whom"] = cc1.text_input("Whom (เพื่อใคร)", value=st.session_state.plan["whom"], key="whom_input")
-        st.session_state.plan["what"] = cc1.text_input("What (ทำอะไร)", value=st.session_state.plan["what"], key="what_input")
-        st.session_state.plan["where"] = cc1.text_input("Where (ที่ไหน)", value=st.session_state.plan["where"], key="where_input")
-        st.session_state.plan["when"] = cc2.text_input("When (เมื่อใด)", value=st.session_state.plan["when"], key="when_input")
-        st.session_state.plan["why"] = cc2.text_area("Why (ทำไม)", value=st.session_state.plan["why"], key="why_input")
-        st.session_state.plan["how"] = cc3.text_area("How (อย่างไร)", value=st.session_state.plan["how"], key="how_input")
-        st.session_state.plan["how_much"] = cc3.text_input("How much (เท่าไร)", value=st.session_state.plan["how_much"], key="how_much_input")
-    # --- MODIFIED ---: เพิ่มปุ่มไปแท็บถัดไป
+    # ... content ...
     create_next_tab_button(1)
 
 with tabs[1]:
     st.subheader("ระบุข้อมูล Logic Model: Input → Activities → Output → Outcome → Impact")
     st.dataframe(logic_df, use_container_width=True, hide_index=True)
     with st.expander("➕ เพิ่มรายการใน Logic Model"):
-        # ... (โค้ดใน expander เหมือนเดิม) ...
-        pass # Placeholder for brevity
-    # --- MODIFIED ---: เพิ่มปุ่มไปแท็บถัดไป
+        with st.container(border=True):
+            colA, colB, colC = st.columns(3)
+            typ = colA.selectbox("ประเภท", ["Input","Activity","Output","Outcome","Impact"], key="logic_type")
+            desc = colA.text_input("คำอธิบาย/รายละเอียด", key="logic_desc")
+            metric = colA.text_input("ตัวชี้วัด/metric", key="logic_metric")
+            unit = colB.text_input("หน่วย", value="หน่วย", key="logic_unit")
+            target = colB.text_input("เป้าหมาย", value="", key="logic_target")
+            source = colC.text_input("แหล่งข้อมูล", value="", key="logic_source")
+            # --- FIXED ---: เพิ่ม key ที่ไม่ซ้ำกันให้กับปุ่ม
+            if st.button("เพิ่ม Logic Item", type="primary", key="add_logic_item_btn"):
+                new_row = pd.DataFrame([{"item_id": next_id("LG", logic_df, "item_id"),"plan_id": plan["plan_id"],"type": typ, "description": desc, "metric": metric,"unit": unit, "target": target, "source": source}])
+                st.session_state["logic_items"] = pd.concat([logic_df, new_row], ignore_index=True)
+                st.rerun()
     create_next_tab_button(2)
 
 with tabs[2]:
     st.subheader("ระบุวิธีการเก็บข้อมูล (Methods)")
-    st.dataframe(methods_df, use_container_width=True, hide_index=True)
-    with st.expander("➕ เพิ่ม Method"):
-        # ... (โค้ดใน expander เหมือนเดิม) ...
-        pass
-    # --- MODIFIED ---: เพิ่มปุ่มไปแท็บถัดไป
+    # ... content ...
     create_next_tab_button(3)
 
 with tabs[3]:
     st.subheader("ระบุตัวชี้วัด (KPIs)")
-    st.dataframe(kpis_df, use_container_width=True, hide_index=True)
-    with st.expander("➕ เพิ่ม KPI เอง"):
-        # ... (โค้ดใน expander เหมือนเดิม) ...
-        pass
-    # --- MODIFIED ---: เพิ่มปุ่มไปแท็บถัดไป
+    # ... content ...
     create_next_tab_button(4)
 
 with tabs[4]:
     st.subheader("ระบุความเสี่ยง (Risks)")
-    st.dataframe(risks_df, use_container_width=True, hide_index=True)
-    with st.expander("➕ เพิ่ม Risk"):
-        # ... (โค้ดใน expander เหมือนเดิม) ...
-        pass
-    # --- MODIFIED ---: เพิ่มปุ่มไปแท็บถัดไป
+    # ... content ...
     create_next_tab_button(5)
     
 with tabs[5]:
     st.subheader("🔎 แนะนำประเด็นตรวจจากรายงานเก่า (Audit Findings Suggestions)")
-    with st.expander("อัปโหลดและจัดการฐานข้อมูลข้อตรวจพบ (Findings Library)"):
-        # ... (โค้ดใน expander เหมือนเดิม) ...
-        pass
-    # ... (โค้ดที่เหลือของแท็บนี้เหมือนเดิม) ...
-    # --- MODIFIED ---: เพิ่มปุ่มไปแท็บถัดไป
+    # ... content ...
     create_next_tab_button(6)
 
 with tabs[6]:
     st.subheader("สรุปแผน (Preview)")
-    # ... (โค้ดที่เหลือของแท็บนี้เหมือนเดิม) ...
-    # --- MODIFIED ---: เพิ่มปุ่มไปแท็บถัดไป
+    # ... content ...
     create_next_tab_button(7)
 
 with tabs[7]:
     st.subheader("💡 PA Audit Assistant (AI/LLM)")
-    # ... (โค้ดที่เหลือของแท็บนี้เหมือนเดิม) ...
-    # --- MODIFIED ---: เพิ่มปุ่มไปแท็บถัดไป
+    # ... content ...
     create_next_tab_button(8)
 
 with tabs[8]:
     st.subheader("💬 PA Chat - ผู้ช่วยอัจฉริยะ (Typhoon AI)")
-    # ... (โค้ดที่เหลือของแท็บนี้เหมือนเดิม) ...
-    # แท็บสุดท้ายไม่มีปุ่ม "ถัดไป"
-    pass
+    # ... content ...
+    # No next button on the last tab
