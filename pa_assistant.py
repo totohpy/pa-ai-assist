@@ -203,19 +203,20 @@ st.markdown("""
     /* --- Base Style for All Tabs (ลักษณะปุ่มทึบ) --- */
     button[data-baseweb="tab"] {
         border-radius: 8px;
-        padding: 10px 18px;
-        margin: 5px 5px 5px 0px;
+        padding: 8px 14px; /* --- MODIFIED: ลด Padding ภายในปุ่ม --- */
+        margin: 2px; /* --- MODIFIED: ปรับ Margin เล็กน้อย --- */
         font-weight: bold;
-        color: white !important; /* ตัวหนังสือสีขาว */
-        border: none; /* ไม่มีเส้นขอบ */
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* เพิ่มเงาเล็กน้อย */
-        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; /* ทำให้การเคลื่อนไหวสมูท */
+        color: white !important; 
+        border: none;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: all 0.2s ease-in-out;
     }
 
-    /* --- สไตล์ของแท็บที่ถูกเลือก (ดึงให้ลอยขึ้น) --- */
+    /* --- สไตล์ของแท็บที่ถูกเลือก (ดึงให้ลอยขึ้นและสีสว่างขึ้น) --- */
     button[data-baseweb="tab"][aria-selected="true"] {
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
         transform: translateY(-2px);
+        filter: brightness(115%); /* --- NEW: ทำให้สีสว่างขึ้น 15% --- */
     }
     
     /* --- สไตล์เมื่อนำเมาส์ไปชี้ (ลอยขึ้นเล็กน้อย) --- */
@@ -226,24 +227,24 @@ st.markdown("""
 
     /* --- Group 1: 1-5 (สีน้ำเงิน) --- */
     div[data-baseweb="tab-list"] button:nth-of-type(-n+5) {
-        background-color: #0d6efd; /* สีน้ำเงินหลัก */
+        background-color: #0d6efd; 
     }
 
     /* --- Group 2: 6-7 (สีม่วง) --- */
     div[data-baseweb="tab-list"] button:nth-of-type(6), 
     div[data-baseweb="tab-list"] button:nth-of-type(7) {
-        background-color: #6f42c1; /* สีม่วง */
+        background-color: #6f42c1;
     }
 
     /* --- Group 3: 8 (สีทอง) --- */
     div[data-baseweb="tab-list"] button:nth-of-type(8) {
-        background-color: #ffc107; /* สีทอง */
-        color: #343a40 !important; /* เปลี่ยนสีตัวหนังสือสำหรับพื้นหลังสีอ่อน */
+        background-color: #ffc107;
+        color: #343a40 !important;
     }
 
     /* --- Group 4: 9 (สีเขียว) --- */
     div[data-baseweb="tab-list"] button:nth-of-type(9) {
-        background-color: #198754; /* สีเขียว */
+        background-color: #198754;
     }
 
     /* --- General Layout --- */
@@ -251,7 +252,7 @@ st.markdown("""
         border-bottom: none !important; 
         margin-bottom: 15px; 
         flex-wrap: wrap; 
-        gap: 10px; 
+        gap: 6px; /* --- MODIFIED: ลดระยะห่างระหว่างปุ่ม --- */
     } 
     h4 { 
         color: #007bff !important; 
@@ -261,7 +262,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_assist, tab_chatbot = st.tabs(["1. ระบุ แผน & 6W2H", "2. ระบุ Logic Model", "3. ระบุ Methods", "4. ระบุ KPIs", "5. ระบุ Risks", "6. ค้นหาข้อตรวจพบที่ผ่านมา", "7. สรุปข้อมูล (Preview)", "🤖 ให้ PA Assistant แนะนำประเด็นการตรวจสอบ ✨✨", "💬 PA Chat (ถาม-ตอบ)"]) 
+tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_assist, tab_chatbot = st.tabs(["1. ระบุ แผน & 6W2H", "2. ระบุ Logic Model", "3. ระบุ Methods", "4. ระบุ KPIs", "5. ระบุ Risks", "6. ค้นหาข้อตรวจพบที่ผ่านมา", "7. สรุปข้อมูล (Preview)", "✨PA Assistant แนะนำประเด็นการตรวจสอบ", "💬 PA Chat (ถาม-ตอบ)"]) 
 
 with tab_plan:
     st.subheader("ข้อมูลแผน (Plan) - กรุณาระบุข้อมูล")
