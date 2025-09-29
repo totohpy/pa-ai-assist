@@ -260,7 +260,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_assist, tab_chatbot = st.tabs(["1. ระบุ แผน & 6W2H", "2. ระบุ Logic Model", "3. ระบุ Methods", "4. ระบุ KPIs", "5. ระบุ Risks", "6. ค้นหาข้อตรวจพบที่ผ่านมา", "7. สรุปข้อมูล (Preview)", "8. ✨PA Assistant แนะนำประเด็นการตรวจสอบ", "9. 💬 PA Chat (ถาม-ตอบ)"]) 
+tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_assist, tab_chatbot = st.tabs(["1. ✏️ระบุ แผน & 6W2H", "2. ✏️ระบุ Logic Model", "3. ✏️ระบุ Methods", "4. ✏️ระบุ KPIs", "5. ✏️ระบุ Risks", "6. 🔍ค้นหาข้อตรวจพบที่ผ่านมา", "7. 📋สรุปข้อมูล (Preview)", "8. ✨PA Assistant แนะนำประเด็นการตรวจสอบ", "9. 💬 PA Chat (ถาม-ตอบ)"]) 
 
 with tab_plan:
     st.subheader("ข้อมูลแผน (Plan) - กรุณาระบุข้อมูล")
