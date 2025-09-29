@@ -284,14 +284,12 @@ with tab_plan:
         st.markdown("##### 🚀 สร้าง 6W2H อัตโนมัติด้วย AI")
         st.write("คัดลอกข้อความจากไฟล์ของคุณแล้วนำมาวางในช่องด้านล่างนี้")
         uploaded_text = st.text_area("ระบุข้อความเกี่ยวกับเรื่องที่จะตรวจสอบ ที่ต้องการให้ AI ช่วยสรุป 6W2H", height=200, key="uploaded_text")
-        st.markdown("💡 **ยังไม่มี API Key?** คลิก [ที่นี่](https://playground.opentyphoon.ai/settings/api-key) เพื่อรับ key ฟรี!")
-        api_key_6w2h = st.text_input("กรุณากรอก API Key เพื่อใช้บริการ AI:", type="password", key="api_key_6w2h")
 
         if st.button("🚀 สร้าง 6W2H จากข้อความ", type="primary", key="6w2h_button"):
             if not uploaded_text:
                 st.error("กรุณาวางข้อความในช่องก่อน")
-            elif not api_key_6w2h:
-                st.error("กรุณากรอก API Key ก่อนใช้งาน")
+            elif not st.session_state.api_key_global:
+                st.error("กรุณาให้ผู้ดูแลระบบตั้งค่า API Key ใน Sidebar ก่อนใช้งาน")
             else:
                 with st.spinner("กำลังประมวลผล..."):
                     try:
@@ -312,7 +310,7 @@ How: [ข้อความ]
 How Much: [ข้อความ]
 """
                         client = OpenAI(
-                            api_key=api_key_6w2h,
+                            api_key=st.session_state.api_key_global,
                             base_url="https://api.opentyphoon.ai/v1"
                         )
                         response = client.chat.completions.create(
