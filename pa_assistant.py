@@ -24,7 +24,7 @@ with st.sidebar:
         help="คลิกที่นี่เพื่อรับ Key ฟรี: https://playground.opentyphoon.ai/settings/api-key"
     )
     st.markdown("---")
-    st.markdown("PA Planning Studio Web App By PAO1 DataCenter")
+    st.markdown("PA Planning Studio By PAO1 Audit Intelligence Nexus")
 
 # ----------------- ฟังก์ชันสำหรับ Chatbot -----------------
 MAX_CHARS_LIMIT = 200000
