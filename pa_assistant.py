@@ -204,7 +204,7 @@ st.markdown("""
     button[data-baseweb="tab"] {
         border-radius: 4px;
         padding: 6px 6px; /* --- MODIFIED: ลด Padding ภายในปุ่มลงอีก --- */
-        margin: 0; /* --- MODIFIED: ลบ margin เพื่อให้ gap ควบคุมระยะห่างอย่างเดียว --- */
+        margin: 2px; /* --- MODIFIED: ลบ margin เพื่อให้ gap ควบคุมระยะห่างอย่างเดียว --- */
         font-weight: normal;
         color: white !important; 
         border: none;
@@ -212,11 +212,11 @@ st.markdown("""
         transition: all 0.2s ease-in-out;
     }
 
-    /* --- สไตล์ของแท็บที่ถูกเลือก (ดึงให้ลอยขึ้นและสีสว่างขึ้นมาก) --- */
+     /* --- สไตล์ของแท็บที่ถูกเลือก (โปร่งใสลง) --- */
     button[data-baseweb="tab"][aria-selected="true"] {
         box-shadow: 0 4px 12px rgba(0,0,0,0.25);
         transform: translateY(-2px);
-        filter: brightness(140%); /* --- NEW: ทำให้สีสว่างขึ้นมาก 40% --- */
+        opacity: 0.75; /* <--- ทำให้โปร่งใสลง 25% */
     }
     
     /* --- สไตล์เมื่อนำเมาส์ไปชี้ (ลอยขึ้นเล็กน้อย) --- */
