@@ -202,8 +202,8 @@ st.markdown("""
 
     /* --- Base Style for All Tabs (ลักษณะปุ่มทึบ) --- */
     button[data-baseweb="tab"] {
-        border-radius: 2px;
-        padding: 6px 12px; /* --- MODIFIED: ลด Padding ภายในปุ่มลงอีก --- */
+        border-radius: 4px;
+        padding: 6px 6px; /* --- MODIFIED: ลด Padding ภายในปุ่มลงอีก --- */
         margin: 0; /* --- MODIFIED: ลบ margin เพื่อให้ gap ควบคุมระยะห่างอย่างเดียว --- */
         font-weight: bold;
         color: white !important; 
