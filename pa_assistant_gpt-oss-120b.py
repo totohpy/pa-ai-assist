@@ -16,20 +16,28 @@ st.set_page_config(page_title="Planning Studio (+ Findings Suggestions)", page_i
 # ----------------- ⚙️ การตั้งค่ากลาง -----------------
 with st.sidebar:
     st.title("⚙️ การตั้งค่ากลาง")
-    st.info("API Key ถูกตั้งค่าโดยผู้ดูแลระบบเรียบร้อยแล้ว")
 
-    # --- Load API Key from Streamlit Secrets ---
-    try:
-        st.session_state.api_key_global = st.secrets["api_key"]
-    except KeyError:
-        st.session_state.api_key_global = ""
-        st.warning("ฟีเจอร์ AI ยังไม่พร้อมใช้งาน กรุณาติดต่อผู้ดูแลระบบ")
-    except Exception as e:
-        st.session_state.api_key_global = ""
-        st.error(f"เกิดข้อผิดพลาดในการโหลด API Key: {e}")
+    # --- FIX for Render.com Deployment ---
+    # Render uses Environment Variables, not secrets.toml.
+    # We will try to get the API key from an environment variable first.
+    # If it's not found, we'll fall back to showing the text input for local development.
+    
+    api_key_from_env = os.environ.get("API_KEY")
+
+    if api_key_from_env:
+        st.session_state.api_key_global = api_key_from_env
+        st.success("API Key ถูกโหลดจากระบบเรียบร้อยแล้ว")
+    else:
+        st.info("API Key ไม่ได้ถูกตั้งค่าใน Environment, กรุณากรอกด้านล่างเพื่อทดสอบ")
+        st.session_state.api_key_global = st.text_input(
+            "กรุณากรอก API Key (Groq)",
+            type="password",
+            key="api_key_global_input_sidebar"
+        )
 
     st.markdown("---")
     st.markdown("PA Planning Studio By PAO1 Audit Intelligence Nexus")
+
 
 # ----------------- ฟังก์ชันสำหรับ Chatbot -----------------
 MAX_CHARS_LIMIT = 200000
@@ -290,10 +298,10 @@ How Much: [ข้อความ]
 """
                         client = OpenAI(
                             api_key=st.session_state.api_key_global,
-                            base_url="https://api.opentyphoon.ai/v1"
+                            base_url="https://api.groq.com/openai/v1"
                         )
                         response = client.chat.completions.create(
-                            model="typhoon-v2.1-12b-instruct",
+                            model="llama3-8b-8192",
                             messages=[{"role": "user", "content": user_prompt}],
                             temperature=0.7,
                             max_tokens=1024,
@@ -602,7 +610,7 @@ Logic Model:
 
                     client = OpenAI(
                         api_key=st.session_state.api_key_global,
-                        base_url="https://api.opentyphoon.ai/v1"
+                        base_url="https://api.groq.com/openai/v1"
                     )
                     
                     messages = [
@@ -611,7 +619,7 @@ Logic Model:
                     ]
                     
                     response = client.chat.completions.create(
-                        model="typhoon-v2.1-12b-instruct",
+                        model="llama3-8b-8192",
                         messages=messages,
                         temperature=0.7,
                         max_tokens=2048,
@@ -656,7 +664,7 @@ Logic Model:
 
 
 with tab_chatbot:
-    st.subheader("💬 PA Chat - ผู้ช่วยอัจฉริยะ (Typhoon AI)")
+    st.subheader("💬 PA Chat - ผู้ช่วยอัจฉริยะ")
     
     with st.expander("อัปโหลดเอกสารเพิ่มเติม (PDF, TXT, CSV)"):
         st.info("ข้อมูลจากไฟล์ที่อัปโหลดจะถูกใช้ในการตอบคำถาม")
@@ -731,9 +739,9 @@ with tab_chatbot:
                             {"role": "system", "content": system_prompt}
                         ] + st.session_state.chatbot_messages[-10:]
 
-                        client = OpenAI(api_key=api_key, base_url="https://api.opentyphoon.ai/v1")
+                        client = OpenAI(api_key=api_key, base_url="https://api.groq.com/openai/v1")
                         response_stream = client.chat.completions.create(
-                            model="typhoon-v2.1-12b-instruct", 
+                            model="llama3-8b-8192", 
                             messages=messages_for_api, 
                             temperature=0.5, 
                             max_tokens=3072, 
