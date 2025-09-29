@@ -294,6 +294,7 @@ with tab_plan:
                         response = client.chat.completions.create(model="typhoon-v2.1-12b-instruct", messages=[{"role": "user", "content": user_prompt}], temperature=0.7, max_tokens=1024, top_p=0.9)
                         llm_output = response.choices[0].message.content
                         
+                        # --- FIX: Added expander to show raw AI output for debugging ---
                         with st.expander("แสดงผลลัพธ์ดิบจาก AI (สำหรับตรวจสอบ)"):
                             st.text(llm_output)
 
@@ -301,9 +302,15 @@ with tab_plan:
                             if ':' in line:
                                 key, value = line.split(':', 1)
                                 normalized_key = key.strip().lower().replace(' ', '_')
-                                if normalized_key in st.session_state.plan: st.session_state.plan[normalized_key] = value.strip()
+                                # Added 'how much' as a potential key from the AI
+                                if normalized_key == 'how_much':
+                                     st.session_state.plan['how_much'] = value.strip()
+                                elif normalized_key in st.session_state.plan: 
+                                     st.session_state.plan[normalized_key] = value.strip()
+
                         st.success("ช่วยสร้าง 6W2H เรียบร้อยแล้ว! กรุณาตรวจสอบข้อมูลแล้วระบุตามรายละเอียดด้านล่าง")
                         st.balloons()
+                        # --- FIX: Keep st.rerun() to ensure the UI updates with the new state ---
                         st.rerun()
                     except Exception as e: st.error(f"เกิดข้อผิดพลาดในการเรียกใช้ AI: {e}")
         
@@ -311,19 +318,17 @@ with tab_plan:
     with st.container(border=True):
         cc1, cc2, cc3 = st.columns(3)
         
-        # --- FIX: Simplified state handling ---
-        # This approach uses the value from the 'plan' dictionary directly.
-        # When the user types, the returned value updates the dictionary.
-        # After the AI runs and st.rerun() is called, the widgets are recreated with the new values.
-        st.session_state.plan["who"] = cc1.text_input("Who (ใคร)", st.session_state.plan.get("who", ""))
-        st.session_state.plan["whom"] = cc1.text_input("Whom (เพื่อใคร)", st.session_state.plan.get("whom", ""))
-        st.session_state.plan["what"] = cc1.text_input("What (ทำอะไร)", st.session_state.plan.get("what", ""))
-        st.session_state.plan["where"] = cc1.text_input("Where (ที่ไหน)", st.session_state.plan.get("where", ""))
-        st.session_state.plan["when"] = cc2.text_input("When (เมื่อใด)", st.session_state.plan.get("when", ""))
-        st.session_state.plan["why"] = cc2.text_area("Why (ทำไม)", st.session_state.plan.get("why", ""))
-        st.session_state.plan["how"] = cc3.text_area("How (อย่างไร)", st.session_state.plan.get("how", ""))
-        st.session_state.plan["how_much"] = cc3.text_input("How much (เท่าไร)", st.session_state.plan.get("how_much", ""))
-
+        # --- FIX: Adopted the working state management pattern from the user's example ---
+        # Using a distinct 'key' for each widget separates its state from the data dictionary, preventing overwrites.
+        # The 'value' parameter correctly populates the widget with data from the 'plan' dictionary.
+        st.session_state.plan["who"] = cc1.text_input("Who (ใคร)", value=st.session_state.plan["who"], key="who_input")
+        st.session_state.plan["whom"] = cc1.text_input("Whom (เพื่อใคร)", value=st.session_state.plan["whom"], key="whom_input")
+        st.session_state.plan["what"] = cc1.text_input("What (ทำอะไร)", value=st.session_state.plan["what"], key="what_input")
+        st.session_state.plan["where"] = cc1.text_input("Where (ที่ไหน)", value=st.session_state.plan["where"], key="where_input")
+        st.session_state.plan["when"] = cc2.text_input("When (เมื่อใด)", value=st.session_state.plan["when"], key="when_input")
+        st.session_state.plan["why"] = cc2.text_area("Why (ทำไม)", value=st.session_state.plan["why"], key="why_input")
+        st.session_state.plan["how"] = cc3.text_area("How (อย่างไร)", value=st.session_state.plan["how"], key="how_input")
+        st.session_state.plan["how_much"] = cc3.text_input("How much (เท่าไร)", value=st.session_state.plan["how_much"], key="how_much_input")
 
 with tab_logic:
     st.subheader("ระบุข้อมูล Logic Model: Input → Activities → Output → Outcome → Impact")
