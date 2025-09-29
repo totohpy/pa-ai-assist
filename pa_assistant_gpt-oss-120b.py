@@ -299,7 +299,7 @@ How Much: [ข้อความ]
                             base_url="https://api.groq.com/openai/v1"
                         )
                         response = client.chat.completions.create(
-                            model="llama-3.1-8b-instant",
+                            model="llama-3.3-70b-versatile",
                             messages=[{"role": "user", "content": user_prompt}],
                             temperature=0.7,
                             max_tokens=1024,
@@ -617,7 +617,7 @@ Logic Model:
                     ]
                     
                     response = client.chat.completions.create(
-                        model="llama-3.1-8b-instant",
+                        model="llama-3.3-70b-versatile",
                         messages=messages,
                         temperature=0.7,
                         max_tokens=2048,
@@ -739,7 +739,7 @@ with tab_chatbot:
 
                         client = OpenAI(api_key=api_key, base_url="https://api.groq.com/openai/v1")
                         response_stream = client.chat.completions.create(
-                            model="llama-3.1-8b-instant", 
+                            model="llama-3.3-70b-versatile", 
                             messages=messages_for_api, 
                             temperature=0.5, 
                             max_tokens=3072, 
