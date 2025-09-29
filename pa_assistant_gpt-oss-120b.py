@@ -5,43 +5,42 @@ from io import BytesIO
 from datetime import datetime
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from groq import Groq # <-- MODIFIED: เปลี่ยนจาก OpenAI เป็น Groq
+from openai import OpenAI
 import os
 import io
-import re # <-- 1. เพิ่มการ import re เข้ามา
 from PyPDF2 import PdfReader
 
-# --- MODIFIED: เปลี่ยนไปใช้ Groq API Key ---
-api_key_from_system = os.getenv("GROQ_API_KEY")
-
 # ตั้งค่าหน้าเพจ
-st.set_page_config(page_title="Planning Studio (+ Findings Suggestions)", page_icon="🧭", layout="wide")
+st.set_page_config(page_title="Planning Studio (+ Issue Suggestions)", page_icon="🧭", layout="wide")
 
 # ----------------- ⚙️ การตั้งค่ากลาง -----------------
 with st.sidebar:
     st.title("⚙️ การตั้งค่ากลาง")
-    st.info("แอปพลิเคชันนี้เชื่อมต่อกับ API ของ Groq โดยใช้คีย์ที่ตั้งค่าไว้ในระบบ")
-    if not api_key_from_system:
-        st.error("ไม่พบ Groq API Key ในระบบ (Environment Variable/Secrets)")
+    st.info("API Key ที่กรอกด้านล่างนี้จะถูกใช้กับทุกฟีเจอร์ AI ในแอปพลิเคชัน")
+    st.session_state.api_key_global = st.text_input(
+        "กรุณากรอก API Key (OpenTyphoon)",
+        type="password",
+        key="api_key_global_input_sidebar",
+        help="คลิกที่นี่เพื่อรับ Key ฟรี: https://playground.opentyphoon.ai/settings/api-key"
+    )
     st.markdown("---")
-    st.markdown("PA Planning Studio By PAO1 Audit Intelligence Nexus")
+    st.markdown("Planning Studio Web App")
 
 # ----------------- ฟังก์ชันสำหรับ Chatbot -----------------
 MAX_CHARS_LIMIT = 200000
 
+# --- NEW FUNCTION ---: ฟังก์ชันใหม่สำหรับอ่านไฟล์จากโฟลเดอร์ในเครื่อง
 @st.cache_data(show_spinner=False)
 def load_local_documents(folder_path="Doc"):
-    """อ่านไฟล์ทั้งหมดจากคลังข้อมูล"""
+    """อ่านไฟล์ทั้งหมดจากโฟลเดอร์ 'Doc' ที่ระบุ"""
     text = ""
     if not os.path.isdir(folder_path):
         return text # คืนค่าว่างถ้าไม่พบโฟลเดอร์
 
     try:
-        files_in_doc = os.listdir(folder_path)
-        progress_bar = st.sidebar.progress(0, text=f"กำลังโหลดเอกสารจากคลังข้อมูล... (0/{len(files_in_doc)})")
-        for i, filename in enumerate(files_in_doc):
+        for filename in os.listdir(folder_path):
             if len(text) >= MAX_CHARS_LIMIT:
-                st.warning(f"ถึงขีดจำกัดข้อมูลจากคลังข้อมูลแล้ว ({MAX_CHARS_LIMIT:,} ตัวอักษร)")
+                st.warning(f"ถึงขีดจำกัดข้อมูลจากโฟลเดอร์ 'Doc' แล้ว ({MAX_CHARS_LIMIT:,} ตัวอักษร)")
                 break
             
             file_path = os.path.join(folder_path, filename)
@@ -58,13 +57,11 @@ def load_local_documents(folder_path="Doc"):
                     df = pd.read_csv(file_path)
                     text += df.head(15).to_string()
             except Exception as e:
+                # ข้ามไฟล์ที่มีปัญหาในการอ่าน
                 print(f"Could not read file {filename}: {e}")
-            
-            progress_bar.progress((i + 1) / len(files_in_doc), text=f"กำลังโหลดเอกสาร... ({i+1}/{len(files_in_doc)})")
-        progress_bar.empty()
                 
     except Exception as e:
-        st.error(f"เกิดข้อผิดพลาดในการเข้าถึงคลังข้อมูล: {e}")
+        st.error(f"เกิดข้อผิดพลาดในการเข้าถึงโฟลเดอร์ 'Doc': {e}")
     
     return text[:MAX_CHARS_LIMIT]
 
@@ -92,6 +89,7 @@ def process_documents(files, source_type, limit, current_len=0):
 # ----------------- Session Init -----------------
 def init_state():
     ss = st.session_state
+    # --- โค้ดเดิม ---
     ss.setdefault("plan", {"plan_id": "PLN-" + datetime.now().strftime("%y%m%d-%H%M%S"),"plan_title": "","program_name": "","who": "", "what": "", "where": "", "when": "", "why": "", "how": "", "how_much": "", "whom": "","objectives": "", "scope": "", "assumptions": "", "status": "Draft"})
     ss.setdefault("logic_items", pd.DataFrame(columns=["item_id","plan_id","type","description","metric","unit","target","source"]))
     ss.setdefault("methods", pd.DataFrame(columns=["method_id","plan_id","type","tool_ref","sampling","questions","linked_issue","data_source","frequency"]))
@@ -104,15 +102,19 @@ def init_state():
     ss.setdefault("issue_results", pd.DataFrame())
     ss.setdefault("ref_seed", "")
     ss.setdefault("issue_query_text", "")
+    ss.setdefault('api_key_global', '')
     
+    # --- MODIFIED ---: แก้ไขส่วนของ Chatbot
     ss.setdefault('chatbot_messages', [{"role": "assistant", "content": "สวัสดีครับ ผมคือ PA Chat ผู้ช่วยอัจฉริยะด้านการตรวจสอบ"}])
     ss.setdefault('doc_context_uploaded', "")
     ss.setdefault('last_uploaded_files', set())
 
+    # โหลดเอกสารจากโฟลเดอร์ 'Doc' แค่ครั้งแรกที่เปิด session
     if 'doc_context_local' not in ss:
         ss.doc_context_local = load_local_documents()
-        if ss.doc_context_local and os.path.isdir('Doc'):
-             ss.chatbot_messages.append({"role": "assistant", "content": f"ผมได้โหลดเอกสาร {len(os.listdir('Doc'))} ฉบับ เป็นฐานความรู้เรียบร้อยแล้วครับ"})
+        if ss.doc_context_local:
+             ss.chatbot_messages.append({"role": "assistant", "content": f"ผมได้โหลดเอกสาร {len(os.listdir('Doc'))} ฉบับจากโฟลเดอร์ 'Doc' เป็นฐานความรู้เรียบร้อยแล้วครับ"})
+
 
 def next_id(prefix, df, col):
     if df.empty: return f"{prefix}-001"
@@ -187,47 +189,12 @@ audit_issues_df = st.session_state["audit_issues"]
 
 st.title("🧭 Planning Studio – Performance Audit")
 
-with st.expander("💡 คำแนะนำการใช้งาน"):
-    st.info(
-        "กรุณาระบุข้อมูล อย่างน้อย **ระบุ แผน & 6W2H** ส่วนใดส่วนหนึ่ง เพื่อค้นหาข้อตรวจพบที่ผ่านมาและให้ PA Assistant แนะนำ ได้แม่นยำที่สุด"
-    )
+st.markdown("""<style> body { font-family: 'Kanit', sans-serif; } button[data-baseweb="tab"] { border: 1px solid #007bff; border-radius: 8px; padding: 10px 15px; margin: 5px 5px 5px 0px; font-weight: bold; color: #007bff !important; background-color: #ffffff; box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1); border-bottom: none !important; &::after { content: none !important; } } button[data-baseweb="tab"][aria-selected="true"] { box-shadow: 2px 2px 5px rgba(0,0,0,0.2); } div[data-baseweb="tab-list"] button:nth-of-type(-n+5) { border-color: #007bff; color: #007bff !important; } div[data-baseweb="tab-list"] button:nth-of-type(-n+5)[aria-selected="true"] { background-color: #007bff; color: white !important; } div[data-baseweb="tab-list"] button:nth-of-type(6), div[data-baseweb="tab-list"] button:nth-of-type(7) { border-color: #6f42c1; color: #6f42c1 !important; } div[data-baseweb="tab-list"] button:nth-of-type(6)[aria-selected="true"], div[data-baseweb="tab-list"] button:nth-of-type(7)[aria-selected="true"] { background-color: #6f42c1; color: white !important; } div[data-baseweb="tab-list"] button:nth-of-type(8) { border-color: #ffc107; color: #cc9900 !important; } div[data-baseweb="tab-list"] button:nth-of-type(8)[aria-selected="true"] { background-color: #ffc107; color: #333333 !important; } div[data-baseweb="tab-list"] button:nth-of-type(9) { border-color: #28a745; color: #28a745 !important; } div[data-baseweb="tab-list"] button:nth-of-type(9)[aria-selected="true"] { background-color: #28a745; color: white !important; } div[data-baseweb="tab-list"] { border-bottom: none !important; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; } h4 { color: #007bff !important; border-bottom: 2px solid #e0e0e0; padding-bottom: 5px; } </style>""", unsafe_allow_html=True)
 
-st.markdown("""
-<style> 
-    body { font-family: 'Kanit', sans-serif; } 
-    button[data-baseweb="tab"] {
-        border-radius: 10px; padding: 6px 6px; margin: 1px;
-        font-weight: normal; color: white !important; border: none;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        transition: all 0.2s ease-in-out;
-    }
-    button[data-baseweb="tab"][aria-selected="true"] {
-        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-        transform: translateY(-2px); opacity: 0.75;
-    }
-    button[data-baseweb="tab"]:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 3px 8px rgba(0,0,0,0.15);
-    }
-    div[data-baseweb="tab-list"] button:nth-of-type(-n+5) { background-color: #A93C2D; }
-    div[data-baseweb="tab-list"] button:nth-of-type(6), 
-    div[data-baseweb="tab-list"] button:nth-of-type(7) { background-color: #4D8076; }
-    div[data-baseweb="tab-list"] button:nth-of-type(8) { background-color: #4A6A8A; }
-    div[data-baseweb="tab-list"] button:nth-of-type(9) { background-color: #4A6A8A; }
-    div[data-baseweb="tab-list"] { 
-        border-bottom: none !important; margin-bottom: 15px; 
-        flex-wrap: wrap; gap: 2px;
-    } 
-    h4 { 
-        color: #007bff !important; border-bottom: 2px solid #e0e0e0; 
-        padding-bottom: 5px; 
-    } 
-</style>
-""", unsafe_allow_html=True)
-
-tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_assist, tab_chatbot = st.tabs(["1. ระบุ แผน & 6W2H", "2. ระบุ Logic Model", "3. ระบุ Methods", "4. ระบุ KPIs", "5. ระบุ Risks", "6. 🔍ค้นหาข้อตรวจพบที่ผ่านมา", "7. 📋สรุปข้อมูล (Preview)", "8. ✨PA Assistant แนะนำประเด็นการตรวจสอบ", "9. 💬 PA Chat (ถาม-ตอบ)"]) 
+tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_assist, tab_chatbot = st.tabs(["1. ระบุ แผน & 6W2H", "2. ระบุ Logic Model", "3. ระบุ Methods", "4. ระบุ KPIs", "5. ระบุ Risks", "6. ค้นหาข้อตรวจพบที่ผ่านมา", "7. สรุปข้อมูล (Preview)", "🤖 ให้ PA Assist ช่วยแนะนำประเด็นการตรวจสอบ ✨✨", "💬 PA Chat (ถาม-ตอบ)"]) 
 
 with tab_plan:
+    # ... (โค้ด Tab 1 ไม่มีการเปลี่ยนแปลง) ...
     st.subheader("ข้อมูลแผน (Plan) - กรุณาระบุข้อมูล")
     with st.container(border=True):
         c1, c2, c3 = st.columns([2,2,1])
@@ -250,27 +217,20 @@ with tab_plan:
         
         if st.button("🚀 สร้าง 6W2H จากข้อความ", type="primary", key="6w2h_button"):
             if not uploaded_text: st.error("กรุณาวางข้อความในช่องก่อน")
-            elif not api_key_from_system: st.error("ไม่พบ Groq API Key ในระบบ กรุณาตั้งค่า Environment Variable/Secrets ก่อน")
+            elif not st.session_state.api_key_global: st.error("กรุณากรอก API Key ที่ Sidebar ด้านซ้ายก่อนใช้งาน")
             else:
                 with st.spinner("กำลังประมวลผล..."):
                     try:
                         user_prompt = f"จากข้อความด้านล่างนี้ กรุณาสรุปและแยกแยะข้อมูลให้เป็น 6W2H ได้แก่ Who, Whom, What, Where, When, Why, How, และ How much โดยให้อยู่ในรูปแบบ key-value ที่ชัดเจน\nข้อความ: --- {uploaded_text} ---"
-                        # --- MODIFIED: เปลี่ยนไปใช้ Groq ---
-                        client = Groq(api_key=api_key_from_system)
-                        response = client.chat.completions.create(
-                            model="llama-3.1-8b-instant", 
-                            messages=[{"role": "user", "content": user_prompt}], 
-                            temperature=0.7, 
-                            max_tokens=1024, 
-                            top_p=0.9
-                        )
+                        client = OpenAI(api_key=st.session_state.api_key_global, base_url="https://api.opentyphoon.ai/v1")
+                        response = client.chat.completions.create(model="typhoon-v2.1-12b-instruct", messages=[{"role": "user", "content": user_prompt}], temperature=0.7, max_tokens=1024, top_p=0.9)
                         llm_output = response.choices[0].message.content
                         for line in llm_output.strip().split('\n'):
                             if ':' in line:
                                 key, value = line.split(':', 1)
                                 normalized_key = key.strip().lower().replace(' ', '_')
                                 if normalized_key in st.session_state.plan: st.session_state.plan[normalized_key] = value.strip()
-                        st.success("ช่วยสร้าง 6W2H เรียบร้อยแล้ว! กรุณาตรวจสอบข้อมูลแล้วระบุตามรายละเอียดด้านล่าง")
+                        st.success("สร้าง 6W2H เรียบร้อยแล้ว! กรุณาตรวจสอบข้อมูลด้านล่าง")
                         st.balloons()
                     except Exception as e: st.error(f"เกิดข้อผิดพลาดในการเรียกใช้ AI: {e}")
         
@@ -287,6 +247,7 @@ with tab_plan:
         st.session_state.plan["how_much"] = cc3.text_input("How much (เท่าไร)", value=st.session_state.plan["how_much"], key="how_much_input")
 
 with tab_logic:
+    # ... (โค้ด Tab 2 ไม่มีการเปลี่ยนแปลง) ...
     st.subheader("ระบุข้อมูล Logic Model: Input → Activities → Output → Outcome → Impact")
     st.dataframe(logic_df, use_container_width=True, hide_index=True)
     with st.expander("➕ เพิ่มรายการใน Logic Model"):
@@ -298,12 +259,13 @@ with tab_logic:
             unit = colB.text_input("หน่วย", value="หน่วย", key="logic_unit")
             target = colB.text_input("เป้าหมาย", value="", key="logic_target")
             source = colC.text_input("แหล่งข้อมูล", value="", key="logic_source")
-            if st.button("เพิ่ม Logic Item", type="primary", key="add_logic_item_btn"):
+            if st.button("เพิ่ม Logic Item", type="primary"):
                 new_row = pd.DataFrame([{"item_id": next_id("LG", logic_df, "item_id"),"plan_id": plan["plan_id"],"type": typ, "description": desc, "metric": metric,"unit": unit, "target": target, "source": source}])
                 st.session_state["logic_items"] = pd.concat([logic_df, new_row], ignore_index=True)
                 st.rerun()
 
 with tab_method:
+    # ... (โค้ด Tab 3 ไม่มีการเปลี่ยนแปลง) ...
     st.subheader("ระบุวิธีการเก็บข้อมูล (Methods)")
     st.dataframe(methods_df, use_container_width=True, hide_index=True)
     with st.expander("➕ เพิ่ม Method"):
@@ -322,6 +284,7 @@ with tab_method:
                 st.rerun()
 
 with tab_kpi:
+    # ... (โค้ด Tab 4 ไม่มีการเปลี่ยนแปลง) ...
     st.subheader("ระบุตัวชี้วัด (KPIs)")
     st.dataframe(kpis_df, use_container_width=True, hide_index=True)
     with st.expander("➕ เพิ่ม KPI เอง"):
@@ -344,6 +307,7 @@ with tab_kpi:
                 st.rerun()
 
 with tab_risk:
+    # ... (โค้ด Tab 5 ไม่มีการเปลี่ยนแปลง) ...
     st.subheader("ระบุความเสี่ยง (Risks)")
     st.dataframe(risks_df, use_container_width=True, hide_index=True)
     with st.expander("➕ เพิ่ม Risk"):
@@ -361,71 +325,39 @@ with tab_risk:
                 st.rerun()
 
 with tab_issue:
-    st.subheader("🔎 แนะนำประเด็นการตรวจสอบจากรายงานเก่า (Findings Suggestions)")
-    with st.expander("อัปโหลดและจัดการฐานข้อมูลข้อตรวจพบ (Findings Library)"):
-        st.write("คุณสามารถอัปโหลดไฟล์ .csv หรือ .xlsx ที่มีข้อมูลข้อตรวจพบที่ผ่านมาเพื่อใช้ในการค้นหา โดยดาวน์โหลดไฟล์แม่แบบไปใช้งาน")
-        st.download_button(
-            label="⬇️ ดาวน์โหลดไฟล์แม่แบบ FindingsLibrary.xlsx",
-            data=create_excel_template(),
-            file_name="FindingsLibrary.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
-        uploaded = st.file_uploader("อัปโหลด FindingsLibrary.csv หรือ .xlsx", type=["csv", "xlsx", "xls"], label_visibility="collapsed")
-    
+    # ... (โค้ด Tab 6 ไม่มีการเปลี่ยนแปลง) ...
+    st.subheader("🔎 แนะนำประเด็นตรวจจากรายงานเก่า (Issue Suggestions)")
+    st.write("***กรุณาอัพโหลดฐานข้อมูล (ถ้าไม่มีจะใช้ฐานข้อมูลในระบบ)***")
+    with st.container(border=True):
+        st.download_button(label="⬇️ ดาวน์โหลดไฟล์แม่แบบ FindingsLibrary.xlsx", data=create_excel_template(), file_name="FindingsLibrary.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        uploaded = st.file_uploader("อัปโหลด FindingsLibrary.csv หรือ .xlsx", type=["csv", "xlsx", "xls"])
     findings_df = load_findings(uploaded=uploaded)
-    
     if findings_df.empty:
-        st.info("ไม่พบข้อมูล Findings ที่จะนำมาใช้ โปรดอัปโหลดไฟล์ หรือตรวจสอบว่ามีไฟล์ FindingsLibrary.csv อยู่ในคลังข้อมูล")
+        st.info("ไม่พบข้อมูล Findings ที่จะนำมาใช้ โปรดอัปโหลดไฟล์ หรือตรวจสอบว่ามีไฟล์ FindingsLibrary.csv อยู่ในโฟลเดอร์เดียวกัน")
     else:
         st.success(f"พบข้อมูล Findings ทั้งหมด {len(findings_df)} รายการ")
         vec, X = build_tfidf_index(findings_df)
-        
-        seed = f"""
-Who:{plan.get('who','')} What:{plan.get('what','')} Where:{plan.get('where','')}
-When:{plan.get('when','')} Why:{plan.get('why','')} Whom:{plan.get('whom','')} How:{plan.get('how','')}
-Outputs:{' | '.join(logic_df[logic_df['type']=='Output']['description'].tolist())}
-Outcomes:{' | '.join(logic_df[logic_df['type']=='Outcome']['description'].tolist())}
-"""
-        
+        seed = f"Who:{plan.get('who','')} What:{plan.get('what','')} Where:{plan.get('where','')} When:{plan.get('when','')} Why:{plan.get('why','')} How:{plan.get('how','')} Outputs:{' | '.join(logic_df[logic_df['type']=='Output']['description'].tolist())} Outcomes:{' | '.join(logic_df[logic_df['type']=='Outcome']['description'].tolist())}"
         def refresh_query_text(new_seed):
             st.session_state["issue_query_text"] = new_seed
             st.session_state["ref_seed"] = new_seed 
-
         if "issue_query_text" not in st.session_state or st.session_state["issue_query_text"] == "":
             st.session_state["issue_query_text"] = seed
             st.session_state["ref_seed"] = seed
         elif st.session_state.get("ref_seed") != seed and st.session_state.get("issue_query_text") == st.session_state.get("ref_seed"):
             st.session_state["issue_query_text"] = seed
             st.session_state["ref_seed"] = seed 
-
         c_query_area, c_refresh_btn = st.columns([6, 1])
-        with c_query_area:
-            query_text = st.text_area(
-                "**สรุปเนื้อหา (Context) ที่ใช้ค้นหา (แก้ไขได้):**", 
-                st.session_state["issue_query_text"], 
-                height=140, 
-                key="issue_query_text"
-            )
+        with c_query_area: query_text = st.text_area("**สรุปบริบทที่ใช้ค้นหา (แก้ไขได้):**", st.session_state["issue_query_text"], height=140, key="issue_query_text")
         with c_refresh_btn:
             st.markdown("<br>", unsafe_allow_html=True)
-            st.button(
-                "🔄", 
-                on_click=refresh_query_text,
-                args=(seed,),
-                help="คลิกเพื่ออัปเดตช่องค้นหาด้วยข้อมูลล่าสุด",
-                type="secondary"
-            )
-        
-        top_k_slider = st.slider("ปรับจำนวนผลลัพธ์ที่ต้องการแสดง:", min_value=1, max_value=20, value=8)
-
+            st.button("🔄 ดึงข้อมูลจากหน้าก่อนหน้า", on_click=refresh_query_text, args=(seed,), help="คลิกเพื่ออัปเดตช่องค้นหาด้วยข้อมูลล่าสุด", type="secondary")
         if st.button("ค้นหาประเด็นที่ใกล้เคียง", type="primary", key="search_button_fix"):
             search_value = st.session_state.get("issue_query_text", seed)
-            results = search_candidates(search_value, findings_df, vec, X, top_k=top_k_slider)
+            results = search_candidates(search_value, findings_df, vec, X, top_k=8)
             st.session_state["issue_results"] = results
             st.success(f"พบประเด็นที่เกี่ยวข้อง {len(results)} รายการ")
-            
         results = st.session_state.get("issue_results", pd.DataFrame())
-        
         if not results.empty:
             st.divider()
             st.subheader("ผลลัพธ์การค้นหา")
@@ -435,32 +367,28 @@ Outcomes:{' | '.join(logic_df[logic_df['type']=='Outcome']['description'].tolist
                     year_txt = int(row["year"]) if "year" in row and str(row["year"]).isdigit() else row.get("year", "-")
                     st.markdown(f"**{title_txt}** \nหน่วย: {row.get('unit', '-')} • โครงการ: {row.get('program', '-')} • ปี {year_txt}")
                     st.caption(f"สาเหตุ: *{row.get('cause_category', '-')}* — {row.get('cause_detail', '-')}")
-    
                     with st.expander("รายละเอียด/ข้อเสนอแนะ (เดิม)"):
                         st.write(row.get("issue_detail", "-"))
                         st.caption("ข้อเสนอแนะเดิม: " + (row.get("recommendation", "") or "-"))
                         st.markdown(f"**ผลกระทบที่อาจเกิดขึ้น:** {row.get('outcomes_impact','-')}  •  <span style='color:red;'>**คะแนนความเกี่ยวข้อง**</span>: {row.get('score',0):.3f} (<span style='color:blue;'>**Similarity Score**</span>={row.get('sim_score',0):.3f})", unsafe_allow_html=True)
                         st.caption("💡 **คำอธิบาย:** **คะแนนความเกี่ยวข้อง** = ความคล้ายคลึงของข้อความ + ความรุนแรงของปัญหา + ความใหม่ของข้อมูล")
-    
                     c1, c2 = st.columns([3,1])
                     with c1:
                         st.text_area("เหตุผลที่ควรตรวจ (สำหรับแผนนี้)", key=f"rat_{i}", value=f"อ้างอิงกรณีเดิม ปี {year_txt} | หน่วย: {row.get('unit', '-')}")
                         st.text_input("KPI ที่เกี่ยว (ถ้ามี)", key=f"kpi_{i}")
                         st.text_input("วิธีเก็บข้อมูลที่เสนอ", key=f"mth_{i}", value="สัมภาษณ์/สังเกต/ตรวจเอกสาร")
-    
                     with c2:
-                        if st.button("➕ เพิ่มเป็นประเด็นการตรวจสอบ", key=f"add_{i}", type="secondary"):
+                        if st.button("➕ เพิ่มเข้าแผน", key=f"add_{i}", type="secondary"):
                             new_row = pd.DataFrame([{"issue_id": next_id("ISS", audit_issues_df, "issue_id"),"plan_id": plan.get("plan_id",""),"title": title_txt,"rationale": st.session_state.get(f"rat_{i}", ""),"linked_kpi": st.session_state.get(f"kpi_{i}", ""),"proposed_methods": st.session_state.get(f"mth_{i}", ""),"source_finding_id": row.get("finding_id", ""),"issue_detail": row.get("issue_detail", ""),"recommendation": row.get("recommendation", "")}])
                             st.session_state["audit_issues"] = pd.concat([audit_issues_df, new_row], ignore_index=True)
                             st.success("เพิ่มประเด็นเข้าแผนแล้ว ✅")
                             st.rerun()
-                            
-        if not st.session_state.get("issue_results", pd.DataFrame()).empty:
-            st.divider()
+        if not st.session_state.get("issue_results", pd.DataFrame()).empty: st.divider()
         st.markdown("### ประเด็นที่ถูกเพิ่มเข้าแผน")
         st.dataframe(st.session_state["audit_issues"], use_container_width=True, hide_index=True)
 
 with tab_preview:
+    # ... (โค้ด Tab 7 ไม่มีการเปลี่ยนแปลง) ...
     st.subheader("สรุปแผน (Preview)")
     with st.container(border=True):
         st.markdown(f"**Plan ID:** {plan['plan_id']}  \n**ชื่อแผนงาน:** {plan['plan_title']}  \n**โครงการ:** {plan['program_name']}  \n**หน่วยรับตรวจ:** {plan['who']}")
@@ -497,18 +425,21 @@ with tab_preview:
     st.divider()
     plan_df = pd.DataFrame([plan])
     df_download_link(plan_df, "plan.csv", "⬇️ ดาวน์โหลด Plan (CSV)")
-    st.success("พร้อมเชื่อมต่อ 🤖 ให้ PA Assistant แนะนำประเด็นการตรวจสอบ ✨✨")
+    st.success("พร้อมเชื่อม Glide / Sheets ต่อได้ทันที")
 
+    # ----------------- Tab 8: ให้ PA Assist ช่วย (โค้ดปรับปรุงตามตัวอย่างที่ work) -----------------
 with tab_assist:
-    st.subheader("💡 PA Assistant (AI/LLM)")
+    st.subheader("💡 PA Audit Assist (ขับเคลื่อนด้วย LLM)")
     st.write("🤖 สร้างคำแนะนำประเด็นการตรวจสอบจาก AI")
 
     if st.button("🚀 สร้างคำแนะนำจาก AI", type="primary", key="llm_assist_button"):
-        if not api_key_from_system:
-            st.error("ไม่พบ Groq API Key ในระบบ กรุณาตั้งค่า Environment Variable/Secrets ก่อน")
+        # เปลี่ยนมาใช้ API Key กลางจาก Sidebar เพื่อความสะดวก
+        if not st.session_state.api_key_global:
+            st.error("กรุณากรอก API Key ที่ Sidebar ด้านซ้ายก่อนใช้งาน")
         else:
             with st.spinner("กำลังสร้างคำแนะนำ..."):
                 try:
+                    # ใช้การสร้าง plan_summary ที่ละเอียดตามต้นฉบับของคุณ
                     issues_for_llm = st.session_state['audit_issues'][['title', 'rationale']]
                     plan_summary = f"""
 ชื่อแผน/เรื่องที่จะตรวจ: {plan['plan_title']}
@@ -533,35 +464,41 @@ Logic Model:
 ประเด็นที่เพิ่มจากรายงานเก่า:
 {issues_for_llm.to_string()}
 """
-                    # --- 2. ปรับปรุง Prompt ให้เข้มงวดขึ้น ---
+                    # ใช้ user_prompt ที่มีโครงสร้างชัดเจนตามต้นฉบับของคุณ
                     user_prompt = f"""
 จากข้อมูลแผนการตรวจสอบด้านล่างนี้ กรุณาช่วยสร้างคำแนะนำ 3 อย่าง ได้แก่
-1. ประเด็นการตรวจสอบที่ควรให้ความสำคัญ อาจจะกล่าวอ้างไปถึงประเด็นที่เพิ่มจากรายงานเก่าหรือข้อตรวจพบที่ผ่านมา หรือสถานการณ์ปัจจุบัน พร้อมเหตุผลที่ผู้ตรวจสอบด้านผลสัมฤทธิ์และประสิทธิภาพการดำเนินงานควรให้ความสำคัญ
-2. ข้อตรวจพบที่คาดว่าจะพบ (พร้อมระบุระดับโอกาสที่จะเจอ: สูง/กลาง/ต่ำ) เหตุผลที่มีโอกาสจะเจออาจจะกล่าวอ้างไปถึงประเด็นที่เพิ่มจากรายงานเก่าหรือข้อตรวจพบที่ผ่านมาหรือข่าวสารหรือสถานกาณ์ปัจจุบัน
-3. ร่างรายงานตรวจสอบที่จะเจอ ช่วยวิเคราะห์ผลกระทบที่จะเกิดขั้นและสาเหตุที่จะเกิดจากข้อตรวจพบที่คาดว่าจะพบ
+1. ประเด็นการตรวจสอบที่ควรให้ความสำคัญ
+2. ข้อตรวจพบที่คาดว่าจะพบ (พร้อมระบุระดับโอกาสที่จะเจอ: สูง/กลาง/ต่ำ)
+3. ร่างรายงานตรวจสอบที่จะเจอ
 ---
 {plan_summary}
 ---
-กรุณาสร้างคำตอบตามรูปแบบด้านล่างนี้เท่านั้น ห้ามสร้างข้อความนอกเหนือจาก Tag ที่กำหนด และห้ามสร้าง Tag ซ้ำซ้อน:
+กรุณาสร้างคำตอบตามรูปแบบด้านล่างนี้เท่านั้น:
 <ประเด็นการตรวจสอบที่ควรให้ความสำคัญ>
 [ข้อความสำหรับส่วนที่ 1]
 </ประเด็นการตรวจสอบที่ควรให้ความสำคัญ>
+
 <ข้อตรวจพบที่คาดว่าจะพบ>
 [ข้อความสำหรับส่วนที่ 2]
 </ข้อตรวจพบที่คาดว่าจะพบ>
+
 <ร่างรายงานตรวจสอบที่จะเจอ>
 [ข้อความสำหรับส่วนที่ 3]
 </ร่างรายงานตรวจสอบที่จะเจอ>
 """
-                    client = Groq(api_key=api_key_from_system)
+
+                    client = OpenAI(
+                        api_key=st.session_state.api_key_global, # ใช้ API Key กลาง
+                        base_url="https://api.opentyphoon.ai/v1"
+                    )
                     
                     messages = [
-                        {"role": "system", "content": "คุณคือผู้เชี่ยวชาญด้านการตรวจสอบผลสัมฤทธิ์และประสิทธิภาพการดำเนินงาน (Performance Audit) จงตอบคำถามโดยยึดตามรูปแบบที่ผู้ใช้ร้องขออย่างเคร่งครัด"},
+                        {"role": "system", "content": "คุณคือผู้เชี่ยวชาญด้านการตรวจสอบผลสัมฤทธิ์และประสิทธิภาพการดำเนินงาน (Performance Audit)"},
                         {"role": "user", "content": user_prompt}
                     ]
                     
                     response = client.chat.completions.create(
-                        model="llama-3.1-8b-instant",
+                        model="typhoon-v2.1-12b-instruct",
                         messages=messages,
                         temperature=0.7,
                         max_tokens=2048,
@@ -569,16 +506,19 @@ Logic Model:
 
                     full_response = response.choices[0].message.content
 
-                    # --- 3. เปลี่ยนจากการใช้ .find() มาเป็น re.search() ที่แม่นยำกว่า ---
-                    def extract_content(tag, text):
-                        pattern = f"<{tag}>(.*?)</{tag}>"
-                        match = re.search(pattern, text, re.DOTALL)
-                        return match.group(1).strip() if match else f"ไม่พบข้อมูลใน tag <{tag}>"
-
-                    issues_text = extract_content("ประเด็นการตรวจสอบที่ควรให้ความสำคัญ", full_response)
-                    findings_text = extract_content("ข้อตรวจพบที่คาดว่าจะพบ", full_response)
-                    report_text = extract_content("ร่างรายงานตรวจสอบที่จะเจอ", full_response)
+                    # ใช้วิธีแยกข้อความ (Parsing) ที่แน่นอนตามต้นฉบับของคุณ
+                    issue_start = full_response.find("<ประเด็นการตรวจสอบที่ควรให้ความสำคัญ>") + len("<ประเด็นการตรวจสอบที่ควรให้ความสำคัญ>")
+                    issue_end = full_response.find("</ประเด็นการตรวจสอบที่ควรให้ความสำคัญ>")
+                    issues_text = full_response[issue_start:issue_end].strip()
                     
+                    finding_start = full_response.find("<ข้อตรวจพบที่คาดว่าจะพบ>") + len("<ข้อตรวจพบที่คาดว่าจะพบ>")
+                    finding_end = full_response.find("</ข้อตรวจพบที่คาดว่าจะพบ>")
+                    findings_text = full_response[finding_start:finding_end].strip()
+
+                    report_start = full_response.find("<ร่างรายงานตรวจสอบที่จะเจอ>") + len("<ร่างรายงานตรวจสอบที่จะเจอ>")
+                    report_end = full_response.find("</ร่างรายงานตรวจสอบที่จะเจอ>")
+                    report_text = full_response[report_start:report_end].strip()
+
                     st.session_state["gen_issues"] = issues_text
                     st.session_state["gen_findings"] = findings_text
                     st.session_state["gen_report"] = report_text
@@ -590,30 +530,27 @@ Logic Model:
                     st.session_state["gen_issues"] = ""
                     st.session_state["gen_findings"] = ""
                     st.session_state["gen_report"] = ""
+
+    st.markdown("<h4 style='color:blue;'>ประเด็นการตรวจสอบที่ควรให้ความสำคัญ</h4>", unsafe_allow_html=True)
+    st.markdown(f"<div style='background-color: #f0f2f6; border: 1px solid #ccc; padding: 10px; border-radius: 5px; height: 200px; overflow-y: scroll;'>{st.session_state.get('gen_issues', '')}</div>", unsafe_allow_html=True)
     
-    st.subheader("ผลลัพธ์จาก AI")
+    st.markdown("<h4 style='color:blue;'>ข้อตรวจพบที่คาดว่าจะพบ (พร้อมระดับโอกาส)</h4>", unsafe_allow_html=True)
+    st.markdown(f"<div style='background-color: #f0f2f6; border: 1px solid #ccc; padding: 10px; border-radius: 5px; height: 200px; overflow-y: scroll;'>{st.session_state.get('gen_findings', '')}</div>", unsafe_allow_html=True)
 
-    with st.expander("1. ประเด็นการตรวจสอบที่ควรให้ความสำคัญ", expanded=True):
-        st.write(st.session_state.get('gen_issues', "ยังไม่มีข้อมูล กด 'สร้างคำแนะนำจาก AI' เพื่อเริ่มต้น"))
+    st.markdown("<h4 style='color:blue;'>ร่างรายงานตรวจสอบ (Preview)</h4>", unsafe_allow_html=True)
+    st.markdown(f"<div style='background-color: #f0f2f6; border: 1px solid #ccc; padding: 10px; border-radius: 5px; height: 400px; overflow-y: scroll;'>{st.session_state.get('gen_report', '')}</div>", unsafe_allow_html=True)
 
-    with st.expander("2. ข้อตรวจพบที่คาดว่าจะพบ (พร้อมระดับโอกาส)"):
-        st.write(st.session_state.get('gen_findings', "ยังไม่มีข้อมูล"))
 
-    with st.expander("3. ร่างรายงานตรวจสอบ (Preview)"):
-        st.write(st.session_state.get('gen_report', "ยังไม่มีข้อมูล"))
-
+# ----------------- Tab 9: PA Chat (ถาม-ตอบ) - (อัปเดต System Prompt ตามที่ต้องการ) -----------------
 with tab_chatbot:
-    st.subheader("💬 PA Chat - ผู้ช่วยอัจฉริยะ (Groq AI)")
+    st.subheader("💬 PA Chat - ผู้ช่วยอัจฉริยะ (RAG)")
     
-    with st.expander("อัปโหลดเอกสารเพิ่มเติม (PDF, TXT, CSV)"):
-        st.info("ข้อมูลจากไฟล์ที่คุณอัปโหลดจะถูกนำไปรวมกับเอกสารในคลังข้อมูลระบบ เพื่อใช้เป็นข้อมูลในการตอบคำถาม")
-        uploaded_files = st.file_uploader(
-            "เลือกไฟล์...",
-            type=['pdf', 'txt', 'csv'],
-            accept_multiple_files=True,
-            label_visibility="collapsed"
-        )
-
+    # --- UI and Logic for File Uploader ---
+    uploaded_files = st.file_uploader(
+        "อัปโหลดเอกสารเพื่อเป็นบริบทให้ AI (PDF, TXT, CSV) - ข้อมูลจะถูกรวมกับเอกสารในโฟลเดอร์ 'Doc'",
+        type=['pdf', 'txt', 'csv'],
+        accept_multiple_files=True
+    )
     current_uploaded_file_names = {f.name for f in uploaded_files}
     if uploaded_files and st.session_state.get('last_uploaded_files') != current_uploaded_file_names:
         with st.spinner("กำลังประมวลผลเอกสารที่อัปโหลด..."):
@@ -627,16 +564,16 @@ with tab_chatbot:
         st.session_state.chatbot_messages.append({"role": "assistant", "content": "ได้ทำการล้างเอกสารที่อัปโหลดออกแล้วครับ"})
         st.rerun()
 
+    # --- Display Context Info ---
     local_len = len(st.session_state.get('doc_context_local', ''))
     uploaded_len = len(st.session_state.get('doc_context_uploaded', ''))
-    
-    with st.expander("ดูรายละเอียดข้อมูล (Context) ที่ใช้"):
-        if local_len > 0:
-            st.info(f"💾 เนื้อหาจากคลังข้อมูล 'ในระบบ': {local_len:,} ตัวอักษร")
-        if uploaded_len > 0:
-            st.info(f"📤 เนื้อหาจากไฟล์ที่อัปโหลด: {uploaded_len:,} ตัวอักษร")
-        st.success(f"✅ เนื้อหารวมทั้งหมด: {(local_len + uploaded_len):,} ตัวอักษร (จำกัดสูงสุด: {MAX_CHARS_LIMIT:,})")
+    if local_len > 0:
+        st.info(f"💾 บริบทจากโฟลเดอร์ 'Doc': {local_len:,} ตัวอักษร")
+    if uploaded_len > 0:
+        st.info(f"📤 บริบทจากไฟล์ที่อัปโหลด: {uploaded_len:,} ตัวอักษร")
+    st.success(f"✅ บริบทรวมทั้งหมด: {(local_len + uploaded_len):,} ตัวอักษร (จำกัดสูงสุด: {MAX_CHARS_LIMIT:,})")
 
+    # --- Chat Interface ---
     chat_container = st.container(height=500, border=True)
     with chat_container:
         for message in st.session_state.chatbot_messages:
@@ -651,37 +588,44 @@ with tab_chatbot:
             with st.chat_message("assistant"):
                 message_placeholder = st.empty()
                 
-                api_key = api_key_from_system
+                api_key = st.session_state.api_key_global
                 if not api_key:
-                    error_message = "เกิดข้อผิดพลาด: ไม่พบ Groq API Key กรุณาตั้งค่า Environment Variable/Secrets ก่อน"
+                    error_message = "เกิดข้อผิดพลาด: ไม่พบ API Key กรุณากรอก API Key ที่ Sidebar ด้านซ้ายก่อนใช้งาน"
                     message_placeholder.error(error_message)
                     st.session_state.chatbot_messages.append({"role": "assistant", "content": error_message})
                 else:
                     try:
+                        # --- MODIFIED: ใช้ System Prompt ที่คุณให้มา ---
+
+                        # 1. สร้างบริบททั้งหมดจาก 2 แหล่ง
                         doc_context = st.session_state.get('doc_context_local', '') + st.session_state.get('doc_context_uploaded', '')
                         
+                        # 2. นำ System Prompt ที่คุณให้มาใช้งาน
                         system_prompt = f"""
 คุณคือผู้ช่วย AI อัจฉริยะ (Expert Assistant) หน้าที่ของคุณคือตอบคำถามของผู้ใช้ให้ถูกต้องและครบถ้วนที่สุด โดยใช้แหล่งข้อมูลสองแหล่ง:
 1.  **ข้อมูลจากเอกสารภายใน (Primary Source):** นี่คือเนื้อหาที่ดึงมาจากไฟล์ PDF ในโฟลเดอร์ "Doc" ของระบบ จงยึดข้อมูลนี้เป็นหลักในการตอบคำถามเสมอ
-2.  **ความรู้ทั่วไปและความรู้ของโมเดล (Secondary Source):** หากคำตอบไม่มีอยู่ในเอกสารภายใน ให้ใช้ความรู้ที่คุณมีเพื่อตอบคำถาม
+2.  **ความรู้ทั่วไปและข้อมูลจากอินเทอร์เน็ต (Secondary Source):** หากคำตอบไม่มีอยู่ในเอกสารภายใน ให้ใช้ความรู้ที่คุณมีจากการฝึกฝน (ซึ่งเทียบเท่าการค้นหาข้อมูลบนอินเทอร์เน็ต) เพื่อตอบคำถาม
+
 **กฎการตอบ:**
 - เมื่อตอบคำถาม ให้อ้างอิงเสมอว่าข้อมูลมาจากแหล่งใด (เช่น "จากเอกสาร [ชื่อไฟล์] ระบุว่า..." หรือ "จากเอกสารที่ให้มา" ระบุว่า...) หากไม่ทราบชื่อไฟล์ให้บอกว่า "จากเอกสารที่ให้มา"
 - หากข้อมูลในเอกสารขัดแย้งกับข้อมูลทั่วไป ให้ยึดข้อมูลในเอกสารเป็นหลักและอาจกล่าวถึงความขัดแย้งนั้น
 - หากไม่พบคำตอบทั้งในเอกสารและความรู้ทั่วไป ให้ตอบว่า "ขออภัยครับ ไม่พบข้อมูลที่เกี่ยวข้องทั้งในเอกสารและฐานข้อมูลของผม"
+
 ---
 **บริบทจากเอกสารภายใน:**
 {doc_context}
 ---
+
 จากข้อมูลข้างต้นนี้ จงตอบคำถามล่าสุดของผู้ใช้
 """
+                        # 3. รวม System Prompt และประวัติการสนทนาทั้งหมดเพื่อส่งให้ API
                         messages_for_api = [
                             {"role": "system", "content": system_prompt}
                         ] + st.session_state.chatbot_messages[-10:]
 
-                        # --- MODIFIED: เปลี่ยนไปใช้ Groq ---
-                        client = Groq(api_key=api_key)
+                        client = OpenAI(api_key=api_key, base_url="https://api.opentyphoon.ai/v1")
                         response_stream = client.chat.completions.create(
-                            model="llama-3.1-8b-instant", 
+                            model="typhoon-v2.1-12b-instruct", 
                             messages=messages_for_api, 
                             temperature=0.5, 
                             max_tokens=3072, 
@@ -694,3 +638,4 @@ with tab_chatbot:
                         error_message = f"เกิดข้อผิดพลาดขณะทำงาน: {e}"
                         message_placeholder.error(error_message)
                         st.session_state.chatbot_messages.append({"role": "assistant", "content": error_message})
+
