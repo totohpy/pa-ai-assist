@@ -205,7 +205,7 @@ st.markdown("""
         border-radius: 4px;
         padding: 6px 6px; /* --- MODIFIED: ลด Padding ภายในปุ่มลงอีก --- */
         margin: 0; /* --- MODIFIED: ลบ margin เพื่อให้ gap ควบคุมระยะห่างอย่างเดียว --- */
-        font-weight: bold;
+        font-weight: normal;
         color: white !important; 
         border: none;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
