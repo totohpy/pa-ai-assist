@@ -300,6 +300,8 @@ with tab_plan:
                                 if normalized_key in st.session_state.plan: st.session_state.plan[normalized_key] = value.strip()
                         st.success("ช่วยสร้าง 6W2H เรียบร้อยแล้ว! กรุณาตรวจสอบข้อมูลแล้วระบุตามรายละเอียดด้านล่าง")
                         st.balloons()
+                        # --- FIX: Add st.rerun() to force a script rerun and correctly display the new state ---
+                        st.rerun()
                     except Exception as e: st.error(f"เกิดข้อผิดพลาดในการเรียกใช้ AI: {e}")
         
     st.markdown("##### ⭐กรุณาระบุข้อมูล เพื่อนำไปใช้ประมวลผล")
@@ -729,4 +731,3 @@ with tab_chatbot:
                         error_message = f"เกิดข้อผิดพลาดขณะทำงาน: {e}"
                         message_placeholder.error(error_message)
                         st.session_state.chatbot_messages.append({"role": "assistant", "content": error_message})
-
