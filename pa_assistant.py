@@ -191,8 +191,8 @@ st.title("🧭 Planning Studio – Performance Audit")
 # --- MODIFIED: ย้าย st.info ไปไว้ใน st.expander ---
 with st.expander("💡 คำแนะนำการใช้งาน"):
     st.info(
-        "ก่อนใช้งานแท็บ **'6. ค้นหาข้อตรวจพบที่ผ่านมา'** หรือ **'🤖 ให้ PA Assistant แนะนำฯ'** "
-        "กรุณากรอกข้อมูลในแท็บ **'1. ระบุ แผน & 6W2H'** ก่อน เพื่อให้ AI ได้รับบริบทที่ครบถ้วนและให้คำแนะนำที่แม่นยำที่สุด"
+        "ก่อน ** ค้นหาข้อตรวจพบที่ผ่านมา ** หรือ ** ให้ PA Assistant แนะนำ ** "
+        "กรุณาระบุข้อมูลอย่างน้อย **ระบุ แผน & 6W2H** ส่วนใดส่วนหนึ่ง เพื่อการประมวลผลและให้คำแนะนำที่แม่นยำที่สุด"
     )
 
 # --- st.markdown ที่แก้ไขแล้ว ---
@@ -202,7 +202,7 @@ st.markdown("""
 
     /* --- Base Style for All Tabs (ลักษณะปุ่มทึบ) --- */
     button[data-baseweb="tab"] {
-        border-radius: 8px;
+        border-radius: 12px;
         padding: 6px 6px; /* --- MODIFIED: ลด Padding ภายในปุ่มลงอีก --- */
         margin: 1px; /* --- MODIFIED: ลบ margin เพื่อให้ gap ควบคุมระยะห่างอย่างเดียว --- */
         font-weight: normal;
@@ -227,7 +227,7 @@ st.markdown("""
 
     /* --- Group 1: 1-5 (สีน้ำเงิน) --- */
     div[data-baseweb="tab-list"] button:nth-of-type(-n+5) {
-        background-color: #0d6efd; 
+        background-color: #A93C2D; 
     }
 
     /* --- Group 2: 6-7 (สีม่วง) --- */
