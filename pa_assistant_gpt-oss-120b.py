@@ -279,56 +279,89 @@ with tab_plan:
 
     st.divider()
     st.subheader("สรุปเรื่องที่ตรวจสอบ (6W2H)")
+
     with st.container(border=True):
         st.markdown("##### 🚀 สร้าง 6W2H อัตโนมัติด้วย AI")
+        st.write("คัดลอกข้อความจากไฟล์ของคุณแล้วนำมาวางในช่องด้านล่างนี้")
         uploaded_text = st.text_area("ระบุข้อความเกี่ยวกับเรื่องที่จะตรวจสอบ ที่ต้องการให้ AI ช่วยสรุป 6W2H", height=200, key="uploaded_text")
-        
+        st.markdown("💡 **ยังไม่มี API Key?** คลิก [ที่นี่](https://playground.opentyphoon.ai/settings/api-key) เพื่อรับ key ฟรี!")
+        api_key_6w2h = st.text_input("กรุณากรอก API Key เพื่อใช้บริการ AI:", type="password", key="api_key_6w2h")
+
         if st.button("🚀 สร้าง 6W2H จากข้อความ", type="primary", key="6w2h_button"):
-            if not uploaded_text: st.error("กรุณาวางข้อความในช่องก่อน")
-            elif not st.session_state.api_key_global: st.error("กรุณากรอก API Key ที่ Sidebar ด้านซ้ายก่อนใช้งาน")
+            if not uploaded_text:
+                st.error("กรุณาวางข้อความในช่องก่อน")
+            elif not api_key_6w2h:
+                st.error("กรุณากรอก API Key ก่อนใช้งาน")
             else:
                 with st.spinner("กำลังประมวลผล..."):
                     try:
-                        user_prompt = f"จากข้อความด้านล่างนี้ กรุณาสรุปและแยกแยะข้อมูลให้เป็น 6W2H ได้แก่ Who, Whom, What, Where, When, Why, How, และ How much โดยให้อยู่ในรูปแบบ key-value ที่ชัดเจน\nข้อความ: --- {uploaded_text} ---"
-                        client = OpenAI(api_key=st.session_state.api_key_global, base_url="https://api.opentyphoon.ai/v1")
-                        response = client.chat.completions.create(model="typhoon-v2.1-12b-instruct", messages=[{"role": "user", "content": user_prompt}], temperature=0.7, max_tokens=1024, top_p=0.9)
+                        user_prompt = f"""
+จากข้อความด้านล่างนี้ กรุณาสรุปและแยกแยะข้อมูลให้เป็น 6W2H ได้แก่ Who, Whom, What, Where, When, Why, How, และ How much โดยให้อยู่ในรูปแบบ key-value ที่ชัดเจน
+ข้อความ:
+---
+{uploaded_text}
+---
+รูปแบบที่ต้องการ:
+Who: [ข้อความ]
+Whom: [ข้อความ]
+What: [ข้อความ]
+Where: [ข้อความ]
+When: [ข้อความ]
+Why: [ข้อความ]
+How: [ข้อความ]
+How Much: [ข้อความ]
+"""
+                        client = OpenAI(
+                            api_key=api_key_6w2h,
+                            base_url="https://api.opentyphoon.ai/v1"
+                        )
+                        response = client.chat.completions.create(
+                            model="typhoon-v2.1-12b-instruct",
+                            messages=[{"role": "user", "content": user_prompt}],
+                            temperature=0.7,
+                            max_tokens=1024,
+                            top_p=0.9,
+                        )
                         llm_output = response.choices[0].message.content
                         
-                        # --- FIX: Added expander to show raw AI output for debugging ---
-                        with st.expander("แสดงผลลัพธ์ดิบจาก AI (สำหรับตรวจสอบ)"):
-                            st.text(llm_output)
+                        with st.expander("แสดงผลลัพธ์จาก AI"):
+                            st.write(llm_output)
 
-                        for line in llm_output.strip().split('\n'):
+                        lines = llm_output.strip().split('\n')
+                        for line in lines:
                             if ':' in line:
                                 key, value = line.split(':', 1)
                                 normalized_key = key.strip().lower().replace(' ', '_')
-                                # Added 'how much' as a potential key from the AI
-                                if normalized_key == 'how_much':
-                                     st.session_state.plan['how_much'] = value.strip()
-                                elif normalized_key in st.session_state.plan: 
-                                     st.session_state.plan[normalized_key] = value.strip()
+                                value = value.strip()
+                                if normalized_key == 'how_much': st.session_state.plan['how_much'] = value
+                                elif normalized_key == 'whom': st.session_state.plan['whom'] = value
+                                elif normalized_key == 'who': st.session_state.plan['who'] = value
+                                elif normalized_key == 'what': st.session_state.plan['what'] = value
+                                elif normalized_key == 'where': st.session_state.plan['where'] = value
+                                elif normalized_key == 'when': st.session_state.plan['when'] = value
+                                elif normalized_key == 'why': st.session_state.plan['why'] = value
+                                elif normalized_key == 'how': st.session_state.plan['how'] = value
 
-                        st.success("ช่วยสร้าง 6W2H เรียบร้อยแล้ว! กรุณาตรวจสอบข้อมูลแล้วระบุตามรายละเอียดด้านล่าง")
+                        st.success("สร้าง 6W2H เรียบร้อยแล้ว! กรุณาตรวจสอบข้อมูลแล้วคัดลอกไปวางตามรายละเอียดด้านล่าง")
                         st.balloons()
-                        # --- FIX: Keep st.rerun() to ensure the UI updates with the new state ---
                         st.rerun()
-                    except Exception as e: st.error(f"เกิดข้อผิดพลาดในการเรียกใช้ AI: {e}")
+                    except Exception as e:
+                        st.error(f"เกิดข้อผิดพลาดในการเรียกใช้ AI: {e}")
         
     st.markdown("##### ⭐กรุณาระบุข้อมูล เพื่อนำไปใช้ประมวลผล")
     with st.container(border=True):
         cc1, cc2, cc3 = st.columns(3)
-        
-        # --- FIX: Adopted the working state management pattern from the user's example ---
-        # Using a distinct 'key' for each widget separates its state from the data dictionary, preventing overwrites.
-        # The 'value' parameter correctly populates the widget with data from the 'plan' dictionary.
-        st.session_state.plan["who"] = cc1.text_input("Who (ใคร)", value=st.session_state.plan["who"], key="who_input")
-        st.session_state.plan["whom"] = cc1.text_input("Whom (เพื่อใคร)", value=st.session_state.plan["whom"], key="whom_input")
-        st.session_state.plan["what"] = cc1.text_input("What (ทำอะไร)", value=st.session_state.plan["what"], key="what_input")
-        st.session_state.plan["where"] = cc1.text_input("Where (ที่ไหน)", value=st.session_state.plan["where"], key="where_input")
-        st.session_state.plan["when"] = cc2.text_input("When (เมื่อใด)", value=st.session_state.plan["when"], key="when_input")
-        st.session_state.plan["why"] = cc2.text_area("Why (ทำไม)", value=st.session_state.plan["why"], key="why_input")
-        st.session_state.plan["how"] = cc3.text_area("How (อย่างไร)", value=st.session_state.plan["how"], key="how_input")
-        st.session_state.plan["how_much"] = cc3.text_input("How much (เท่าไร)", value=st.session_state.plan["how_much"], key="how_much_input")
+        with cc1:
+            st.session_state.plan["who"] = st.text_input("Who (ใคร)", value=st.session_state.plan["who"], key="who_input")
+            st.session_state.plan["whom"] = st.text_input("Whom (เพื่อใคร)", value=st.session_state.plan["whom"], key="whom_input")
+            st.session_state.plan["what"] = st.text_input("What (ทำอะไร)", value=st.session_state.plan["what"], key="what_input")
+            st.session_state.plan["where"] = st.text_input("Where (ที่ไหน)", value=st.session_state.plan["where"], key="where_input")
+        with cc2:
+            st.session_state.plan["when"] = st.text_input("When (เมื่อใด)", value=st.session_state.plan["when"], key="when_input")
+            st.session_state.plan["why"] = st.text_area("Why (ทำไม)", value=st.session_state.plan["why"], key="why_input")
+        with cc3:
+            st.session_state.plan["how"] = st.text_area("How (อย่างไร)", value=st.session_state.plan["how"], key="how_input")
+            st.session_state.plan["how_much"] = st.text_input("How much (เท่าไร)", value=st.session_state.plan["how_much"], key="how_much_input")
 
 with tab_logic:
     st.subheader("ระบุข้อมูล Logic Model: Input → Activities → Output → Outcome → Impact")
@@ -579,7 +612,7 @@ Logic Model:
 """
                     user_prompt = f"""
 จากข้อมูลแผนการตรวจสอบด้านล่างนี้ กรุณาช่วยสร้างคำแนะนำ 3 อย่าง ได้แก่
-1. ประเด็นการตรวจสอบที่ควรให้ความสำคัญ อาจจะกล่าวอ้างไปถึงประเด็นที่เพิ่มจากรายงานเก่าหรือข้อตรวจพบที่ผ่านมา หรือสถานการณ์ปัจจุบัน พร้อมเหตุผลที่ผู้ตรวจสอบด้านผลสัมฤทธิ์และประสิทธิภาพการดำเนินงานควรให้ความสำคัญ
+1. ประเด็นการตรวจสอบที่ควรให้ความสำคัญ อาจจะกล่าวอ้างไปถึงประเด็นที่เพิ่มจากรายงานเก่าหรือข้อตรวจพบที่ผ่านมา หรือสถานการณ์ปัจจุบัน พร้อมเหตุผลที่ผู้ตรวจสอบด้านผลสัมทธิ์และประสิทธิภาพการดำเนินงานควรให้ความสำคัญ
 2. ข้อตรวจพบที่คาดว่าจะพบ (พร้อมระบุระดับโอกาสที่จะเจอ: สูง/กลาง/ต่ำ) เหตุผลที่มีโอกาสจะเจออาจจะกล่าวอ้างไปถึงประเด็นที่เพิ่มจากรายงานเก่าหรือข้อตรวจพบที่ผ่านมาหรือข่าวสารหรือสถานกาณ์ปัจจุบัน
 3. ร่างรายงานตรวจสอบที่จะเจอ ช่วยวิเคราะห์ผลกระทบที่จะเกิดขั้นและสาเหตุที่จะเกิดจากข้อตรวจพบที่คาดว่าจะพบ 
 ---
@@ -605,7 +638,7 @@ Logic Model:
                     )
                     
                     messages = [
-                        {"role": "system", "content": "คุณคือผู้เชี่ยวชาญด้านการตรวจสอบผลสัมฤทธิ์และประสิทธิภาพการดำเนินงาน (Performance Audit)"},
+                        {"role": "system", "content": "คุณคือผู้เชี่ยวชาญด้านการตรวจสอบผลสัมทธิ์และประสิทธิภาพการดำเนินงาน (Performance Audit)"},
                         {"role": "user", "content": user_prompt}
                     ]
                     
