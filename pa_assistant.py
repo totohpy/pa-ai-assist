@@ -731,3 +731,4 @@ with tab_chatbot:
                         error_message = f"เกิดข้อผิดพลาดขณะทำงาน: {e}"
                         message_placeholder.error(error_message)
                         st.session_state.chatbot_messages.append({"role": "assistant", "content": error_message})
+
