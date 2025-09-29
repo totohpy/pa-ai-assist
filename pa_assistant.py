@@ -233,17 +233,17 @@ st.markdown("""
     /* --- Group 2: 6-7 (สีม่วง) --- */
     div[data-baseweb="tab-list"] button:nth-of-type(6), 
     div[data-baseweb="tab-list"] button:nth-of-type(7) {
-        background-color: #6f42c1;
+        background-color: #4D8076;
     }
 
     /* --- Group 3: 8 (สีทอง) --- */
     div[data-baseweb="tab-list"] button:nth-of-type(8) {
-        background-color: #ffc107;
+        background-color: #4A6A8A;
     }
 
     /* --- Group 4: 9 (สีเขียว) --- */
     div[data-baseweb="tab-list"] button:nth-of-type(9) {
-        background-color: #198754;
+        background-color: #4A6A8A;
     }
 
     /* --- General Layout --- */
@@ -529,7 +529,7 @@ with tab_preview:
     st.success("พร้อมเชื่อมต่อ 🤖 ให้ PA Assistant แนะนำประเด็นการตรวจสอบ ✨✨")
 
 with tab_assist:
-    st.subheader("💡 PA Audit Assistant (AI/LLM)")
+    st.subheader("💡 PA Assistant (AI/LLM)")
     st.write("🤖 สร้างคำแนะนำประเด็นการตรวจสอบจาก AI")
 
     if st.button("🚀 สร้างคำแนะนำจาก AI", type="primary", key="llm_assist_button"):
@@ -640,10 +640,10 @@ Logic Model:
 
 
 with tab_chatbot:
-    st.subheader("💬 PA Chat - ผู้ช่วยอัจฉริยะ (RAG)")
+    st.subheader("💬 PA Chat - ผู้ช่วยอัจฉริยะ (Typhoon AI)")
     
     with st.expander("อัปโหลดเอกสารเพิ่มเติม (PDF, TXT, CSV)"):
-        st.info("ข้อมูลจากไฟล์ที่คุณอัปโหลดจะถูกนำไปรวมกับเอกสารในโฟลเดอร์ 'Doc' เพื่อใช้เป็นบริบทในการตอบคำถาม")
+        st.info("ข้อมูลจากไฟล์ที่คุณอัปโหลดจะถูกนำไปรวมกับเอกสารในคลังข้อมูลระบบ เพื่อใช้เป็นข้อมูลในการตอบคำถาม")
         uploaded_files = st.file_uploader(
             "เลือกไฟล์...",
             type=['pdf', 'txt', 'csv'],
