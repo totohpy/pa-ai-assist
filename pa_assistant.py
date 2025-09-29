@@ -189,7 +189,7 @@ audit_issues_df = st.session_state["audit_issues"]
 st.title("🧭 Planning Studio – Performance Audit")
 
 # --- MODIFIED: ย้าย st.info ไปไว้ใน st.expander ---
-with st.expander("💡 คำแนะนำการใช้งาน (คลิกเพื่ออ่าน)"):
+with st.expander("💡 คำแนะนำการใช้งาน"):
     st.info(
         "ก่อนใช้งานแท็บ **'6. ค้นหาข้อตรวจพบที่ผ่านมา'** หรือ **'🤖 ให้ PA Assistant แนะนำฯ'** "
         "กรุณากรอกข้อมูลในแท็บ **'1. ระบุ แผน & 6W2H'** ก่อน เพื่อให้ AI ได้รับบริบทที่ครบถ้วนและให้คำแนะนำที่แม่นยำที่สุด"
