@@ -295,38 +295,20 @@ How Much: [ข้อความ]
                         )
                         llm_output = response.choices[0].message.content
                         
-                        with st.expander("แสดงผลลัพธ์จาก AI"):
-                            st.write(llm_output)
+                        # --- MODIFICATION: Display AI output for user to manually copy ---
+                        st.markdown("---")
+                        st.markdown("#### ผลลัพธ์จาก AI")
+                        st.text_area("คัดลอกข้อมูลด้านล่างนี้ไปวางในช่องที่เกี่ยวข้อง:", value=llm_output, height=250)
 
-                        lines = llm_output.strip().split('\n')
-                        for line in lines:
-                            if ':' in line:
-                                key, value = line.split(':', 1)
-                                normalized_key = key.strip().lower().replace(' ', '_')
-                                value = value.strip()
-                                
-                                # --- FIX: This is the definitive fix for the state issue ---
-                                # 1. Update the master data dictionary ('plan')
-                                # 2. Simultaneously, update the specific widget's state key (e.g., 'who_input')
-                                # This ensures the widget displays the new value after the rerun.
-                                if "how_much" in normalized_key:
-                                    normalized_key = "how_much"
-                                
-                                if normalized_key in st.session_state.plan:
-                                    st.session_state.plan[normalized_key] = value
-                                    widget_key = f"{normalized_key}_input"
-                                    st.session_state[widget_key] = value
-
-                        st.success("สร้าง 6W2H เรียบร้อยแล้ว! ข้อมูลได้ถูกเติมลงในช่องด้านล่าง")
+                        st.success("สร้าง 6W2H เรียบร้อยแล้ว! กรุณาตรวจสอบและคัดลอกข้อมูลไปวางในช่องด้านล่าง")
                         st.balloons()
-                        st.rerun()
+
                     except Exception as e:
                         st.error(f"เกิดข้อผิดพลาดในการเรียกใช้ AI: {e}")
         
     st.markdown("##### ⭐กรุณาระบุข้อมูล เพื่อนำไปใช้ประมวลผล")
     with st.container(border=True):
         cc1, cc2, cc3 = st.columns(3)
-        # The key/value pattern here is correct. The fix was needed in the AI processing block above.
         with cc1:
             st.session_state.plan["who"] = st.text_input("Who (ใคร)", key="who_input")
             st.session_state.plan["whom"] = st.text_input("Whom (เพื่อใคร)", key="whom_input")
