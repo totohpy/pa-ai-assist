@@ -16,29 +16,22 @@ st.set_page_config(page_title="Planning Studio (+ Findings Suggestions)", page_i
 # ----------------- ⚙️ การตั้งค่ากลาง -----------------
 with st.sidebar:
     st.title("⚙️ การตั้งค่ากลาง")
-    st.info("API Key ที่กรอกด้านล่างนี้จะถูกใช้กับทุกฟีเจอร์ AI")
+    st.info("API Key ถูกตั้งค่าโดยผู้ดูแลระบบเรียบร้อยแล้ว")
 
-    # --- คำแนะนำสำหรับ Streamlit Cloud Deployment ---
-    # หากต้องการนำแอปขึ้น Streamlit Cloud แนะนำให้ใช้ Secrets management เพื่อความปลอดภัย
-    # 1. ไปที่การตั้งค่าของแอปใน Streamlit Cloud
-    # 2. เพิ่ม Secret ในรูปแบบนี้: api_key = "your_opentyphoon_api_key"
-    # 3. ยกเลิกคอมเมนต์โค้ดส่วนด้านล่าง และคอมเมนต์ส่วน st.text_input ที่อยู่ถัดไป
-    #
-    # try:
-    #     st.session_state.api_key_global = st.secrets["api_key"]
-    #     st.success("API Key loaded from Secrets successfully.")
-    # except:
-    #     st.session_state.api_key_global = ""
-    #     st.warning("API Key not found in Secrets. Please set it for the app to work on Cloud.")
+    # --- Load API Key from Streamlit Secrets ---
+    # For deploying on Streamlit Cloud, the administrator must set a Secret
+    # in the app's settings with the key "api_key".
+    try:
+        # This line attempts to read the secret named "api_key"
+        st.session_state.api_key_global = st.secrets["api_key"]
+    except KeyError:
+        # If the secret is not found, set the key to empty and inform the user.
+        st.session_state.api_key_global = ""
+        st.warning("ฟีเจอร์ AI ยังไม่พร้อมใช้งาน กรุณาติดต่อผู้ดูแลระบบ")
+    except Exception as e:
+        st.session_state.api_key_global = ""
+        st.error(f"เกิดข้อผิดพลาดในการโหลด API Key: {e}")
 
-    # --- สำหรับการใช้งานบนเครื่อง Local ---
-    # ส่วนนี้จะทำให้คุณสามารถใส่ Key ได้โดยตรงเมื่อรันบนเครื่องของคุณเอง
-    st.session_state.api_key_global = st.text_input(
-        "กรุณากรอก API Key (OpenTyphoon)",
-        type="password",
-        key="api_key_global_input_sidebar",
-        help="API Key นี้จะถูกใช้สำหรับทุกฟีเจอร์ AI (สำหรับ deployment แนะนำให้ใช้ Secrets)"
-    )
     st.markdown("---")
     st.markdown("PA Planning Studio By PAO1 Audit Intelligence Nexus")
 
@@ -377,7 +370,6 @@ with tab_kpi:
     st.subheader("ระบุตัวชี้วัด (KPIs)")
     st.dataframe(kpis_df, use_container_width=True, hide_index=True)
     with st.expander("➕ เพิ่ม KPI เอง"):
-        # --- MODIFICATION: Removed the extra st.container(border=True) for a cleaner look ---
         col1, col2, col3 = st.columns(3)
         level = col1.selectbox("ระดับ", ["output","outcome"])
         name = col1.text_input("ชื่อ KPI")
