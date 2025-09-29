@@ -6,6 +6,7 @@ from datetime import datetime
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from openai import OpenAI
+from groq import Groq # <--- Import Groq
 import os
 import io
 from PyPDF2 import PdfReader
@@ -17,12 +18,25 @@ st.set_page_config(page_title="Planning Studio (+ Findings Suggestions)", page_i
 with st.sidebar:
     st.title("⚙️ การตั้งค่ากลาง")
     st.info("API Key ที่กรอกด้านล่างนี้จะถูกใช้กับทุกฟีเจอร์ AI, ดูรายละเอียด ? ")
+    
+    # --- ช่องใส่ Key เดิม (สำหรับ Typhoon) ---
     st.session_state.api_key_global = st.text_input(
         "กรุณากรอก API Key (OpenTyphoon)",
         type="password",
         key="api_key_global_input_sidebar",
         help="คลิกที่นี่เพื่อรับ Key ฟรี: https://playground.opentyphoon.ai/settings/api-key"
     )
+    st.markdown("---")
+
+    # --- เพิ่มช่องใส่ Key ใหม่สำหรับ Groq ---
+    st.info("API Key สำหรับ Groq (แนะนำ, เร็วมาก)")
+    st.session_state.groq_api_key = st.text_input(
+        "กรุณากรอก Groq API Key",
+        type="password",
+        key="groq_api_key_sidebar",
+        help="ไปที่ https://console.groq.com/keys เพื่อรับ Key"
+    )
+
     st.markdown("---")
     st.markdown("PA Planning Studio By PAO1 Audit Intelligence Nexus")
 
@@ -105,6 +119,7 @@ def init_state():
     ss.setdefault("ref_seed", "")
     ss.setdefault("issue_query_text", "")
     ss.setdefault('api_key_global', '')
+    ss.setdefault('groq_api_key', '')
     
     ss.setdefault('chatbot_messages', [{"role": "assistant", "content": "สวัสดีครับ ผมคือ PA Chat ผู้ช่วยอัจฉริยะด้านการตรวจสอบ"}])
     ss.setdefault('doc_context_uploaded', "")
@@ -188,22 +203,21 @@ audit_issues_df = st.session_state["audit_issues"]
 
 st.title("🧭 Planning Studio – Performance Audit")
 
-# --- MODIFIED: ย้าย st.info ไปไว้ใน st.expander ---
-with st.expander("💡 คำแนะนำการใช้งาน"):
+with st.expander("💡 คำแนะนำการใช้งาน (คลิกเพื่ออ่าน)"):
     st.info(
-        "กรุณาระบุข้อมูล อย่างน้อย **ระบุ แผน & 6W2H** ส่วนใดส่วนหนึ่ง เพื่อค้นหาข้อตรวจพบที่ผ่านมาและให้ PA Assistant แนะนำ ได้แม่นยำที่สุด"
+        "ก่อนใช้งานแท็บ **'6. ค้นหาข้อตรวจพบที่ผ่านมา'** หรือ **'🤖 ให้ PA Assistant แนะนำฯ'** "
+        "กรุณากรอกข้อมูลในแท็บ **'1. ระบุ แผน & 6W2H'** ก่อน เพื่อให้ AI ได้รับบริบทที่ครบถ้วนและให้คำแนะนำที่แม่นยำที่สุด"
     )
 
-# --- st.markdown ที่แก้ไขแล้ว ---
 st.markdown("""
 <style> 
     body { font-family: 'Kanit', sans-serif; } 
 
     /* --- Base Style for All Tabs (ลักษณะปุ่มทึบ) --- */
     button[data-baseweb="tab"] {
-        border-radius: 10px;
-        padding: 6px 6px; /* --- MODIFIED: ลด Padding ภายในปุ่มลงอีก --- */
-        margin: 1px; /* --- MODIFIED: ลบ margin เพื่อให้ gap ควบคุมระยะห่างอย่างเดียว --- */
+        border-radius: 8px;
+        padding: 6px 12px; 
+        margin: 0; 
         font-weight: normal;
         color: white !important; 
         border: none;
@@ -211,11 +225,11 @@ st.markdown("""
         transition: all 0.2s ease-in-out;
     }
 
-     /* --- สไตล์ของแท็บที่ถูกเลือก (โปร่งใสลง) --- */
+    /* --- สไตล์ของแท็บที่ถูกเลือก (ดึงให้ลอยขึ้นและสีสว่างขึ้นมาก) --- */
     button[data-baseweb="tab"][aria-selected="true"] {
         box-shadow: 0 4px 12px rgba(0,0,0,0.25);
         transform: translateY(-2px);
-        opacity: 0.75; /* <--- ทำให้โปร่งใสลง 25% */
+        filter: brightness(140%);
     }
     
     /* --- สไตล์เมื่อนำเมาส์ไปชี้ (ลอยขึ้นเล็กน้อย) --- */
@@ -226,23 +240,24 @@ st.markdown("""
 
     /* --- Group 1: 1-5 (สีน้ำเงิน) --- */
     div[data-baseweb="tab-list"] button:nth-of-type(-n+5) {
-        background-color: #A93C2D; 
+        background-color: #0d6efd; 
     }
 
     /* --- Group 2: 6-7 (สีม่วง) --- */
     div[data-baseweb="tab-list"] button:nth-of-type(6), 
     div[data-baseweb="tab-list"] button:nth-of-type(7) {
-        background-color: #4D8076;
+        background-color: #6f42c1;
     }
 
     /* --- Group 3: 8 (สีทอง) --- */
     div[data-baseweb="tab-list"] button:nth-of-type(8) {
-        background-color: #4A6A8A;
+        background-color: #ffc107;
+        color: #343a40 !important;
     }
 
     /* --- Group 4: 9 (สีเขียว) --- */
     div[data-baseweb="tab-list"] button:nth-of-type(9) {
-        background-color: #4A6A8A;
+        background-color: #198754;
     }
 
     /* --- General Layout --- */
@@ -250,7 +265,7 @@ st.markdown("""
         border-bottom: none !important; 
         margin-bottom: 15px; 
         flex-wrap: wrap; 
-        gap: 2px; /* --- MODIFIED: ลดระยะห่างระหว่างปุ่มให้ชิดกันมากที่สุด --- */
+        gap: 2px;
     } 
     h4 { 
         color: #007bff !important; 
@@ -260,7 +275,17 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_assist, tab_chatbot = st.tabs(["1. ระบุ แผน & 6W2H", "2. ระบุ Logic Model", "3. ระบุ Methods", "4. ระบุ KPIs", "5. ระบุ Risks", "6. 🔍ค้นหาข้อตรวจพบที่ผ่านมา", "7. 📋สรุปข้อมูล (Preview)", "8. ✨PA Assistant แนะนำประเด็นการตรวจสอบ", "9. 💬 PA Chat (ถาม-ตอบ)"]) 
+tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_assist, tab_chatbot = st.tabs([
+    "📝 1. ระบุ แผน & 6W2H", 
+    "🔗 2. ระบุ Logic Model", 
+    "🛠️ 3. ระบุ Methods", 
+    "🎯 4. ระบุ KPIs", 
+    "⚠️ 5. ระบุ Risks", 
+    "🔎 6. ค้นหาข้อตรวจพบที่ผ่านมา", 
+    "📄 7. สรุปข้อมูล (Preview)", 
+    "✨ 8. PA Assistant แนะนำฯ", 
+    "💬 9. PA Chat (ถาม-ตอบ)"
+])
 
 with tab_plan:
     st.subheader("ข้อมูลแผน (Plan) - กรุณาระบุข้อมูล")
@@ -729,4 +754,3 @@ with tab_chatbot:
                         error_message = f"เกิดข้อผิดพลาดขณะทำงาน: {e}"
                         message_placeholder.error(error_message)
                         st.session_state.chatbot_messages.append({"role": "assistant", "content": error_message})
-
