@@ -690,7 +690,7 @@ with tab_chatbot:
             st.info(f"📤 เนื้อหาจากไฟล์ที่อัปโหลด: {uploaded_len:,} ตัวอักษร")
         st.success(f"✅ เนื้อหารวมทั้งหมด: {(local_len + uploaded_len):,} ตัวอักษร (จำกัดสูงสุด: {MAX_CHARS_LIMIT:,})")
 
-    chat_container = st.container(height=500, border=True)
+    chat_container = st.container(height=750, border=True)
     with chat_container:
         for message in st.session_state.chatbot_messages:
             with st.chat_message(message["role"]):
