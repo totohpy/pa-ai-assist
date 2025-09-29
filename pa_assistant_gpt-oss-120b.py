@@ -16,18 +16,22 @@ st.set_page_config(page_title="Planning Studio (+ Findings Suggestions)", page_i
 # ----------------- ⚙️ การตั้งค่ากลาง -----------------
 with st.sidebar:
     st.title("⚙️ การตั้งค่ากลาง")
+    st.info("API Key ถูกตั้งค่าโดยผู้ดูแลระบบผ่าน Streamlit Secrets")
 
-    # --- FIX for Render.com Deployment ---
-    # Render uses Environment Variables, not secrets.toml.
-    # We will try to get the API key from an environment variable first.
-    
-    api_key_from_env = os.environ.get("API_KEY")
+    # --- FIX for Streamlit Community Cloud Deployment ---
+    # Streamlit Cloud uses st.secrets to manage keys securely.
+    try:
+        # This line attempts to read the secret named "api_key"
+        st.session_state.api_key_global = st.secrets["api_key"]
+        st.success("API Key ถูกโหลดจากระบบ Secrets เรียบร้อยแล้ว")
+    except KeyError:
+        # If the secret is not found, set the key to empty and inform the user.
+        st.session_state.api_key_global = ""
+        st.error("ไม่พบ API Key ใน Secrets, กรุณาตั้งค่าในหน้าตั้งค่าของแอป")
+    except Exception as e:
+        st.session_state.api_key_global = ""
+        st.error(f"เกิดข้อผิดพลาดในการโหลด API Key: {e}")
 
-    if api_key_from_env:
-        st.session_state.api_key_global = api_key_from_env
-        st.success("API Key ถูกโหลดจากระบบเรียบร้อยแล้ว")
-    # If the environment variable is not set, nothing will be displayed.
-    # This keeps the UI clean on the server if the key is missing.
 
     st.markdown("---")
     st.markdown("PA Planning Studio By PAO1 Audit Intelligence Nexus")
