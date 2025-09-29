@@ -16,12 +16,28 @@ st.set_page_config(page_title="Planning Studio (+ Findings Suggestions)", page_i
 # ----------------- ⚙️ การตั้งค่ากลาง -----------------
 with st.sidebar:
     st.title("⚙️ การตั้งค่ากลาง")
-    st.info("API Key ที่กรอกด้านล่างนี้จะถูกใช้กับทุกฟีเจอร์ AI, ดูรายละเอียด ? ")
+    st.info("API Key ที่กรอกด้านล่างนี้จะถูกใช้กับทุกฟีเจอร์ AI")
+
+    # --- คำแนะนำสำหรับ Streamlit Cloud Deployment ---
+    # หากต้องการนำแอปขึ้น Streamlit Cloud แนะนำให้ใช้ Secrets management เพื่อความปลอดภัย
+    # 1. ไปที่การตั้งค่าของแอปใน Streamlit Cloud
+    # 2. เพิ่ม Secret ในรูปแบบนี้: api_key = "your_opentyphoon_api_key"
+    # 3. ยกเลิกคอมเมนต์โค้ดส่วนด้านล่าง และคอมเมนต์ส่วน st.text_input ที่อยู่ถัดไป
+    #
+    # try:
+    #     st.session_state.api_key_global = st.secrets["api_key"]
+    #     st.success("API Key loaded from Secrets successfully.")
+    # except:
+    #     st.session_state.api_key_global = ""
+    #     st.warning("API Key not found in Secrets. Please set it for the app to work on Cloud.")
+
+    # --- สำหรับการใช้งานบนเครื่อง Local ---
+    # ส่วนนี้จะทำให้คุณสามารถใส่ Key ได้โดยตรงเมื่อรันบนเครื่องของคุณเอง
     st.session_state.api_key_global = st.text_input(
         "กรุณากรอก API Key (OpenTyphoon)",
         type="password",
         key="api_key_global_input_sidebar",
-        help="คลิกที่นี่เพื่อรับ Key ฟรี: https://playground.opentyphoon.ai/settings/api-key"
+        help="API Key นี้จะถูกใช้สำหรับทุกฟีเจอร์ AI (สำหรับ deployment แนะนำให้ใช้ Secrets)"
     )
     st.markdown("---")
     st.markdown("PA Planning Studio By PAO1 Audit Intelligence Nexus")
@@ -361,23 +377,23 @@ with tab_kpi:
     st.subheader("ระบุตัวชี้วัด (KPIs)")
     st.dataframe(kpis_df, use_container_width=True, hide_index=True)
     with st.expander("➕ เพิ่ม KPI เอง"):
-        with st.container(border=True):
-            col1, col2, col3 = st.columns(3)
-            level = col1.selectbox("ระดับ", ["output","outcome"])
-            name = col1.text_input("ชื่อ KPI")
-            formula = col1.text_input("สูตร/นิยาม")
-            numerator = col2.text_input("ตัวตั้ง (numerator)")
-            denominator = col2.text_input("ตัวหาร (denominator)")
-            unit = col2.text_input("หน่วย", value="%", key="kpi_unit")
-            baseline = col3.text_input("Baseline", value="")
-            target = col3.text_input("Target", value="")
-            freq = col3.text_input("ความถี่", value="รายไตรมาส")
-            data_src = col3.text_input("แหล่งข้อมูล", value="", key="kpi_data_source")
-            quality = col3.text_input("ข้อกำหนดคุณภาพข้อมูล", value="ถูกต้อง/ทันเวลา", key="kpi_quality")
-            if st.button("เพิ่ม KPI", type="primary", key="add_kpi_btn"):
-                new_row = pd.DataFrame([{"kpi_id": next_id("KPI", kpis_df, "kpi_id"),"plan_id": plan["plan_id"],"level": level, "name": name, "formula": formula,"numerator": numerator, "denominator": denominator, "unit": unit,"baseline": baseline, "target": target, "frequency": freq,"data_source": data_src, "quality_requirements": quality}])
-                st.session_state["kpis"] = pd.concat([kpis_df, new_row], ignore_index=True)
-                st.rerun()
+        # --- MODIFICATION: Removed the extra st.container(border=True) for a cleaner look ---
+        col1, col2, col3 = st.columns(3)
+        level = col1.selectbox("ระดับ", ["output","outcome"])
+        name = col1.text_input("ชื่อ KPI")
+        formula = col1.text_input("สูตร/นิยาม")
+        numerator = col2.text_input("ตัวตั้ง (numerator)")
+        denominator = col2.text_input("ตัวหาร (denominator)")
+        unit = col2.text_input("หน่วย", value="%", key="kpi_unit")
+        baseline = col3.text_input("Baseline", value="")
+        target = col3.text_input("Target", value="")
+        freq = col3.text_input("ความถี่", value="รายไตรมาส")
+        data_src = col3.text_input("แหล่งข้อมูล", value="", key="kpi_data_source")
+        quality = col3.text_input("ข้อกำหนดคุณภาพข้อมูล", value="ถูกต้อง/ทันเวลา", key="kpi_quality")
+        if st.button("เพิ่ม KPI", type="primary", key="add_kpi_btn"):
+            new_row = pd.DataFrame([{"kpi_id": next_id("KPI", kpis_df, "kpi_id"),"plan_id": plan["plan_id"],"level": level, "name": name, "formula": formula,"numerator": numerator, "denominator": denominator, "unit": unit,"baseline": baseline, "target": target, "frequency": freq,"data_source": data_src, "quality_requirements": quality}])
+            st.session_state["kpis"] = pd.concat([kpis_df, new_row], ignore_index=True)
+            st.rerun()
 
 with tab_risk:
     st.subheader("ระบุความเสี่ยง (Risks)")
