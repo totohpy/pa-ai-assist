@@ -257,7 +257,7 @@ with tab_plan:
                         # --- MODIFIED: เปลี่ยนไปใช้ Groq ---
                         client = Groq(api_key=api_key_from_system)
                         response = client.chat.completions.create(
-                            model="llama3-8b-8192", 
+                            model="llama-3.1-8b-instant", 
                             messages=[{"role": "user", "content": user_prompt}], 
                             temperature=0.7, 
                             max_tokens=1024, 
@@ -562,7 +562,7 @@ Logic Model:
                     ]
                     
                     response = client.chat.completions.create(
-                        model="llama3-8b-8192",
+                        model="llama-3.1-8b-instant",
                         messages=messages,
                         temperature=0.7,
                         max_tokens=2048,
@@ -685,7 +685,7 @@ with tab_chatbot:
                         # --- MODIFIED: เปลี่ยนไปใช้ Groq ---
                         client = Groq(api_key=api_key)
                         response_stream = client.chat.completions.create(
-                            model="llama3-8b-8192", 
+                            model="llama-3.1-8b-instant", 
                             messages=messages_for_api, 
                             temperature=0.5, 
                             max_tokens=3072, 
