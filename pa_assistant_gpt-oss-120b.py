@@ -137,7 +137,18 @@ with st.expander("💡 คำแนะนำการใช้งาน"):
 
 st.markdown("""<style> ... </style>""", unsafe_allow_html=True) # CSS เหมือนเดิม
 
-tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_assist, tab_chatbot = st.tabs(["1. ระบุ แผน & 6W2H", "2. ระบุ Logic Model", ...]) # Tabs เหมือนเดิม
+# --- บรรทัดที่แก้ไขแล้ว ---
+tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_assist, tab_chatbot = st.tabs([
+    "📝 1. ระบุ แผน & 6W2H", 
+    "🔗 2. ระบุ Logic Model", 
+    "🛠️ 3. ระบุ Methods", 
+    "🎯 4. ระบุ KPIs", 
+    "⚠️ 5. ระบุ Risks", 
+    "🔎 6. ค้นหาข้อตรวจพบที่ผ่านมา", 
+    "📄 7. สรุปข้อมูล (Preview)", 
+    "✨ 8. PA Assistant แนะนำฯ", 
+    "💬 9. PA Chat (ถาม-ตอบ)"
+])
 
 with tab_plan:
     # ... (เนื้อหาแท็บ 1-7 เหมือนเดิมทั้งหมด) ...
