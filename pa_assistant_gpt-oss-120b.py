@@ -188,69 +188,43 @@ audit_issues_df = st.session_state["audit_issues"]
 
 st.title("🧭 Planning Studio – Performance Audit")
 
-# --- MODIFIED: ย้าย st.info ไปไว้ใน st.expander ---
 with st.expander("💡 คำแนะนำการใช้งาน"):
     st.info(
         "กรุณาระบุข้อมูล อย่างน้อย **ระบุ แผน & 6W2H** ส่วนใดส่วนหนึ่ง เพื่อค้นหาข้อตรวจพบที่ผ่านมาและให้ PA Assistant แนะนำ ได้แม่นยำที่สุด"
     )
 
-# --- st.markdown ที่แก้ไขแล้ว ---
 st.markdown("""
 <style> 
     body { font-family: 'Kanit', sans-serif; } 
-
-    /* --- Base Style for All Tabs (ลักษณะปุ่มทึบ) --- */
     button[data-baseweb="tab"] {
         border-radius: 10px;
-        padding: 6px 6px; /* --- MODIFIED: ลด Padding ภายในปุ่มลงอีก --- */
-        margin: 1px; /* --- MODIFIED: ลบ margin เพื่อให้ gap ควบคุมระยะห่างอย่างเดียว --- */
+        padding: 6px 6px;
+        margin: 1px;
         font-weight: normal;
         color: white !important; 
         border: none;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         transition: all 0.2s ease-in-out;
     }
-
-     /* --- สไตล์ของแท็บที่ถูกเลือก (โปร่งใสลง) --- */
     button[data-baseweb="tab"][aria-selected="true"] {
         box-shadow: 0 4px 12px rgba(0,0,0,0.25);
         transform: translateY(-2px);
-        opacity: 0.75; /* <--- ทำให้โปร่งใสลง 25% */
+        opacity: 0.75;
     }
-    
-    /* --- สไตล์เมื่อนำเมาส์ไปชี้ (ลอยขึ้นเล็กน้อย) --- */
     button[data-baseweb="tab"]:hover {
         transform: translateY(-1px);
         box-shadow: 0 3px 8px rgba(0,0,0,0.15);
     }
-
-    /* --- Group 1: 1-5 (สีน้ำเงิน) --- */
-    div[data-baseweb="tab-list"] button:nth-of-type(-n+5) {
-        background-color: #A93C2D; 
-    }
-
-    /* --- Group 2: 6-7 (สีม่วง) --- */
+    div[data-baseweb="tab-list"] button:nth-of-type(-n+5) { background-color: #A93C2D; }
     div[data-baseweb="tab-list"] button:nth-of-type(6), 
-    div[data-baseweb="tab-list"] button:nth-of-type(7) {
-        background-color: #4D8076;
-    }
-
-    /* --- Group 3: 8 (สีทอง) --- */
-    div[data-baseweb="tab-list"] button:nth-of-type(8) {
-        background-color: #4A6A8A;
-    }
-
-    /* --- Group 4: 9 (สีเขียว) --- */
-    div[data-baseweb="tab-list"] button:nth-of-type(9) {
-        background-color: #4A6A8A;
-    }
-
-    /* --- General Layout --- */
+    div[data-baseweb="tab-list"] button:nth-of-type(7) { background-color: #4D8076; }
+    div[data-baseweb="tab-list"] button:nth-of-type(8) { background-color: #4A6A8A; }
+    div[data-baseweb="tab-list"] button:nth-of-type(9) { background-color: #4A6A8A; }
     div[data-baseweb="tab-list"] { 
         border-bottom: none !important; 
         margin-bottom: 15px; 
         flex-wrap: wrap; 
-        gap: 2px; /* --- MODIFIED: ลดระยะห่างระหว่างปุ่มให้ชิดกันมากที่สุด --- */
+        gap: 2px;
     } 
     h4 { 
         color: #007bff !important; 
@@ -279,7 +253,6 @@ with tab_plan:
 
     st.divider()
     st.subheader("สรุปเรื่องที่ตรวจสอบ (6W2H)")
-
     with st.container(border=True):
         st.markdown("##### 🚀 สร้าง 6W2H อัตโนมัติด้วย AI")
         st.write("คัดลอกข้อความจากไฟล์ของคุณแล้วนำมาวางในช่องด้านล่างนี้")
@@ -289,7 +262,7 @@ with tab_plan:
             if not uploaded_text:
                 st.error("กรุณาวางข้อความในช่องก่อน")
             elif not st.session_state.api_key_global:
-                st.error("กรุณาให้ผู้ดูแลระบบตั้งค่า API Key ใน Sidebar ก่อนใช้งาน")
+                st.error("ยังไม่ได้ตั้งค่า API Key, กรุณาติดต่อผู้ดูแลระบบ")
             else:
                 with st.spinner("กำลังประมวลผล..."):
                     try:
@@ -331,16 +304,20 @@ How Much: [ข้อความ]
                                 key, value = line.split(':', 1)
                                 normalized_key = key.strip().lower().replace(' ', '_')
                                 value = value.strip()
-                                if normalized_key == 'how_much': st.session_state.plan['how_much'] = value
-                                elif normalized_key == 'whom': st.session_state.plan['whom'] = value
-                                elif normalized_key == 'who': st.session_state.plan['who'] = value
-                                elif normalized_key == 'what': st.session_state.plan['what'] = value
-                                elif normalized_key == 'where': st.session_state.plan['where'] = value
-                                elif normalized_key == 'when': st.session_state.plan['when'] = value
-                                elif normalized_key == 'why': st.session_state.plan['why'] = value
-                                elif normalized_key == 'how': st.session_state.plan['how'] = value
+                                
+                                # --- FIX: This is the definitive fix for the state issue ---
+                                # 1. Update the master data dictionary ('plan')
+                                # 2. Simultaneously, update the specific widget's state key (e.g., 'who_input')
+                                # This ensures the widget displays the new value after the rerun.
+                                if "how_much" in normalized_key:
+                                    normalized_key = "how_much"
+                                
+                                if normalized_key in st.session_state.plan:
+                                    st.session_state.plan[normalized_key] = value
+                                    widget_key = f"{normalized_key}_input"
+                                    st.session_state[widget_key] = value
 
-                        st.success("สร้าง 6W2H เรียบร้อยแล้ว! กรุณาตรวจสอบข้อมูลแล้วคัดลอกไปวางตามรายละเอียดด้านล่าง")
+                        st.success("สร้าง 6W2H เรียบร้อยแล้ว! ข้อมูลได้ถูกเติมลงในช่องด้านล่าง")
                         st.balloons()
                         st.rerun()
                     except Exception as e:
@@ -349,17 +326,18 @@ How Much: [ข้อความ]
     st.markdown("##### ⭐กรุณาระบุข้อมูล เพื่อนำไปใช้ประมวลผล")
     with st.container(border=True):
         cc1, cc2, cc3 = st.columns(3)
+        # The key/value pattern here is correct. The fix was needed in the AI processing block above.
         with cc1:
-            st.session_state.plan["who"] = st.text_input("Who (ใคร)", value=st.session_state.plan["who"], key="who_input")
-            st.session_state.plan["whom"] = st.text_input("Whom (เพื่อใคร)", value=st.session_state.plan["whom"], key="whom_input")
-            st.session_state.plan["what"] = st.text_input("What (ทำอะไร)", value=st.session_state.plan["what"], key="what_input")
-            st.session_state.plan["where"] = st.text_input("Where (ที่ไหน)", value=st.session_state.plan["where"], key="where_input")
+            st.session_state.plan["who"] = st.text_input("Who (ใคร)", key="who_input")
+            st.session_state.plan["whom"] = st.text_input("Whom (เพื่อใคร)", key="whom_input")
+            st.session_state.plan["what"] = st.text_input("What (ทำอะไร)", key="what_input")
+            st.session_state.plan["where"] = st.text_input("Where (ที่ไหน)", key="where_input")
         with cc2:
-            st.session_state.plan["when"] = st.text_input("When (เมื่อใด)", value=st.session_state.plan["when"], key="when_input")
-            st.session_state.plan["why"] = st.text_area("Why (ทำไม)", value=st.session_state.plan["why"], key="why_input")
+            st.session_state.plan["when"] = st.text_input("When (เมื่อใด)", key="when_input")
+            st.session_state.plan["why"] = st.text_area("Why (ทำไม)", key="why_input")
         with cc3:
-            st.session_state.plan["how"] = st.text_area("How (อย่างไร)", value=st.session_state.plan["how"], key="how_input")
-            st.session_state.plan["how_much"] = st.text_input("How much (เท่าไร)", value=st.session_state.plan["how_much"], key="how_much_input")
+            st.session_state.plan["how"] = st.text_area("How (อย่างไร)", key="how_input")
+            st.session_state.plan["how_much"] = st.text_input("How much (เท่าไร)", key="how_much_input")
 
 with tab_logic:
     st.subheader("ระบุข้อมูล Logic Model: Input → Activities → Output → Outcome → Impact")
