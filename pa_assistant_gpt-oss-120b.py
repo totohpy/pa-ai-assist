@@ -295,10 +295,11 @@ How Much: [ข้อความ]
                         )
                         llm_output = response.choices[0].message.content
                         
-                        # --- MODIFICATION: Display AI output for user to manually copy ---
                         st.markdown("---")
                         st.markdown("#### ผลลัพธ์จาก AI")
-                        st.text_area("คัดลอกข้อมูลด้านล่างนี้ไปวางในช่องที่เกี่ยวข้อง:", value=llm_output, height=250)
+                        st.info("ตรวจสอบและคัดลอกข้อมูลด้านล่างนี้ไปวางในช่องที่เกี่ยวข้อง:")
+                        with st.container(border=True):
+                            st.markdown(llm_output)
 
                         st.success("สร้าง 6W2H เรียบร้อยแล้ว! กรุณาตรวจสอบและคัดลอกข้อมูลไปวางในช่องด้านล่าง")
                         st.balloons()
