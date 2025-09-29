@@ -300,22 +300,31 @@ with tab_plan:
                                 if normalized_key in st.session_state.plan: st.session_state.plan[normalized_key] = value.strip()
                         st.success("ช่วยสร้าง 6W2H เรียบร้อยแล้ว! กรุณาตรวจสอบข้อมูลแล้วระบุตามรายละเอียดด้านล่าง")
                         st.balloons()
-                        # --- FIX: Add st.rerun() to force a script rerun and correctly display the new state ---
                         st.rerun()
                     except Exception as e: st.error(f"เกิดข้อผิดพลาดในการเรียกใช้ AI: {e}")
         
     st.markdown("##### ⭐กรุณาระบุข้อมูล เพื่อนำไปใช้ประมวลผล")
     with st.container(border=True):
         cc1, cc2, cc3 = st.columns(3)
-        # --- FIX: Removed the 'key' argument from all 6W2H widgets to prevent state conflicts ---
-        st.session_state.plan["who"] = cc1.text_input("Who (ใคร)", value=st.session_state.plan["who"])
-        st.session_state.plan["whom"] = cc1.text_input("Whom (เพื่อใคร)", value=st.session_state.plan["whom"])
-        st.session_state.plan["what"] = cc1.text_input("What (ทำอะไร)", value=st.session_state.plan["what"])
-        st.session_state.plan["where"] = cc1.text_input("Where (ที่ไหน)", value=st.session_state.plan["where"])
-        st.session_state.plan["when"] = cc2.text_input("When (เมื่อใด)", value=st.session_state.plan["when"])
-        st.session_state.plan["why"] = cc2.text_area("Why (ทำไม)", value=st.session_state.plan["why"])
-        st.session_state.plan["how"] = cc3.text_area("How (อย่างไร)", value=st.session_state.plan["how"])
-        st.session_state.plan["how_much"] = cc3.text_input("How much (เท่าไร)", value=st.session_state.plan["how_much"])
+        
+        # --- FIX: Robust state handling for 6W2H widgets ---
+        widget_keys = ["who", "whom", "what", "where", "when", "why", "how", "how_much"]
+        
+        # Before rendering, ensure widget state (st.session_state[k]) matches the master state (st.session_state.plan[k])
+        # This pushes the AI-updated values into the widgets before they are drawn.
+        for k in widget_keys:
+            st.session_state[k] = st.session_state.plan.get(k, "")
+
+        # Render widgets using their own keys. Their return value (user input) updates the master 'plan' dictionary.
+        st.session_state.plan["who"] = cc1.text_input("Who (ใคร)", key="who")
+        st.session_state.plan["whom"] = cc1.text_input("Whom (เพื่อใคร)", key="whom")
+        st.session_state.plan["what"] = cc1.text_input("What (ทำอะไร)", key="what")
+        st.session_state.plan["where"] = cc1.text_input("Where (ที่ไหน)", key="where")
+        st.session_state.plan["when"] = cc2.text_input("When (เมื่อใด)", key="when")
+        st.session_state.plan["why"] = cc2.text_area("Why (ทำไม)", key="why")
+        st.session_state.plan["how"] = cc3.text_area("How (อย่างไร)", key="how")
+        st.session_state.plan["how_much"] = cc3.text_input("How much (เท่าไร)", key="how_much")
+
 
 with tab_logic:
     st.subheader("ระบุข้อมูล Logic Model: Input → Activities → Output → Outcome → Impact")
