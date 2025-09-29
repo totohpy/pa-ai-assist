@@ -192,7 +192,7 @@ st.title("🧭 Planning Studio – Performance Audit")
 with st.expander("💡 คำแนะนำการใช้งาน"):
     st.info(
         "ก่อน ** ค้นหาข้อตรวจพบที่ผ่านมา ** หรือ ** ให้ PA Assistant แนะนำ ** "
-        "กรุณาระบุข้อมูลอย่างน้อย **ระบุ แผน & 6W2H** ส่วนใดส่วนหนึ่ง เพื่อการประมวลผลและให้คำแนะนำที่แม่นยำที่สุด"
+        "กรุณาระบุข้อมูล อย่างน้อย **ระบุ แผน & 6W2H** ส่วนใดส่วนหนึ่ง เพื่อการประมวลผลและให้คำแนะนำที่แม่นยำที่สุด"
     )
 
 # --- st.markdown ที่แก้ไขแล้ว ---
@@ -202,7 +202,7 @@ st.markdown("""
 
     /* --- Base Style for All Tabs (ลักษณะปุ่มทึบ) --- */
     button[data-baseweb="tab"] {
-        border-radius: 12px;
+        border-radius: 10px;
         padding: 6px 6px; /* --- MODIFIED: ลด Padding ภายในปุ่มลงอีก --- */
         margin: 1px; /* --- MODIFIED: ลบ margin เพื่อให้ gap ควบคุมระยะห่างอย่างเดียว --- */
         font-weight: normal;
@@ -239,7 +239,6 @@ st.markdown("""
     /* --- Group 3: 8 (สีทอง) --- */
     div[data-baseweb="tab-list"] button:nth-of-type(8) {
         background-color: #ffc107;
-        color: #343a40 !important;
     }
 
     /* --- Group 4: 9 (สีเขียว) --- */
@@ -300,7 +299,7 @@ with tab_plan:
                                 key, value = line.split(':', 1)
                                 normalized_key = key.strip().lower().replace(' ', '_')
                                 if normalized_key in st.session_state.plan: st.session_state.plan[normalized_key] = value.strip()
-                        st.success("สร้าง 6W2H เรียบร้อยแล้ว! กรุณาตรวจสอบข้อมูลด้านล่าง")
+                        st.success("ช่วยสร้าง 6W2H เรียบร้อยแล้ว! กรุณาตรวจสอบข้อมูลแล้วระบุตามรายละเอียดด้านล่าง")
                         st.balloons()
                     except Exception as e: st.error(f"เกิดข้อผิดพลาดในการเรียกใช้ AI: {e}")
         
@@ -391,9 +390,9 @@ with tab_risk:
                 st.rerun()
 
 with tab_issue:
-    st.subheader("🔎 แนะนำประเด็นตรวจจากรายงานเก่า (Issue Suggestions)")
+    st.subheader("🔎 แนะนำประเด็นการตรวจสอบจากรายงานเก่า (Findings Suggestions)")
     with st.expander("อัปโหลดและจัดการฐานข้อมูลข้อตรวจพบ (Findings Library)"):
-        st.write("คุณสามารถอัปโหลดไฟล์ .csv หรือ .xlsx ที่มีข้อมูลข้อตรวจพบเก่าเพื่อใช้ในการค้นหา หรือดาวน์โหลดไฟล์แม่แบบไปใช้งาน")
+        st.write("คุณสามารถอัปโหลดไฟล์ .csv หรือ .xlsx ที่มีข้อมูลข้อตรวจพบที่ผ่านมาเพื่อใช้ในการค้นหา โดยดาวน์โหลดไฟล์แม่แบบไปใช้งาน")
         st.download_button(
             label="⬇️ ดาวน์โหลดไฟล์แม่แบบ FindingsLibrary.xlsx",
             data=create_excel_template(),
@@ -405,14 +404,14 @@ with tab_issue:
     findings_df = load_findings(uploaded=uploaded)
     
     if findings_df.empty:
-        st.info("ไม่พบข้อมูล Findings ที่จะนำมาใช้ โปรดอัปโหลดไฟล์ หรือตรวจสอบว่ามีไฟล์ FindingsLibrary.csv อยู่ในโฟลเดอร์เดียวกัน")
+        st.info("ไม่พบข้อมูล Findings ที่จะนำมาใช้ โปรดอัปโหลดไฟล์ หรือตรวจสอบว่ามีไฟล์ FindingsLibrary.csv อยู่ในคลังข้อมูล")
     else:
         st.success(f"พบข้อมูล Findings ทั้งหมด {len(findings_df)} รายการ")
         vec, X = build_tfidf_index(findings_df)
         
         seed = f"""
 Who:{plan.get('who','')} What:{plan.get('what','')} Where:{plan.get('where','')}
-When:{plan.get('when','')} Why:{plan.get('why','')} How:{plan.get('how','')}
+When:{plan.get('when','')} Why:{plan.get('why','')} Whom:{plan.get('whom','')} How:{plan.get('how','')}
 Outputs:{' | '.join(logic_df[logic_df['type']=='Output']['description'].tolist())}
 Outcomes:{' | '.join(logic_df[logic_df['type']=='Outcome']['description'].tolist())}
 """
@@ -431,7 +430,7 @@ Outcomes:{' | '.join(logic_df[logic_df['type']=='Outcome']['description'].tolist
         c_query_area, c_refresh_btn = st.columns([6, 1])
         with c_query_area:
             query_text = st.text_area(
-                "**สรุปบริบทที่ใช้ค้นหา (แก้ไขได้):**", 
+                "**สรุปเนื้อหา (Context) ที่ใช้ค้นหา (แก้ไขได้):**", 
                 st.session_state["issue_query_text"], 
                 height=140, 
                 key="issue_query_text"
@@ -479,7 +478,7 @@ Outcomes:{' | '.join(logic_df[logic_df['type']=='Outcome']['description'].tolist
                         st.text_input("วิธีเก็บข้อมูลที่เสนอ", key=f"mth_{i}", value="สัมภาษณ์/สังเกต/ตรวจเอกสาร")
     
                     with c2:
-                        if st.button("➕ เพิ่มเข้าแผน", key=f"add_{i}", type="secondary"):
+                        if st.button("➕ เพิ่มเป็นประเด็นการตรวจสอบ", key=f"add_{i}", type="secondary"):
                             new_row = pd.DataFrame([{"issue_id": next_id("ISS", audit_issues_df, "issue_id"),"plan_id": plan.get("plan_id",""),"title": title_txt,"rationale": st.session_state.get(f"rat_{i}", ""),"linked_kpi": st.session_state.get(f"kpi_{i}", ""),"proposed_methods": st.session_state.get(f"mth_{i}", ""),"source_finding_id": row.get("finding_id", ""),"issue_detail": row.get("issue_detail", ""),"recommendation": row.get("recommendation", "")}])
                             st.session_state["audit_issues"] = pd.concat([audit_issues_df, new_row], ignore_index=True)
                             st.success("เพิ่มประเด็นเข้าแผนแล้ว ✅")
@@ -530,7 +529,7 @@ with tab_preview:
     st.success("พร้อมเชื่อมต่อ 🤖 ให้ PA Assistant แนะนำประเด็นการตรวจสอบ ✨✨")
 
 with tab_assist:
-    st.subheader("💡 PA Audit Assistant (ขับเคลื่อนด้วย LLM)")
+    st.subheader("💡 PA Audit Assistant (AI/LLM)")
     st.write("🤖 สร้างคำแนะนำประเด็นการตรวจสอบจาก AI")
 
     if st.button("🚀 สร้างคำแนะนำจาก AI", type="primary", key="llm_assist_button"):
@@ -668,12 +667,12 @@ with tab_chatbot:
     local_len = len(st.session_state.get('doc_context_local', ''))
     uploaded_len = len(st.session_state.get('doc_context_uploaded', ''))
     
-    with st.expander("ดูรายละเอียดบริบท (Context) ที่ใช้"):
+    with st.expander("ดูรายละเอียดข้อมูล (Context) ที่ใช้"):
         if local_len > 0:
-            st.info(f"💾 บริบทจากโฟลเดอร์ 'Doc': {local_len:,} ตัวอักษร")
+            st.info(f"💾 เนื้อหาจากคลังข้อมูล 'ในระบบ': {local_len:,} ตัวอักษร")
         if uploaded_len > 0:
-            st.info(f"📤 บริบทจากไฟล์ที่อัปโหลด: {uploaded_len:,} ตัวอักษร")
-        st.success(f"✅ บริบทรวมทั้งหมด: {(local_len + uploaded_len):,} ตัวอักษร (จำกัดสูงสุด: {MAX_CHARS_LIMIT:,})")
+            st.info(f"📤 เนื้อหาจากไฟล์ที่อัปโหลด: {uploaded_len:,} ตัวอักษร")
+        st.success(f"✅ เนื้อหารวมทั้งหมด: {(local_len + uploaded_len):,} ตัวอักษร (จำกัดสูงสุด: {MAX_CHARS_LIMIT:,})")
 
     chat_container = st.container(height=500, border=True)
     with chat_container:
