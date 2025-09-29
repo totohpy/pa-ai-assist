@@ -8,6 +8,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from groq import Groq # <-- MODIFIED: เปลี่ยนจาก OpenAI เป็น Groq
 import os
 import io
+import re # <-- 1. เพิ่มการ import re เข้ามา
 from PyPDF2 import PdfReader
 
 # --- MODIFIED: เปลี่ยนไปใช้ Groq API Key ---
@@ -532,32 +533,30 @@ Logic Model:
 ประเด็นที่เพิ่มจากรายงานเก่า:
 {issues_for_llm.to_string()}
 """
+                    # --- 2. ปรับปรุง Prompt ให้เข้มงวดขึ้น ---
                     user_prompt = f"""
 จากข้อมูลแผนการตรวจสอบด้านล่างนี้ กรุณาช่วยสร้างคำแนะนำ 3 อย่าง ได้แก่
 1. ประเด็นการตรวจสอบที่ควรให้ความสำคัญ อาจจะกล่าวอ้างไปถึงประเด็นที่เพิ่มจากรายงานเก่าหรือข้อตรวจพบที่ผ่านมา หรือสถานการณ์ปัจจุบัน พร้อมเหตุผลที่ผู้ตรวจสอบด้านผลสัมฤทธิ์และประสิทธิภาพการดำเนินงานควรให้ความสำคัญ
 2. ข้อตรวจพบที่คาดว่าจะพบ (พร้อมระบุระดับโอกาสที่จะเจอ: สูง/กลาง/ต่ำ) เหตุผลที่มีโอกาสจะเจออาจจะกล่าวอ้างไปถึงประเด็นที่เพิ่มจากรายงานเก่าหรือข้อตรวจพบที่ผ่านมาหรือข่าวสารหรือสถานกาณ์ปัจจุบัน
-3. ร่างรายงานตรวจสอบที่จะเจอ ช่วยวิเคราะห์ผลกระทบที่จะเกิดขั้นและสาเหตุที่จะเกิดจากข้อตรวจพบที่คาดว่าจะพบ 
+3. ร่างรายงานตรวจสอบที่จะเจอ ช่วยวิเคราะห์ผลกระทบที่จะเกิดขั้นและสาเหตุที่จะเกิดจากข้อตรวจพบที่คาดว่าจะพบ
 ---
 {plan_summary}
 ---
-กรุณาสร้างคำตอบตามรูปแบบด้านล่างนี้เท่านั้น:
+กรุณาสร้างคำตอบตามรูปแบบด้านล่างนี้เท่านั้น ห้ามสร้างข้อความนอกเหนือจาก Tag ที่กำหนด และห้ามสร้าง Tag ซ้ำซ้อน:
 <ประเด็นการตรวจสอบที่ควรให้ความสำคัญ>
 [ข้อความสำหรับส่วนที่ 1]
 </ประเด็นการตรวจสอบที่ควรให้ความสำคัญ>
-
 <ข้อตรวจพบที่คาดว่าจะพบ>
 [ข้อความสำหรับส่วนที่ 2]
 </ข้อตรวจพบที่คาดว่าจะพบ>
-
 <ร่างรายงานตรวจสอบที่จะเจอ>
 [ข้อความสำหรับส่วนที่ 3]
 </ร่างรายงานตรวจสอบที่จะเจอ>
 """
-                    # --- MODIFIED: เปลี่ยนไปใช้ Groq ---
                     client = Groq(api_key=api_key_from_system)
                     
                     messages = [
-                        {"role": "system", "content": "คุณคือผู้เชี่ยวชาญด้านการตรวจสอบผลสัมฤทธิ์และประสิทธิภาพการดำเนินงาน (Performance Audit)"},
+                        {"role": "system", "content": "คุณคือผู้เชี่ยวชาญด้านการตรวจสอบผลสัมฤทธิ์และประสิทธิภาพการดำเนินงาน (Performance Audit) จงตอบคำถามโดยยึดตามรูปแบบที่ผู้ใช้ร้องขออย่างเคร่งครัด"},
                         {"role": "user", "content": user_prompt}
                     ]
                     
@@ -570,18 +569,16 @@ Logic Model:
 
                     full_response = response.choices[0].message.content
 
-                    issue_start = full_response.find("<ประเด็นการตรวจสอบที่ควรให้ความสำคัญ>") + len("<ประเด็นการตรวจสอบที่ควรให้ความสำคัญ>")
-                    issue_end = full_response.find("</ประเด็นการตรวจสอบที่ควรให้ความสำคัญ>")
-                    issues_text = full_response[issue_start:issue_end].strip()
+                    # --- 3. เปลี่ยนจากการใช้ .find() มาเป็น re.search() ที่แม่นยำกว่า ---
+                    def extract_content(tag, text):
+                        pattern = f"<{tag}>(.*?)</{tag}>"
+                        match = re.search(pattern, text, re.DOTALL)
+                        return match.group(1).strip() if match else f"ไม่พบข้อมูลใน tag <{tag}>"
+
+                    issues_text = extract_content("ประเด็นการตรวจสอบที่ควรให้ความสำคัญ", full_response)
+                    findings_text = extract_content("ข้อตรวจพบที่คาดว่าจะพบ", full_response)
+                    report_text = extract_content("ร่างรายงานตรวจสอบที่จะเจอ", full_response)
                     
-                    finding_start = full_response.find("<ข้อตรวจพบที่คาดว่าจะพบ>") + len("<ข้อตรวจพบที่คาดว่าจะพบ>")
-                    finding_end = full_response.find("</ข้อตรวจพบที่คาดว่าจะพบ>")
-                    findings_text = full_response[finding_start:finding_end].strip()
-
-                    report_start = full_response.find("<ร่างรายงานตรวจสอบที่จะเจอ>") + len("<ร่างรายงานตรวจสอบที่จะเจอ>")
-                    report_end = full_response.find("</ร่างรายงานตรวจสอบที่จะเจอ>")
-                    report_text = full_response[report_start:report_end].strip()
-
                     st.session_state["gen_issues"] = issues_text
                     st.session_state["gen_findings"] = findings_text
                     st.session_state["gen_report"] = report_text
@@ -604,7 +601,6 @@ Logic Model:
 
     with st.expander("3. ร่างรายงานตรวจสอบ (Preview)"):
         st.write(st.session_state.get('gen_report', "ยังไม่มีข้อมูล"))
-
 
 with tab_chatbot:
     st.subheader("💬 PA Chat - ผู้ช่วยอัจฉริยะ (Groq AI)")
