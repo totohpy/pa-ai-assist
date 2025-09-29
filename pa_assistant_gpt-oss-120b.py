@@ -20,20 +20,14 @@ with st.sidebar:
     # --- FIX for Render.com Deployment ---
     # Render uses Environment Variables, not secrets.toml.
     # We will try to get the API key from an environment variable first.
-    # If it's not found, we'll fall back to showing the text input for local development.
     
     api_key_from_env = os.environ.get("API_KEY")
 
     if api_key_from_env:
         st.session_state.api_key_global = api_key_from_env
         st.success("API Key ถูกโหลดจากระบบเรียบร้อยแล้ว")
-    else:
-        st.info("API Key ไม่ได้ถูกตั้งค่าใน Environment, กรุณากรอกด้านล่างเพื่อทดสอบ")
-        st.session_state.api_key_global = st.text_input(
-            "กรุณากรอก API Key (Groq)",
-            type="password",
-            key="api_key_global_input_sidebar"
-        )
+    # If the environment variable is not set, nothing will be displayed.
+    # This keeps the UI clean on the server if the key is missing.
 
     st.markdown("---")
     st.markdown("PA Planning Studio By PAO1 Audit Intelligence Nexus")
