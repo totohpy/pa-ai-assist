@@ -48,7 +48,7 @@ def next_id(prefix, df, col):
     n = max(nums) + 1 if nums else 1
     return f"{prefix}-{n:03d}"
 
-#! <<< START: แก้ไขฟังก์ชันนี้โดยเพิ่ม 'levels'
+#! <<< START: แก้ไขฟังก์ชันนี้เป็นเวอร์ชันสมบูรณ์
 def create_interactive_flowchart(df: pd.DataFrame):
     nodes = []
     edges = []
@@ -61,7 +61,7 @@ def create_interactive_flowchart(df: pd.DataFrame):
     sequence = ["Objective", "Input", "Activity", "Output", "Outcome", "Impact"]
     
     nodes_exist = []
-    # สร้าง Node หลัก โดยกำหนดให้อยู่ level 0
+    # สร้าง Node หลัก โดยกำหนด level เพื่อจัดคอลัมน์
     for i, item_type in enumerate(sequence):
         items_df = df[df['type'] == item_type]
         if not items_df.empty:
@@ -78,8 +78,13 @@ def create_interactive_flowchart(df: pd.DataFrame):
             
             label = f"{header}\n\n" + "\n".join(description_lines)
             
-            # กำหนด level=0 สำหรับ Flow หลัก
-            nodes.append(Node(id=item_type, label=label, color=styles.get(item_type), shape="box", font={'face': 'Kanit'}, level=0))
+            # กำหนด font-align: 'left' เพื่อจัดชิดซ้าย และ level เพื่อควบคุมคอลัมน์
+            nodes.append(Node(id=item_type, 
+                             label=label, 
+                             color=styles.get(item_type), 
+                             shape="box", 
+                             font={'face': 'Kanit', 'align': 'left'}, 
+                             level=i))
             nodes_exist.append(item_type)
 
     # เชื่อม Node หลัก
@@ -87,11 +92,15 @@ def create_interactive_flowchart(df: pd.DataFrame):
         for i in range(len(nodes_exist)-1):
             edges.append(Edge(source=nodes_exist[i], target=nodes_exist[i+1]))
 
-    # สร้างและเชื่อมโยง 3E โดยกำหนดให้อยู่ level 1 (ด้านล่าง)
+    # สร้างและเชื่อมโยง 3E โดยกำหนด level เพื่อจัดวาง
     if len(nodes_exist) >= 3:
-        nodes.append(Node(id='Economy', label='ประหยัด\n(Economy)', color=styles["E_Box"], shape='box', font={'face': 'Kanit'}, level=1))
-        nodes.append(Node(id='Efficiency', label='ประสิทธิภาพ\n(Efficiency)', color=styles["E_Box"], shape='box', font={'face': 'Kanit'}, level=1))
-        nodes.append(Node(id='Effectiveness', label='ประสิทธิผล\n(Effectiveness)', color=styles["E_Box"], shape='box', font={'face': 'Kanit'}, level=1))
+        # กำหนด Level ให้ 3E เพื่อการจัดวางที่เป็นระเบียบ
+        # Economy (level 0) -> Input (level 1)
+        # Input (1) -> Efficiency (2) -> Output (3)
+        # Objective (0), Output (3) -> Effectiveness (4) -> Outcome (4), Impact (5)
+        nodes.append(Node(id='Economy', label='ประหยัด\n(Economy)', color=styles["E_Box"], shape='box', font={'face': 'Kanit', 'align': 'left'}, level=0))
+        nodes.append(Node(id='Efficiency', label='ประสิทธิภาพ\n(Efficiency)', color=styles["E_Box"], shape='box', font={'face': 'Kanit', 'align': 'left'}, level=2))
+        nodes.append(Node(id='Effectiveness', label='ประสิทธิผล\n(Effectiveness)', color=styles["E_Box"], shape='box', font={'face': 'Kanit', 'align': 'left'}, level=4))
 
         if "Input" in nodes_exist: edges.append(Edge(source='Economy', target='Input', dashes=True))
         if "Input" in nodes_exist and "Output" in nodes_exist:
@@ -102,14 +111,14 @@ def create_interactive_flowchart(df: pd.DataFrame):
         if "Outcome" in nodes_exist: edges.append(Edge(source='Effectiveness', target='Outcome', dashes=True))
         if "Impact" in nodes_exist: edges.append(Edge(source='Effectiveness', target='Impact', dashes=True))
 
-    # เปลี่ยน Layout เป็นแบบบนลงล่าง (TD) เพื่อให้การจัด Level สวยงาม
+    # กลับไปใช้ Layout แบบซ้ายไปขวา (LR)
     config = Config(width='100%', 
                     height=800,
                     directed=True, 
                     physics=False,
                     hierarchical={
                         "enabled": True,
-                        "direction": "TD", # TD = Top Down
+                        "direction": "LR", # LR = Left to Right
                         "sortMethod": "directed"
                     })
 
