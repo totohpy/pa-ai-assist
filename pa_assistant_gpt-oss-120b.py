@@ -169,15 +169,16 @@ def create_detailed_logic_model_flowchart(df: pd.DataFrame):
                 for to_node in to_nodes: dot.edge(str(from_node), str(to_node))
     return dot
 
-#! <<< START: แก้ไขฟังก์ชันนี้ใหม่ทั้งหมด
+#! <<< START: แก้ไขฟังก์ชันนี้ใหม่ทั้งหมดโดยใช้เทคนิค HTML-Like Label
 def create_grouped_logic_model_flowchart(df: pd.DataFrame):
     """
-    สร้าง Flowchart แบบรวมกลุ่ม โดยปรับปรุง Layout และรูปแบบข้อความให้อ่านง่าย
+    สร้าง Flowchart แบบรวมกลุ่มโดยใช้ HTML-like label เพื่อควบคุม Layout ให้สวยงาม
     """
-    dot = graphviz.Digraph('LogicModelGrouped', comment='Grouped Logic Model Flowchart')
-    dot.attr('graph', rankdir='LR', splines='ortho', bgcolor='transparent')
-    dot.attr('node', shape='record', style='rounded,filled', fontname='Kanit')
+    dot = graphviz.Digraph(comment='Grouped Logic Model Flowchart')
+    dot.attr('graph', rankdir='LR', splines='ortho', bgcolor='transparent', compound='true')
+    dot.attr('node', shape='plain', fontname='Kanit')
     dot.attr('edge', fontname='Kanit')
+    
     styles = {"Input": "#a9def9", "Activity": "#e4c1f9", "Output": "#fcf6bd", "Outcome": "#d0f4de", "Impact": "#ff99c8"}
     sequence = ["Input", "Activity", "Output", "Outcome", "Impact"]
     
@@ -185,40 +186,34 @@ def create_grouped_logic_model_flowchart(df: pd.DataFrame):
     for item_type in sequence:
         items_df = df[df['type'] == item_type]
         if not items_df.empty:
-            header = item_type
+            # สร้างส่วนหัวของตาราง (Header)
+            header_html = f'<TR><TD BORDER="0" ALIGN="CENTER" BGCOLOR="{styles.get(item_type, "#ffffff")}"><B>{item_type}</B></TD></TR>'
             
-            description_lines = []
+            # สร้างแต่ละแถวของรายการ (Rows)
+            rows_html = []
             for _, row in items_df.iterrows():
-                # ดึงข้อมูลและแปลงเป็น string ป้องกันค่าว่าง
                 desc = str(row.get('description', '') or '')
                 metric = str(row.get('metric', '') or '')
                 target = str(row.get('target', '') or '')
                 unit = str(row.get('unit', '') or '')
                 
-                # จัดลำดับความสำคัญของตัวเลข: ใช้ target ก่อน ถ้าว่างถึงใช้ metric
                 number = target if target else metric
                 
-                # สร้างข้อความแต่ละบรรทัดในรูปแบบ "• Description Number Unit"
                 line_parts = [f"• {desc}"]
-                if number:
-                    line_parts.append(number)
-                if unit:
-                    line_parts.append(unit)
-                
+                if number: line_parts.append(number)
+                if unit: line_parts.append(unit)
                 line = " ".join(part for part in line_parts if part)
                 
-                # เพิ่มโค้ด \l เพื่อจัดชิดซ้าย
-                description_lines.append(line.strip() + '\\l')
-
-            # รวมหัวข้อและรายการทั้งหมดเข้าด้วยกัน โดยใช้ | สำหรับการแบ่งแถวในแนวตั้ง
-            all_parts = [header] + description_lines
-            node_label = "|".join(all_parts)
+                rows_html.append(f'<TR><TD BORDER="0" ALIGN="LEFT">{line}</TD></TR>')
             
-            dot.node(
-                name=item_type, 
-                label=f"{{{node_label}}}", 
-                fillcolor=styles.get(item_type, "#ffffff")
-            )
+            # รวม HTML ทั้งหมดสำหรับ Node นี้
+            full_html = f'''<
+            <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="5" STYLE="ROUNDED" BGCOLOR="{styles.get(item_type, "#ffffff")}">
+            {header_html}
+            {''.join(rows_html)}
+            </TABLE>>'''
+            
+            dot.node(name=item_type, label=full_html)
             nodes_exist.append(item_type)
 
     # เชื่อมต่อโหนดตามลำดับ
