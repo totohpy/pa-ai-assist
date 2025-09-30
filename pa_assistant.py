@@ -261,7 +261,7 @@ st.markdown("""
         padding: 8px 8px;
         margin: 1px;
         font-weight: normal;
-        font-size: 20px;
+        font-size: 24px;
         color: white !important; 
         border: none;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
