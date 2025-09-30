@@ -9,7 +9,7 @@ from openai import OpenAI
 import os
 import io
 from PyPDF2 import PdfReader
-from streamlit_agraph import agraph, Node, Edge, Config #! <<< เพิ่ม Library ใหม่
+from streamlit_agraph import agraph, Node, Edge, Config
 
 # ตั้งค่าหน้าเพจ
 st.set_page_config(page_title="Planning Studio (+ Findings Suggestions)", page_icon="🧭", layout="wide")
@@ -48,7 +48,7 @@ def next_id(prefix, df, col):
     n = max(nums) + 1 if nums else 1
     return f"{prefix}-{n:03d}"
 
-#! <<< START: ฟังก์ชันใหม่สำหรับ Interactive Flowchart
+#! <<< START: แก้ไขฟังก์ชันนี้โดยเพิ่ม 'levels'
 def create_interactive_flowchart(df: pd.DataFrame):
     nodes = []
     edges = []
@@ -61,8 +61,8 @@ def create_interactive_flowchart(df: pd.DataFrame):
     sequence = ["Objective", "Input", "Activity", "Output", "Outcome", "Impact"]
     
     nodes_exist = []
-    # สร้าง Node หลัก
-    for item_type in sequence:
+    # สร้าง Node หลัก โดยกำหนดให้อยู่ level 0
+    for i, item_type in enumerate(sequence):
         items_df = df[df['type'] == item_type]
         if not items_df.empty:
             header = item_type
@@ -76,10 +76,10 @@ def create_interactive_flowchart(df: pd.DataFrame):
                 if unit: line_parts.append(unit)
                 description_lines.append(" ".join(part for part in line_parts if part))
             
-            # ใช้ \n สำหรับขึ้นบรรทัดใหม่ใน agraph
             label = f"{header}\n\n" + "\n".join(description_lines)
             
-            nodes.append(Node(id=item_type, label=label, color=styles.get(item_type), shape="box", font={'face': 'Kanit'}))
+            # กำหนด level=0 สำหรับ Flow หลัก
+            nodes.append(Node(id=item_type, label=label, color=styles.get(item_type), shape="box", font={'face': 'Kanit'}, level=0))
             nodes_exist.append(item_type)
 
     # เชื่อม Node หลัก
@@ -87,14 +87,12 @@ def create_interactive_flowchart(df: pd.DataFrame):
         for i in range(len(nodes_exist)-1):
             edges.append(Edge(source=nodes_exist[i], target=nodes_exist[i+1]))
 
-    # สร้างและเชื่อมโยง 3E
+    # สร้างและเชื่อมโยง 3E โดยกำหนดให้อยู่ level 1 (ด้านล่าง)
     if len(nodes_exist) >= 3:
-        # สร้าง Nodes
-        nodes.append(Node(id='Economy', label='ประหยัด\n(Economy)', color=styles["E_Box"], shape='box', font={'face': 'Kanit'}))
-        nodes.append(Node(id='Efficiency', label='ประสิทธิภาพ\n(Efficiency)', color=styles["E_Box"], shape='box', font={'face': 'Kanit'}))
-        nodes.append(Node(id='Effectiveness', label='ประสิทธิผล\n(Effectiveness)', color=styles["E_Box"], shape='box', font={'face': 'Kanit'}))
+        nodes.append(Node(id='Economy', label='ประหยัด\n(Economy)', color=styles["E_Box"], shape='box', font={'face': 'Kanit'}, level=1))
+        nodes.append(Node(id='Efficiency', label='ประสิทธิภาพ\n(Efficiency)', color=styles["E_Box"], shape='box', font={'face': 'Kanit'}, level=1))
+        nodes.append(Node(id='Effectiveness', label='ประสิทธิผล\n(Effectiveness)', color=styles["E_Box"], shape='box', font={'face': 'Kanit'}, level=1))
 
-        # สร้าง Edges
         if "Input" in nodes_exist: edges.append(Edge(source='Economy', target='Input', dashes=True))
         if "Input" in nodes_exist and "Output" in nodes_exist:
             edges.append(Edge(source='Input', target='Efficiency', dashes=True))
@@ -104,14 +102,14 @@ def create_interactive_flowchart(df: pd.DataFrame):
         if "Outcome" in nodes_exist: edges.append(Edge(source='Effectiveness', target='Outcome', dashes=True))
         if "Impact" in nodes_exist: edges.append(Edge(source='Effectiveness', target='Impact', dashes=True))
 
-    # กำหนดค่า Config ของกราฟ
+    # เปลี่ยน Layout เป็นแบบบนลงล่าง (TD) เพื่อให้การจัด Level สวยงาม
     config = Config(width='100%', 
-                    height=600, # ตั้งค่าความสูงเริ่มต้น
+                    height=800,
                     directed=True, 
-                    physics=False, # ปิด physics เพื่อให้จัดตาม layout ที่กำหนด
-                    hierarchical={ # เปิดใช้งาน layout แบบลำดับชั้น
+                    physics=False,
+                    hierarchical={
                         "enabled": True,
-                        "direction": "LR", # LR = Left to Right
+                        "direction": "TD", # TD = Top Down
                         "sortMethod": "directed"
                     })
 
@@ -197,7 +195,6 @@ with tab_logic:
     with st.container(border=True):
         if not st.session_state.logic_items.empty:
             try:
-                #! <<< แก้ไข: เปลี่ยนมาเรียกใช้ agraph
                 nodes, edges, config = create_interactive_flowchart(st.session_state.logic_items)
                 agraph(nodes=nodes, edges=edges, config=config)
             except Exception as e:
