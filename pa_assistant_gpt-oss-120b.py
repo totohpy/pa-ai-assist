@@ -9,7 +9,7 @@ from openai import OpenAI
 import os
 import io
 from PyPDF2 import PdfReader
-import graphviz
+from streamlit_agraph import agraph, Node, Edge, Config #! <<< เพิ่ม Library ใหม่
 
 # ตั้งค่าหน้าเพจ
 st.set_page_config(page_title="Planning Studio (+ Findings Suggestions)", page_icon="🧭", layout="wide")
@@ -37,7 +37,7 @@ with st.sidebar:
 # ----------------- ฟังก์ชันต่างๆ -----------------
 def init_state():
     ss = st.session_state
-    ss.setdefault("plan", {"plan_id": "PLN-" + datetime.now().strftime("%y%m%d-%H%M%S"),"plan_title": "","program_name": "","who": "", "what": "", "where": "", "when": "", "why": "", "how": "", "how_much": "", "whom": "","objectives": "", "scope": "", "assumptions": "", "status": "Draft"})
+    ss.setdefault("plan", {"plan_id": "PLN-" + datetime.now().strftime("%y%m%d-%H%M%S"),"plan_title": ""})
     logic_cols = ["item_id","plan_id","type","description","metric","unit","target","source"]
     ss.setdefault("logic_items", pd.DataFrame(columns=logic_cols))
     # ... (ส่วนที่เหลือของ init_state เหมือนเดิม) ...
@@ -48,20 +48,11 @@ def next_id(prefix, df, col):
     n = max(nums) + 1 if nums else 1
     return f"{prefix}-{n:03d}"
 
-def create_graphviz_flowchart_with_3e(df: pd.DataFrame):
-    """
-    สร้าง Flowchart ด้วย Graphviz + HTML-like Label และเพิ่มกล่อง 3E
-    """
-    dot = graphviz.Digraph(comment='Logic Model with 3Es')
-    dot.attr('graph', rankdir='LR', splines='ortho', bgcolor='transparent', compound='true', fontname='Kanit')
-    dot.attr('node', shape='plain', fontname='Kanit')
-    dot.attr('edge', fontname='Kanit')
-
-    #! <<< START: แก้ไข - เพิ่ม Dummy Node ที่มองไม่เห็น
-    # โหนดนี้จะช่วยแก้ปัญหาที่โหนดแรกสุดมีขนาดใหญ่ผิดปกติ
-    dot.node('start_node', label='', style='invis', width='0', height='0')
-    #! <<< END: สิ้นสุดการแก้ไข
-
+#! <<< START: ฟังก์ชันใหม่สำหรับ Interactive Flowchart
+def create_interactive_flowchart(df: pd.DataFrame):
+    nodes = []
+    edges = []
+    
     styles = {
         "Objective": "#E6E6FA", "Input": "#a9def9", "Activity": "#e4c1f9",
         "Output": "#fcf6bd", "Outcome": "#d0f4de", "Impact": "#ff99c8",
@@ -74,8 +65,8 @@ def create_graphviz_flowchart_with_3e(df: pd.DataFrame):
     for item_type in sequence:
         items_df = df[df['type'] == item_type]
         if not items_df.empty:
-            header_html = f'<TR><TD BORDER="0" ALIGN="CENTER" BGCOLOR="{styles.get(item_type)}"><B>{item_type}</B></TD></TR>'
-            rows_html = []
+            header = item_type
+            description_lines = []
             for _, row in items_df.iterrows():
                 desc = str(row.get('description', '') or ''); metric = str(row.get('metric', '') or '')
                 target = str(row.get('target', '') or ''); unit = str(row.get('unit', '') or '')
@@ -83,39 +74,49 @@ def create_graphviz_flowchart_with_3e(df: pd.DataFrame):
                 line_parts = [f"• {desc}"]
                 if number: line_parts.append(number)
                 if unit: line_parts.append(unit)
-                line = " ".join(part for part in line_parts if part)
-                rows_html.append(f'<TR><TD BORDER="0" ALIGN="LEFT">{line}</TD></TR>')
+                description_lines.append(" ".join(part for part in line_parts if part))
             
-            full_html = f'''<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="5" STYLE="ROUNDED" BGCOLOR="{styles.get(item_type)}">{header_html}{''.join(rows_html)}</TABLE>>'''
-            dot.node(name=item_type, label=full_html)
+            # ใช้ \n สำหรับขึ้นบรรทัดใหม่ใน agraph
+            label = f"{header}\n\n" + "\n".join(description_lines)
+            
+            nodes.append(Node(id=item_type, label=label, color=styles.get(item_type), shape="box", font={'face': 'Kanit'}))
             nodes_exist.append(item_type)
 
     # เชื่อม Node หลัก
     if len(nodes_exist) > 1:
-        dot.edges([(nodes_exist[i], nodes_exist[i+1]) for i in range(len(nodes_exist)-1)])
+        for i in range(len(nodes_exist)-1):
+            edges.append(Edge(source=nodes_exist[i], target=nodes_exist[i+1]))
 
-    # สร้างและเชื่อมโยง 3E (เมื่อมี Node หลัก 3 โหนดขึ้นไป)
+    # สร้างและเชื่อมโยง 3E
     if len(nodes_exist) >= 3:
-        dot.node('Economy', label='ประหยัด (Economy)', shape='box', style='rounded,filled', fillcolor=styles["E_Box"])
-        dot.node('Efficiency', label='ประสิทธิภาพ (Efficiency)', shape='box', style='rounded,filled', fillcolor=styles["E_Box"])
-        dot.node('Effectiveness', label='ประสิทธิผล (Effectiveness)', shape='box', style='rounded,filled', fillcolor=styles["E_Box"])
+        # สร้าง Nodes
+        nodes.append(Node(id='Economy', label='ประหยัด\n(Economy)', color=styles["E_Box"], shape='box', font={'face': 'Kanit'}))
+        nodes.append(Node(id='Efficiency', label='ประสิทธิภาพ\n(Efficiency)', color=styles["E_Box"], shape='box', font={'face': 'Kanit'}))
+        nodes.append(Node(id='Effectiveness', label='ประสิทธิผล\n(Effectiveness)', color=styles["E_Box"], shape='box', font={'face': 'Kanit'}))
 
-        # เชื่อมโยงเส้น
-        if "Input" in nodes_exist:
-            dot.edge('Economy', 'Input', style='dashed')
+        # สร้าง Edges
+        if "Input" in nodes_exist: edges.append(Edge(source='Economy', target='Input', dashes=True))
         if "Input" in nodes_exist and "Output" in nodes_exist:
-            dot.edge('Input', 'Efficiency', style='dashed')
-            dot.edge('Efficiency', 'Output', style='dashed')
-        if "Objective" in nodes_exist:
-            dot.edge('Objective', 'Effectiveness', style='dashed')
-        if "Output" in nodes_exist:
-            dot.edge('Output', 'Effectiveness', style='dashed')
-        if "Outcome" in nodes_exist:
-            dot.edge('Effectiveness', 'Outcome', style='dashed')
-        if "Impact" in nodes_exist:
-            dot.edge('Effectiveness', 'Impact', style='dashed')
-            
-    return dot
+            edges.append(Edge(source='Input', target='Efficiency', dashes=True))
+            edges.append(Edge(source='Efficiency', target='Output', dashes=True))
+        if "Objective" in nodes_exist: edges.append(Edge(source='Objective', target='Effectiveness', dashes=True))
+        if "Output" in nodes_exist: edges.append(Edge(source='Output', target='Effectiveness', dashes=True))
+        if "Outcome" in nodes_exist: edges.append(Edge(source='Effectiveness', target='Outcome', dashes=True))
+        if "Impact" in nodes_exist: edges.append(Edge(source='Effectiveness', target='Impact', dashes=True))
+
+    # กำหนดค่า Config ของกราฟ
+    config = Config(width='100%', 
+                    height=600, # ตั้งค่าความสูงเริ่มต้น
+                    directed=True, 
+                    physics=False, # ปิด physics เพื่อให้จัดตาม layout ที่กำหนด
+                    hierarchical={ # เปิดใช้งาน layout แบบลำดับชั้น
+                        "enabled": True,
+                        "direction": "LR", # LR = Left to Right
+                        "sortMethod": "directed"
+                    })
+
+    return nodes, edges, config
+#! <<< END: สิ้นสุดฟังก์ชัน Interactive
 
 # --- Main App ---
 init_state()
@@ -131,7 +132,7 @@ tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_
 ])
 
 with tab_plan:
-    # ... (โค้ดส่วนนี้เหมือนเดิม)
+    # ... (ส่วนนี้เหมือนเดิม)
     pass
 
 with tab_logic:
@@ -192,12 +193,13 @@ with tab_logic:
 
     st.markdown("---")
 
-    st.subheader("📊 Flowchart Logic Model")
+    st.subheader("📊 Flowchart Logic Model (ลากจัดวางได้)")
     with st.container(border=True):
         if not st.session_state.logic_items.empty:
             try:
-                graphviz_chart = create_graphviz_flowchart_with_3e(st.session_state.logic_items)
-                st.graphviz_chart(graphviz_chart, use_container_width=True)
+                #! <<< แก้ไข: เปลี่ยนมาเรียกใช้ agraph
+                nodes, edges, config = create_interactive_flowchart(st.session_state.logic_items)
+                agraph(nodes=nodes, edges=edges, config=config)
             except Exception as e:
                 st.error(f"ไม่สามารถสร้าง Flowchart ได้: {e}")
         else:
