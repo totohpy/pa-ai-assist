@@ -17,7 +17,7 @@ st.set_page_config(page_title="Planning Studio (+ Findings Suggestions)", page_i
 # ----------------- ⚙️ การตั้งค่ากลาง -----------------
 with st.sidebar:
     st.title("⚙️ PA Planning Studio")
-    st.info("ฟีเจอร์ AI ถูกตั้งค่าโดยผู้ดูแลระบบเรียบร้อยแล้ว")
+    st.info("ระบบมีฟีเจอร์ AI อาจทำผิดพลาดได้ ดังนั้นโปรดตรวจสอบคำตอบอีกครั้ง")
 
     # --- Load API Key from Streamlit Secrets ---
     try:
@@ -30,10 +30,10 @@ with st.sidebar:
         st.error(f"เกิดข้อผิดพลาดในการโหลด API Key: {e}")
 
     st.markdown("---")
-    st.markdown("By PAO1 Audit Intelligence Team")
+    st.markdown("By 'PAO1' Audit Intelligence Team")
 
 # ----------------- ฟังก์ชันสำหรับ Chatbot -----------------
-MAX_CHARS_LIMIT = 200000
+MAX_CHARS_LIMIT = 300000
 
 @st.cache_data(show_spinner=False)
 def load_local_documents(folder_path="Doc"):
@@ -258,8 +258,8 @@ st.markdown("""
     body { font-family: 'Kanit', sans-serif; } 
     button[data-baseweb="tab"] {
         border-radius: 10px;
-        padding: 8px 8px;
-        margin: 1px;
+        padding: 12px 12px;
+        margin: 4px;
         font-weight: normal;
         color: white !important; 
         border: none;
@@ -269,7 +269,7 @@ st.markdown("""
     button[data-baseweb="tab"][aria-selected="true"] {
         box-shadow: 0 4px 12px rgba(0,0,0,0.25);
         transform: translateY(-2px);
-        opacity: 0.60;
+        opacity: 0.70;
     }
     button[data-baseweb="tab"]:hover {
         transform: translateY(-1px);
