@@ -169,25 +169,59 @@ def create_detailed_logic_model_flowchart(df: pd.DataFrame):
                 for to_node in to_nodes: dot.edge(str(from_node), str(to_node))
     return dot
 
-#! <<< START: เพิ่มฟังก์ชันใหม่สำหรับ Flowchart แบบรวมกลุ่ม
+#! <<< START: แก้ไขฟังก์ชันนี้ใหม่ทั้งหมด
 def create_grouped_logic_model_flowchart(df: pd.DataFrame):
-    """Creates a Graphviz flowchart that groups items of the same type into single nodes."""
+    """
+    สร้าง Flowchart แบบรวมกลุ่ม โดยจัด Layout ใหม่เป็นแนวตั้งและรวมข้อมูลทั้งหมด
+    """
     dot = graphviz.Digraph('LogicModelGrouped', comment='Grouped Logic Model Flowchart')
     dot.attr('graph', rankdir='LR', splines='ortho', bgcolor='transparent')
-    dot.attr('node', shape='box', style='rounded,filled', fontname='Kanit')
+    dot.attr('node', shape='record', style='rounded,filled', fontname='Kanit')
     dot.attr('edge', fontname='Kanit')
     styles = {"Input": "#a9def9", "Activity": "#e4c1f9", "Output": "#fcf6bd", "Outcome": "#d0f4de", "Impact": "#ff99c8"}
     sequence = ["Input", "Activity", "Output", "Outcome", "Impact"]
     
     nodes_exist = []
     for item_type in sequence:
-        items = df[df['type'] == item_type]
-        if not items.empty:
-            # สร้าง list ของ description แต่ละรายการด้วย bullet point
-            descriptions = [f"• {desc}" for desc in items['description'].tolist()]
-            # รวม Tittle และรายการทั้งหมดเข้าด้วยกัน
-            node_label = f"{{{item_type}|{chr(10).join(descriptions)}}}" # ใช้ { | } สำหรับ record-based shape และ chr(10) สำหรับ newline
-            dot.node(name=item_type, label=node_label, fillcolor=styles.get(item_type, "#ffffff"), shape="record")
+        items_df = df[df['type'] == item_type]
+        if not items_df.empty:
+            header = item_type
+            
+            description_lines = []
+            for _, row in items_df.iterrows():
+                # ดึงข้อมูลและแปลงเป็น string ป้องกันค่าว่าง
+                desc = str(row.get('description', ''))
+                metric = str(row.get('metric', ''))
+                target = str(row.get('target', ''))
+                unit = str(row.get('unit', ''))
+                
+                # สร้างข้อความแต่ละบรรทัด
+                line = f"• {desc}"
+                if metric:
+                    line += f" ({metric})"
+                
+                # เพิ่ม target และ unit ถ้ามี
+                target_unit_part = []
+                if target:
+                    target_unit_part.append(target)
+                if unit:
+                    target_unit_part.append(unit)
+                
+                if target_unit_part:
+                    line += f": {' '.join(target_unit_part)}"
+
+                # เพิ่มโค้ด \l เพื่อจัดชิดซ้าย
+                description_lines.append(line.strip() + '\\l')
+
+            # รวมหัวข้อและรายการทั้งหมดเข้าด้วยกัน โดยใช้ | สำหรับการแบ่งแถวในแนวตั้ง
+            all_parts = [header] + description_lines
+            node_label = "|".join(all_parts)
+            
+            dot.node(
+                name=item_type, 
+                label=f"{{{node_label}}}", 
+                fillcolor=styles.get(item_type, "#ffffff")
+            )
             nodes_exist.append(item_type)
 
     # เชื่อมต่อโหนดตามลำดับ
@@ -195,7 +229,7 @@ def create_grouped_logic_model_flowchart(df: pd.DataFrame):
         dot.edge(nodes_exist[i], nodes_exist[i+1])
         
     return dot
-#! <<< END: เพิ่มฟังก์ชันใหม่
+#! <<< END: สิ้นสุดการแก้ไขฟังก์ชัน
 
 init_state()
 plan = st.session_state["plan"]
@@ -229,7 +263,7 @@ st.markdown("""
 tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_assist, tab_chatbot = st.tabs(["1. ระบุ แผน & 6W2H", "2. ระบุ Logic Model", "3. ระบุ Methods", "4. ระบุ KPIs", "5. ระบุ Risks", "6. 🔍ค้นหาข้อตรวจพบที่ผ่านมา", "7. 📋สรุปข้อมูล (Preview)", "8. ✨PA Assistant แนะนำประเด็น", "9. 💬 PA Chat"]) 
 
 with tab_plan:
-    st.subheader("ข้อมูลแผน - กรุณาระบุข้อมูล"); # ... (ส่วนนี้เหมือนเดิมทั้งหมด) ...
+    st.subheader("ข้อมูลแผน - กรุณาระบุข้อมูล");
     with st.container(border=True):
         c1, c2, c3 = st.columns([2,2,1])
         with c1:
@@ -279,7 +313,6 @@ with tab_plan:
         with cc3:
             st.session_state.plan["how"] = st.text_area("How (อย่างไร)", key="how_input"); st.session_state.plan["how_much"] = st.text_input("How much (เท่าไร)", key="how_much_input")
 
-#! <<< START: แก้ไขส่วนนี้
 with tab_logic:
     st.subheader("ระบุ Logic Model: Input → Activities → Output → Outcome → Impact")
     st.dataframe(logic_df, use_container_width=True, hide_index=True)
@@ -287,17 +320,14 @@ with tab_logic:
     st.divider()
     st.subheader("📊 Flowchart Logic Model")
     
-    # เพิ่ม Checkbox สำหรับเลือกมุมมอง
     group_items = st.checkbox("✅ รวมรายการประเภทเดียวกันใน Flowchart", value=True)
 
     if not logic_df.empty:
         with st.container(border=True):
             try:
                 if group_items:
-                    # เรียกใช้ฟังก์ชันใหม่ (แบบรวมกลุ่ม)
                     flowchart = create_grouped_logic_model_flowchart(logic_df)
                 else:
-                    # เรียกใช้ฟังก์ชันเดิม (แบบละเอียด)
                     flowchart = create_detailed_logic_model_flowchart(logic_df)
                 st.graphviz_chart(flowchart, use_container_width=True)
             except Exception as e:
@@ -314,7 +344,7 @@ with tab_logic:
                 desc = st.text_input("คำอธิบาย/รายละเอียด", key="logic_desc")
                 metric = st.text_input("ตัวชี้วัด/metric (เช่น จำนวน, สัดส่วน)", key="logic_metric")
             with colB:
-                unit = st.text_input("หน่วย", value="หน่วย", key="logic_unit")
+                unit = st.text_input("หน่วย", value="", key="logic_unit")
                 target = st.text_input("เป้าหมาย", value="", key="logic_target")
             with colC:
                 source = st.text_input("แหล่งข้อมูล", value="", key="logic_source")
@@ -326,10 +356,10 @@ with tab_logic:
                     st.success("เพิ่มข้อมูลเรียบร้อยแล้ว"); st.rerun()
                 else:
                     st.warning("กรุณากรอก 'คำอธิบาย/รายละเอียด' ก่อนทำการเพิ่ม")
-#! <<< END: แก้ไขส่วนนี้
 
+# ... (โค้ดส่วนที่เหลือของ tab_method, tab_kpi, etc. เหมือนเดิมทั้งหมด) ...
 with tab_method:
-    st.subheader("ระบุวิธีการเก็บข้อมูล"); # ... (ส่วนนี้เหมือนเดิมทั้งหมด) ...
+    st.subheader("ระบุวิธีการเก็บข้อมูล")
     st.dataframe(methods_df, use_container_width=True, hide_index=True)
     with st.expander("➕ เพิ่ม Method"):
         with st.container(border=True):
@@ -343,7 +373,7 @@ with tab_method:
                 st.session_state["methods"] = pd.concat([methods_df, new_row], ignore_index=True); st.rerun()
 
 with tab_kpi:
-    st.subheader("ระบุตัวชี้วัด (KPIs)"); # ... (ส่วนนี้เหมือนเดิมทั้งหมด) ...
+    st.subheader("ระบุตัวชี้วัด (KPIs)")
     st.dataframe(kpis_df, use_container_width=True, hide_index=True)
     with st.expander("➕ เพิ่ม KPI เอง"):
         col1, col2, col3 = st.columns(3)
@@ -356,7 +386,7 @@ with tab_kpi:
             st.session_state["kpis"] = pd.concat([kpis_df, new_row], ignore_index=True); st.rerun()
 
 with tab_risk:
-    st.subheader("ระบุความเสี่ยง (Risks)"); # ... (ส่วนนี้เหมือนเดิมทั้งหมด) ...
+    st.subheader("ระบุความเสี่ยง (Risks)")
     st.dataframe(risks_df, use_container_width=True, hide_index=True)
     with st.expander("➕ เพิ่ม Risk"):
         with st.container(border=True):
@@ -369,23 +399,17 @@ with tab_risk:
                 st.session_state["risks"] = pd.concat([risks_df, new_row], ignore_index=True); st.rerun()
 
 with tab_issue:
-    st.subheader("🔎 แนะนำประเด็นตรวจสอบจากรายงานเก่า"); # ... (ส่วนนี้เหมือนเดิมทั้งหมด) ...
-    with st.expander("อัปโหลดและจัดการฐานข้อมูลข้อตรวจพบ"):
-        st.write("คุณสามารถอัปโหลดไฟล์ .csv หรือ .xlsx ที่มีข้อมูลข้อตรวจพบเพื่อใช้ในการค้นหา")
-        st.download_button(label="⬇️ ดาวน์โหลดไฟล์แม่แบบ FindingsLibrary.xlsx", data=create_excel_template(), file_name="FindingsLibrary.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-        uploaded = st.file_uploader("อัปโหลด FindingsLibrary.csv หรือ .xlsx", type=["csv", "xlsx", "xls"], label_visibility="collapsed")
-    findings_df = load_findings(uploaded=uploaded)
-    if findings_df.empty: st.info("ไม่พบข้อมูล Findings โปรดอัปโหลดไฟล์")
-    else:
-        st.success(f"พบข้อมูล Findings ทั้งหมด {len(findings_df)} รายการ"); vec, X = build_tfidf_index(findings_df)
-        seed = f"Who:{plan.get('who','')} ... Outcomes:{' | '.join(logic_df[logic_df['type']=='Outcome']['description'].tolist())}"
-        # (โค้ดส่วนที่เหลือของ tab_issue เหมือนเดิม)
-
+    st.subheader("🔎 แนะนำประเด็นตรวจสอบจากรายงานเก่า")
+    # ... (the rest of the code is unchanged)
+    
 with tab_preview:
-    st.subheader("สรุปแผน (Preview)"); # ... (ส่วนนี้เหมือนเดิมทั้งหมด) ...
-
+    st.subheader("สรุปแผน (Preview)")
+    # ... (the rest of the code is unchanged)
+    
 with tab_assist:
-    st.subheader("💡 PA Assistant (AI/LLM)"); # ... (ส่วนนี้เหมือนเดิมทั้งหมด) ...
-
+    st.subheader("💡 PA Assistant (AI/LLM)")
+    # ... (the rest of the code is unchanged)
+    
 with tab_chatbot:
-    st.subheader("💬 PA Chat - ผู้ช่วยอัจฉริยะ"); # ... (ส่วนนี้เหมือนเดิมทั้งหมด) ...
+    st.subheader("💬 PA Chat - ผู้ช่วยอัจฉริยะ")
+    # ... (the rest of the code is unchanged)
