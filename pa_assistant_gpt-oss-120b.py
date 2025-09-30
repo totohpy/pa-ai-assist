@@ -49,20 +49,13 @@ def next_id(prefix, df, col):
     n = max(nums) + 1 if nums else 1
     return f"{prefix}-{n:03d}"
 
-#! <<< START: แก้ไขฟังก์ชันนี้
 def create_mermaid_flowchart(df: pd.DataFrame):
-    """
-    สร้างโค้ด Mermaid แบบแนวนอน (LR) และนำกล่อง 3E ออก
-    """
     type_to_id = {
         "Objective": "Objective", "Input": "Input", "Activity": "Activity",
         "Output": "Output", "Outcome": "Outcome", "Impact": "Impact"
     }
     sequence = ["Objective", "Input", "Activity", "Output", "Outcome", "Impact"]
-    
-    # 1. เปลี่ยนกลับเป็นแนวนอน 'graph LR'
     mermaid_string = "graph LR\n"
-    
     styles = {
         "Objective": "fill:#E6E6FA,stroke:#333,stroke-width:2px",
         "Input": "fill:#a9def9,stroke:#333,stroke-width:2px",
@@ -91,20 +84,16 @@ def create_mermaid_flowchart(df: pd.DataFrame):
                 description_lines.append(" ".join(part for part in line_parts if part))
             
             content_body = "<br/>".join(description_lines)
-            content = f"<div style='text-align: left;'>{header}<br/>{content_body}</div>"
+            #! <<< แก้ไข: เพิ่ม Padding เข้าไปใน style ของ div
+            content = f"<div style='text-align: left; padding: 8px;'>{header}<br/>{content_body}</div>"
             mermaid_string += f'  {node_id}["{content}"]\n'
             mermaid_string += f'  class {node_id} {node_id}Style\n'
             nodes_exist.append(node_id)
     
-    # --- ส่วนการเชื่อมเส้น ---
     if len(nodes_exist) > 1:
         mermaid_string += "  " + " --> ".join(nodes_exist) + "\n"
-
-    # 2. นำส่วนการสร้างกล่อง 3E ออกทั้งหมด
-    # (โค้ดส่วน 3E ถูกลบไปจากตรงนี้)
             
     return mermaid_string
-#! <<< END: สิ้นสุดการแก้ไขฟังก์ชัน
 
 # (โค้ดส่วนที่เหลือของไฟล์เหมือนเดิมทั้งหมด)
 init_state()
@@ -185,7 +174,7 @@ with tab_logic:
     with st.container(border=True):
         if not st.session_state.logic_items.empty:
             try:
-                base_height = 250 # ลดความสูงพื้นฐานลงเพราะไม่มี 3E แล้ว
+                base_height = 250
                 num_rows = len(st.session_state.logic_items)
                 dynamic_height = base_height + (num_rows * 20)
                 chart_height = min(max(dynamic_height, 300), 800)
