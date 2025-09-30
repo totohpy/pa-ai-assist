@@ -294,7 +294,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_assist, tab_chatbot = st.tabs(["1. 1. ระบุ แผน & 6W2H", "2. 2. ระบุ Logic Model", "3. 3. ระบุ Methods", "4. 4. ระบุ KPIs", "5. 5. ระบุ Risks", "6. 🔍 ค้นหาข้อตรวจพบที่ผ่านมา", "7. 📋 สรุปข้อมูล (Preview)", "8. ✨ PA Assistant แนะนำประเด็น", "9. 💬 PA Chat"]) 
+tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_assist, tab_chatbot = st.tabs(["1. ระบุ แผน & 6W2H", "2. ระบุ Logic Model", "3. ระบุ Methods", "4. ระบุ KPIs", "5. ระบุ Risks", "6. 🔍 ค้นหาข้อตรวจพบที่ผ่านมา", "7. 📋 สรุปข้อมูล (Preview)", "8. ✨ PA Assistant แนะนำประเด็น", "9. 💬 PA Chat"]) 
 
 with tab_plan:
     st.subheader("ข้อมูลแผน - กรุณาระบุข้อมูล")
@@ -488,7 +488,7 @@ with tab_kpi:
         target = col3.text_input("Target", value="")
         freq = col3.text_input("ความถี่", value="รายไตรมาส")
         data_src = col3.text_input("แหล่งข้อมูล", value="", key="kpi_data_source")
-        quality = col3.text_input("ข้อกำหนดคุณภาพข้อมูล", value="ถูกต้อง/ทันเวลา", key="kpi_quality")
+        quality = col3.text_input("ข้อกำหนดคุณภาพ", value="ถูกต้อง/ทันเวลา", key="kpi_quality")
         if st.button("เพิ่ม KPI", type="primary", key="add_kpi_btn"):
             new_row = pd.DataFrame([{"kpi_id": next_id("KPI", kpis_df, "kpi_id"),"plan_id": plan["plan_id"],"level": level, "name": name, "formula": formula,"numerator": numerator, "denominator": denominator, "unit": unit,"baseline": baseline, "target": target, "frequency": freq,"data_source": data_src, "quality_requirements": quality}])
             st.session_state["kpis"] = pd.concat([kpis_df, new_row], ignore_index=True)
@@ -514,7 +514,7 @@ with tab_risk:
 with tab_issue:
     st.subheader("🔎 แนะนำประเด็นตรวจสอบจากรายงานเก่า")
     with st.expander("อัปโหลดและจัดการฐานข้อมูลข้อตรวจพบ"):
-        st.write("คุณสามารถอัปโหลดไฟล์ .csv หรือ .xlsx ที่มีข้อมูลข้อตรวจพบเพื่อใช้ในการค้นหา")
+        st.write("คุณสามารถอัปโหลดไฟล์ .csv หรือ .xlsx ที่มีข้อมูลข้อตรวจพบเพื่อใช้ในการค้นหา ถ้าไม่มีจะค้นหาภายในคลังข้อมูล")
         st.download_button(
             label="⬇️ ดาวน์โหลดไฟล์แม่แบบ FindingsLibrary.xlsx",
             data=create_excel_template(),
@@ -536,6 +536,7 @@ Who:{plan.get('who','')} What:{plan.get('what','')} Where:{plan.get('where','')}
 When:{plan.get('when','')} Why:{plan.get('why','')} Whom:{plan.get('whom','')} How:{plan.get('how','')}
 Outputs:{' | '.join(logic_df[logic_df['type']=='Output']['description'].tolist())}
 Outcomes:{' | '.join(logic_df[logic_df['type']=='Outcome']['description'].tolist())}
+Objective:{' | '.join(logic_df[logic_df['type']=='Objective']['description'].tolist())}
 """
         
         def refresh_query_text(new_seed):
@@ -552,7 +553,7 @@ Outcomes:{' | '.join(logic_df[logic_df['type']=='Outcome']['description'].tolist
         c_query_area, c_refresh_btn = st.columns([6, 1])
         with c_query_area:
             query_text = st.text_area(
-                "**Context ที่ใช้ค้นหา (แก้ไขได้):**", 
+                "**ข้อมูล (Context) ที่ใช้ค้นหา (แก้ไขได้):**", 
                 st.session_state["issue_query_text"], 
                 height=140, 
                 key="issue_query_text"
@@ -563,7 +564,7 @@ Outcomes:{' | '.join(logic_df[logic_df['type']=='Outcome']['description'].tolist
                 "🔄", 
                 on_click=refresh_query_text,
                 args=(seed,),
-                help="คลิกเพื่ออัปเดตช่องค้นหาด้วยข้อมูลล่าสุด",
+                help="คลิกเพื่ออัปเดตช่องค้นหาด้วยข้อมูลที่กรอกจากหน้าอื่นล่าสุด",
                 type="secondary"
             )
         
