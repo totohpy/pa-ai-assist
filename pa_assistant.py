@@ -9,6 +9,7 @@ from openai import OpenAI
 import os
 import io
 from PyPDF2 import PdfReader
+from streamlit_agraph import agraph, Node, Edge, Config
 
 # ตั้งค่าหน้าเพจ
 st.set_page_config(page_title="Planning Studio (+ Findings Suggestions)", page_icon="🧭", layout="wide")
@@ -183,6 +184,59 @@ def create_excel_template():
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer: df.to_excel(writer, index=False, sheet_name='FindingsLibrary')
     return output.getvalue()
+    
+def create_interactive_flowchart(df: pd.DataFrame):
+    nodes = []
+    edges = []
+    
+    styles = {
+        "Objective": "#E6E6FA", "Input": "#a9def9", "Activity": "#e4c1f9",
+        "Output": "#fcf6bd", "Outcome": "#d0f4de", "Impact": "#ff99c8",
+    }
+    sequence = ["Objective", "Input", "Activity", "Output", "Outcome", "Impact"]
+    
+    nodes_exist = []
+    # สร้าง Node หลัก
+    for i, item_type in enumerate(sequence):
+        items_df = df[df['type'] == item_type]
+        if not items_df.empty:
+            header = item_type
+            description_lines = []
+            for _, row in items_df.iterrows():
+                desc = str(row.get('description', '') or ''); metric = str(row.get('metric', '') or '')
+                target = str(row.get('target', '') or ''); unit = str(row.get('unit', '') or '')
+                number = target if target else metric
+                line_parts = [f"• {desc}"]
+                if number: line_parts.append(number)
+                if unit: line_parts.append(unit)
+                description_lines.append(" ".join(part for part in line_parts if part))
+            
+            label = f"{header}\n\n" + "\n".join(description_lines)
+            
+            nodes.append(Node(id=item_type, 
+                             label=label, 
+                             color=styles.get(item_type), 
+                             shape="box", 
+                             font={'face': 'Kanit', 'align': 'left'},
+                             level=i))
+            nodes_exist.append(item_type)
+
+    # เชื่อม Node หลัก (เส้นทึบ)
+    if len(nodes_exist) > 1:
+        for i in range(len(nodes_exist)-1):
+            edges.append(Edge(source=nodes_exist[i], target=nodes_exist[i+1], dashes=False, color="#000000"))
+
+    config = Config(width='100%', 
+                    height=600,
+                    directed=True, 
+                    physics=False,
+                    hierarchical={
+                        "enabled": True,
+                        "direction": "LR",
+                        "sortMethod": "directed"
+                    })
+
+    return nodes, edges, config
 
 init_state()
 plan = st.session_state["plan"]
@@ -333,21 +387,73 @@ How Much: [ข้อความ]
             st.session_state.plan["how_much"] = st.text_input("How much (เท่าไร)", key="how_much_input")
 
 with tab_logic:
-    st.subheader("ระบุ Logic Model: Input → Activities → Output → Outcome → Impact")
-    st.dataframe(logic_df, use_container_width=True, hide_index=True)
-    with st.expander("➕ เพิ่มรายการใน Logic Model"):
+    st.subheader("ระบุ Logic Model")
+    with st.expander("➕ เพิ่มรายการใหม่ใน Logic Model", expanded=True):
         with st.container(border=True):
             colA, colB, colC = st.columns(3)
-            typ = colA.selectbox("ประเภท", ["Input","Activity","Output","Outcome","Impact"])
-            desc = colA.text_input("คำอธิบาย/รายละเอียด")
-            metric = colA.text_input("ตัวชี้วัด/metric (เช่น จำนวน, สัดส่วน)")
-            unit = colB.text_input("หน่วย", value="หน่วย", key="logic_unit")
-            target = colB.text_input("เป้าหมาย", value="", key="logic_target")
-            source = colC.text_input("แหล่งข้อมูล", value="", key="logic_source")
+            with colA:
+                typ = st.selectbox("ประเภท", ["Objective", "Input", "Activity", "Output", "Outcome", "Impact"], key="logic_type")
+                desc = st.text_input("คำอธิบาย/รายละเอียด", key="logic_desc")
+                metric = st.text_input("ตัวชี้วัด (จำนวน)", key="logic_metric")
+            with colB:
+                unit = st.text_input("หน่วย", value="", key="logic_unit")
+                target = st.text_input("เป้าหมาย", value="", key="logic_target")
+            with colC:
+                source = st.text_input("แหล่งข้อมูล", value="", key="logic_source")
+            
             if st.button("เพิ่ม Logic Item", type="primary", key="add_logic_item_btn"):
-                new_row = pd.DataFrame([{"item_id": next_id("LG", logic_df, "item_id"),"plan_id": plan["plan_id"],"type": typ, "description": desc, "metric": metric,"unit": unit, "target": target, "source": source}])
-                st.session_state["logic_items"] = pd.concat([logic_df, new_row], ignore_index=True)
-                st.rerun()
+                if desc:
+                    new_row = pd.DataFrame([{
+                        "item_id": next_id("LG", st.session_state.logic_items, "item_id"), 
+                        "plan_id": plan.get("plan_id", ""), 
+                        "type": typ, "description": desc, "metric": metric, 
+                        "unit": unit, "target": target, "source": source
+                    }])
+                    st.session_state.logic_items = pd.concat([st.session_state.logic_items, new_row], ignore_index=True)
+                    st.success("เพิ่มข้อมูลเรียบร้อยแล้ว"); st.rerun()
+                else:
+                    st.warning("กรุณากรอก 'คำอธิบาย/รายละเอียด' ก่อนทำการเพิ่ม")
+    
+    st.markdown("---")
+    
+    st.markdown("##### 📝 ตาราง Logic Model (สามารถแก้ไขหรือลบแถวได้โดยตรง)")
+    edited_df = st.data_editor(
+        st.session_state.logic_items,
+        column_config={
+            "type": st.column_config.SelectboxColumn("ประเภท", options=["Objective", "Input", "Activity", "Output", "Outcome", "Impact"], required=True),
+            "description": st.column_config.TextColumn("คำอธิบาย/รายละเอียด", required=True),
+            "metric": st.column_config.TextColumn("ตัวชี้วัด (จำนวน)"),
+            "target": st.column_config.TextColumn("เป้าหมาย"),
+            "unit": st.column_config.TextColumn("หน่วย"),
+            "source": st.column_config.TextColumn("แหล่งข้อมูล"),
+            "item_id": st.column_config.TextColumn("ID", disabled=True),
+            "plan_id": st.column_config.TextColumn("Plan ID", disabled=True),
+        },
+        use_container_width=True,
+        hide_index=True,
+        key="logic_editor_main"
+    )
+    st.session_state.logic_items = edited_df
+    
+    cols = st.columns([0.85, 0.15])
+    with cols[1]:
+        if st.button("🧹 ล้างทั้งหมด (Reset)", use_container_width=True):
+            empty_df = pd.DataFrame(columns=st.session_state.logic_items.columns)
+            st.session_state.logic_items = empty_df
+            st.rerun()
+
+    st.markdown("---")
+
+    st.subheader("📊 Flowchart Logic Model (ลากจัดวางได้)")
+    with st.container(border=True):
+        if not st.session_state.logic_items.empty:
+            try:
+                nodes, edges, config = create_interactive_flowchart(st.session_state.logic_items)
+                agraph(nodes=nodes, edges=edges, config=config)
+            except Exception as e:
+                st.error(f"ไม่สามารถสร้าง Flowchart ได้: {e}")
+        else:
+            st.info("กรุณาเพิ่มข้อมูลในฟอร์มด้านบนเพื่อสร้าง Flowchart")
 
 with tab_method:
     st.subheader("ระบุวิธีการเก็บข้อมูล")
