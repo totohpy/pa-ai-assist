@@ -7,3 +7,4 @@ xlsxwriter # จำเป็นสำหรับการเขียนไฟ�
 PyPDF2==3.0.1
 groq
 graphviz
+streamlit-mermaid
