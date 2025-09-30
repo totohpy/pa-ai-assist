@@ -56,7 +56,6 @@ def create_interactive_flowchart(df: pd.DataFrame):
     styles = {
         "Objective": "#E6E6FA", "Input": "#a9def9", "Activity": "#e4c1f9",
         "Output": "#fcf6bd", "Outcome": "#d0f4de", "Impact": "#ff99c8",
-        "E_Box": "#FFDAB9"
     }
     sequence = ["Objective", "Input", "Activity", "Output", "Outcome", "Impact"]
     
@@ -82,33 +81,19 @@ def create_interactive_flowchart(df: pd.DataFrame):
                              label=label, 
                              color=styles.get(item_type), 
                              shape="box", 
-                             font={'face': 'Kanit', 'align': 'left'}, 
+                             font={'face': 'Kanit', 'align': 'left'},
                              level=i))
             nodes_exist.append(item_type)
 
-    # เชื่อม Node หลัก (กำหนด dashes=False อย่างชัดเจน)
+    # เชื่อม Node หลัก (เส้นทึบ)
     if len(nodes_exist) > 1:
         for i in range(len(nodes_exist)-1):
             edges.append(Edge(source=nodes_exist[i], target=nodes_exist[i+1], dashes=False, color="#000000"))
 
-    # สร้างและเชื่อมโยง 3E
-    if len(nodes_exist) >= 3:
-        nodes.append(Node(id='Economy', label='ประหยัด\n(Economy)', color=styles["E_Box"], shape='box', font={'face': 'Kanit', 'align': 'left'}, level=0))
-        nodes.append(Node(id='Efficiency', label='ประสิทธิภาพ\n(Efficiency)', color=styles["E_Box"], shape='box', font={'face': 'Kanit', 'align': 'left'}, level=2))
-        nodes.append(Node(id='Effectiveness', label='ประสิทธิผล\n(Effectiveness)', color=styles["E_Box"], shape='box', font={'face': 'Kanit', 'align': 'left'}, level=4))
-
-        # กำหนด dashes=True สำหรับเส้น 3E
-        if "Input" in nodes_exist: edges.append(Edge(source='Economy', target='Input', dashes=True))
-        if "Input" in nodes_exist and "Output" in nodes_exist:
-            edges.append(Edge(source='Input', target='Efficiency', dashes=True))
-            edges.append(Edge(source='Efficiency', target='Output', dashes=True))
-        if "Objective" in nodes_exist: edges.append(Edge(source='Objective', target='Effectiveness', dashes=True))
-        if "Output" in nodes_exist: edges.append(Edge(source='Output', target='Effectiveness', dashes=True))
-        if "Outcome" in nodes_exist: edges.append(Edge(source='Effectiveness', target='Outcome', dashes=True))
-        if "Impact" in nodes_exist: edges.append(Edge(source='Effectiveness', target='Impact', dashes=True))
+    # (ส่วนของ 3E ถูกลบออกทั้งหมด)
 
     config = Config(width='100%', 
-                    height=800,
+                    height=600,
                     directed=True, 
                     physics=False,
                     hierarchical={
