@@ -18,7 +18,22 @@ st.set_page_config(page_title="Planning Studio (+ Findings Suggestions)", page_i
 # ----------------- ⚙️ การตั้งค่ากลาง -----------------
 with st.sidebar:
     st.title("⚙️ การตั้งค่ากลาง")
-    # ... (ส่วนนี้เหมือนเดิม) ...
+    st.info("API Key ถูกตั้งค่าโดยผู้ดูแลระบบผ่าน Streamlit Secrets")
+
+    try:
+        st.session_state.api_key_global = st.secrets["api_key"]
+        st.success("API Key ถูกโหลดจากระบบ Secrets เรียบร้อยแล้ว")
+    except KeyError:
+        st.session_state.api_key_global = ""
+        st.error("ไม่พบ API Key ใน Secrets, กรุณาตั้งค่าในหน้าตั้งค่าของแอป")
+    except Exception as e:
+        st.session_state.api_key_global = ""
+        st.error(f"เกิดข้อผิดพลาดในการโหลด API Key: {e}")
+
+
+    st.markdown("---")
+    st.markdown("PA Planning Studio By PAO1 Audit Intelligence Nexus")
+
 
 # ----------------- ฟังก์ชันต่างๆ -----------------
 def init_state():
@@ -67,10 +82,14 @@ def create_mermaid_flowchart(df: pd.DataFrame):
                 if number: line_parts.append(number)
                 if unit: line_parts.append(unit)
                 description_lines.append(" ".join(part for part in line_parts if part))
-            content = f"{header}<br/>" + "<br/>".join(description_lines)
+            
+            #! <<< แก้ไข: เพิ่ม div เพื่อจัดข้อความชิดซ้าย
+            content_body = "<br/>".join(description_lines)
+            content = f"<div style='text-align: left;'>{header}<br/>{content_body}</div>"
             mermaid_string += f'  {node_id}["{content}"]\n'
             mermaid_string += f'  class {node_id} {node_id}Style\n'
             nodes_exist.append(node_id)
+    
     if len(nodes_exist) > 1:
         mermaid_string += "  " + " --> ".join(nodes_exist) + "\n"
     if len(nodes_exist) >= 3:
@@ -88,6 +107,7 @@ def create_mermaid_flowchart(df: pd.DataFrame):
             if "Outcome" in nodes_exist: mermaid_string += "  Effectiveness --> Outcome\n"
             if "Impact" in nodes_exist: mermaid_string += "  Effectiveness --> Impact\n"
             mermaid_string += "  class Effectiveness E_BoxStyle\n"
+            
     return mermaid_string
 
 # (ฟังก์ชันอื่นๆ ที่ไม่เกี่ยวข้องจะถูกย่อไว้)
@@ -107,18 +127,17 @@ with tab_plan:
     # ... (โค้ดใน tab_plan เหมือนเดิมทั้งหมด) ...
     pass
 
-#! <<< START: แก้ไข Layout และ Logic ใน Tab นี้ทั้งหมด
 with tab_logic:
     st.subheader("ระบุ Logic Model")
 
-    # --- 1. ส่วน "เพิ่ม" ข้อมูล (ฟอร์มแบบเดิม) ---
     with st.expander("➕ เพิ่มรายการใหม่ใน Logic Model", expanded=True):
         with st.container(border=True):
             colA, colB, colC = st.columns(3)
             with colA:
                 typ = st.selectbox("ประเภท", ["Objective", "Input", "Activity", "Output", "Outcome", "Impact"], key="logic_type")
                 desc = st.text_input("คำอธิบาย/รายละเอียด", key="logic_desc")
-                metric = st.text_input("ตัวชี้วัด/metric", key="logic_metric")
+                #! <<< แก้ไข: เปลี่ยน Label ของ Text Input
+                metric = st.text_input("ตัวชี้วัด (จำนวน)", key="logic_metric")
             with colB:
                 unit = st.text_input("หน่วย", value="", key="logic_unit")
                 target = st.text_input("เป้าหมาย", value="", key="logic_target")
@@ -135,16 +154,13 @@ with tab_logic:
     
     st.markdown("---")
     
-    # --- 2. ส่วน "แสดงผลและแก้ไข" ข้อมูล (Data Editor) ---
     st.markdown("##### 📝 ตาราง Logic Model (สามารถแก้ไขหรือลบแถวได้โดยตรง)")
-    
-    # ใช้ Data Editor สำหรับการแก้ไขและลบ แต่ไม่ใช้สำหรับเพิ่มแถว (num_rows="dynamic" ถูกเอาออก)
     edited_df = st.data_editor(
         st.session_state.logic_items,
         column_config={
             "type": st.column_config.SelectboxColumn("ประเภท", options=["Objective", "Input", "Activity", "Output", "Outcome", "Impact"], required=True),
             "description": st.column_config.TextColumn("คำอธิบาย/รายละเอียด", required=True),
-            "metric": st.column_config.TextColumn("ตัวชี้วัด/metric"),
+            "metric": st.column_config.TextColumn("ตัวชี้วัด (จำนวน)"),
             "target": st.column_config.TextColumn("เป้าหมาย"),
             "unit": st.column_config.TextColumn("หน่วย"),
             "source": st.column_config.TextColumn("แหล่งข้อมูล"),
@@ -156,11 +172,8 @@ with tab_logic:
         key="logic_editor_main"
     )
 
-    # บันทึกการเปลี่ยนแปลงจาก data_editor กลับไปยัง session_state
-    # st.data_editor จะ return DataFrame ที่แก้ไขแล้ว
     st.session_state.logic_items = edited_df
     
-    # --- ปุ่มควบคุม (Reset) ---
     cols = st.columns([0.85, 0.15])
     with cols[1]:
         if st.button("🧹 ล้างทั้งหมด (Reset)", use_container_width=True):
@@ -170,7 +183,6 @@ with tab_logic:
 
     st.markdown("---")
 
-    # --- 3. ส่วนแสดง Flowchart ---
     st.subheader("📊 Flowchart Logic Model")
     with st.container(border=True):
         if not st.session_state.logic_items.empty:
@@ -186,7 +198,5 @@ with tab_logic:
                 st.error(f"ไม่สามารถสร้าง Flowchart ได้: {e}")
         else:
             st.info("กรุณาเพิ่มข้อมูลในฟอร์มด้านบนเพื่อสร้าง Flowchart")
-
-#! <<< END: สิ้นสุดการแก้ไข Tab Logic
 
 # ... (โค้ดของ Tab ที่เหลือเหมือนเดิมทั้งหมด) ...
