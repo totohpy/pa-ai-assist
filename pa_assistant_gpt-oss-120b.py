@@ -49,31 +49,30 @@ def next_id(prefix, df, col):
     n = max(nums) + 1 if nums else 1
     return f"{prefix}-{n:03d}"
 
-def create_mermaid_flowchart(df: pd.DataFrame):
-    type_to_id = {
-        "Objective": "Objective", "Input": "Input", "Activity": "Activity",
-        "Output": "Output", "Outcome": "Outcome", "Impact": "Impact"
+#! <<< START: แก้ไขฟังก์ชันนี้เป็น Graphviz + 3Es
+def create_graphviz_flowchart_with_3e(df: pd.DataFrame):
+    """
+    สร้าง Flowchart ด้วย Graphviz + HTML-like Label และเพิ่มกล่อง 3E
+    """
+    dot = graphviz.Digraph(comment='Logic Model with 3Es')
+    dot.attr('graph', rankdir='LR', splines='ortho', bgcolor='transparent', compound='true', fontname='Kanit')
+    dot.attr('node', shape='plain', fontname='Kanit')
+    dot.attr('edge', fontname='Kanit')
+
+    styles = {
+        "Objective": "#E6E6FA", "Input": "#a9def9", "Activity": "#e4c1f9",
+        "Output": "#fcf6bd", "Outcome": "#d0f4de", "Impact": "#ff99c8",
+        "E_Box": "#FFDAB9"
     }
     sequence = ["Objective", "Input", "Activity", "Output", "Outcome", "Impact"]
-    mermaid_string = "graph LR\n"
-    styles = {
-        "Objective": "fill:#E6E6FA,stroke:#333,stroke-width:2px",
-        "Input": "fill:#a9def9,stroke:#333,stroke-width:2px",
-        "Activity": "fill:#e4c1f9,stroke:#333,stroke-width:2px",
-        "Output": "fill:#fcf6bd,stroke:#333,stroke-width:2px",
-        "Outcome": "fill:#d0f4de,stroke:#333,stroke-width:2px",
-        "Impact": "fill:#ff99c8,stroke:#333,stroke-width:2px",
-    }
-    for key, value in styles.items():
-        mermaid_string += f"  classDef {key}Style {value}\n"
-        
+    
     nodes_exist = []
+    # สร้าง Node หลัก
     for item_type in sequence:
         items_df = df[df['type'] == item_type]
         if not items_df.empty:
-            node_id = type_to_id[item_type]
-            header = f'<strong>{item_type}</strong>'
-            description_lines = []
+            header_html = f'<TR><TD BORDER="0" ALIGN="CENTER" BGCOLOR="{styles.get(item_type)}"><B>{item_type}</B></TD></TR>'
+            rows_html = []
             for _, row in items_df.iterrows():
                 desc = str(row.get('description', '') or ''); metric = str(row.get('metric', '') or '')
                 target = str(row.get('target', '') or ''); unit = str(row.get('unit', '') or '')
@@ -81,21 +80,44 @@ def create_mermaid_flowchart(df: pd.DataFrame):
                 line_parts = [f"• {desc}"]
                 if number: line_parts.append(number)
                 if unit: line_parts.append(unit)
-                description_lines.append(" ".join(part for part in line_parts if part))
+                line = " ".join(part for part in line_parts if part)
+                rows_html.append(f'<TR><TD BORDER="0" ALIGN="LEFT">{line}</TD></TR>')
             
-            content_body = "<br/>".join(description_lines)
-            #! <<< แก้ไข: เพิ่ม Padding เข้าไปใน style ของ div
-            content = f"<div style='text-align: left; padding: 8px;'>{header}<br/>{content_body}</div>"
-            mermaid_string += f'  {node_id}["{content}"]\n'
-            mermaid_string += f'  class {node_id} {node_id}Style\n'
-            nodes_exist.append(node_id)
-    
-    if len(nodes_exist) > 1:
-        mermaid_string += "  " + " --> ".join(nodes_exist) + "\n"
-            
-    return mermaid_string
+            full_html = f'''<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="5" STYLE="ROUNDED" BGCOLOR="{styles.get(item_type)}">{header_html}{''.join(rows_html)}</TABLE>>'''
+            dot.node(name=item_type, label=full_html)
+            nodes_exist.append(item_type)
 
-# (โค้ดส่วนที่เหลือของไฟล์เหมือนเดิมทั้งหมด)
+    # เชื่อม Node หลัก
+    if len(nodes_exist) > 1:
+        dot.edges([(nodes_exist[i], nodes_exist[i+1]) for i in range(len(nodes_exist)-1)])
+
+    # สร้างและเชื่อมโยง 3E
+    if len(nodes_exist) >= 3:
+        # สร้าง Node ของ 3E
+        dot.node('Economy', label='ประหยัด (Economy)', shape='box', style='rounded,filled', fillcolor=styles["E_Box"])
+        dot.node('Efficiency', label='ประสิทธิภาพ (Efficiency)', shape='box', style='rounded,filled', fillcolor=styles["E_Box"])
+        dot.node('Effectiveness', label='ประสิทธิผล (Effectiveness)', shape='box', style='rounded,filled', fillcolor=styles["E_Box"])
+
+        # เชื่อมโยงเส้น
+        if "Input" in nodes_exist:
+            dot.edge('Economy', 'Input')
+        if "Input" in nodes_exist and "Output" in nodes_exist:
+            dot.edge('Input', 'Efficiency', ltail='cluster_main', lhead='cluster_3e') # Example, might need adjustment
+            dot.edge('Efficiency', 'Output', ltail='cluster_3e', lhead='cluster_main')
+            # A simpler way without clusters:
+            dot.edge('Input', 'Efficiency', style='dashed', arrowhead='none')
+            dot.edge('Efficiency', 'Output', style='dashed', arrowhead='none')
+
+
+        if "Objective" in nodes_exist: dot.edge('Objective', 'Effectiveness', style='dashed', dir='back')
+        if "Output" in nodes_exist: dot.edge('Output', 'Effectiveness', style='dashed', dir='back')
+        if "Outcome" in nodes_exist: dot.edge('Effectiveness', 'Outcome', style='dashed')
+        if "Impact" in nodes_exist: dot.edge('Effectiveness', 'Impact', style='dashed')
+
+
+    return dot
+#! <<< END: สิ้นสุดการแก้ไขฟังก์ชัน
+
 init_state()
 plan = st.session_state.get("plan", {})
 logic_df = st.session_state.get("logic_items", pd.DataFrame())
@@ -174,13 +196,9 @@ with tab_logic:
     with st.container(border=True):
         if not st.session_state.logic_items.empty:
             try:
-                base_height = 250
-                num_rows = len(st.session_state.logic_items)
-                dynamic_height = base_height + (num_rows * 20)
-                chart_height = min(max(dynamic_height, 300), 800)
-                
-                mermaid_chart = create_mermaid_flowchart(st.session_state.logic_items)
-                st_mermaid(mermaid_chart, height=f"{chart_height}px")
+                # เปลี่ยนมาเรียกใช้ st.graphviz_chart
+                graphviz_chart = create_graphviz_flowchart_with_3e(st.session_state.logic_items)
+                st.graphviz_chart(graphviz_chart, use_container_width=True)
             except Exception as e:
                 st.error(f"ไม่สามารถสร้าง Flowchart ได้: {e}")
         else:
