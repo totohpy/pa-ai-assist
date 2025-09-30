@@ -30,7 +30,7 @@ with st.sidebar:
         st.error(f"เกิดข้อผิดพลาดในการโหลด API Key: {e}")
 
     st.markdown("---")
-    st.markdown("By **PAO1** Audit Intelligence Team")
+    st.markdown("By PAO1 Audit Intelligence Team")
 
 # ----------------- ฟังก์ชันสำหรับ Chatbot -----------------
 MAX_CHARS_LIMIT = 300000
@@ -284,7 +284,7 @@ st.markdown("""
         border-bottom: none !important; 
         margin-bottom: 20px; 
         flex-wrap: wrap; 
-        gap: 4px;
+        gap: 2px;
     } 
     h4 { 
         color: #007bff !important; 
