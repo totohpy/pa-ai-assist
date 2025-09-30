@@ -9,6 +9,7 @@ from openai import OpenAI
 import os
 import io
 from PyPDF2 import PdfReader
+import graphviz #! เพิ่ม library สำหรับสร้าง flowchart
 
 # ตั้งค่าหน้าเพจ
 st.set_page_config(page_title="Planning Studio (+ Findings Suggestions)", page_icon="🧭", layout="wide")
@@ -190,6 +191,50 @@ def create_excel_template():
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer: df.to_excel(writer, index=False, sheet_name='FindingsLibrary')
     return output.getvalue()
 
+#! START: ฟังก์ชันใหม่สำหรับสร้าง Flowchart
+def create_logic_model_flowchart(df: pd.DataFrame):
+    """Creates a Graphviz flowchart from a Logic Model DataFrame."""
+    dot = graphviz.Digraph('LogicModel', comment='Logic Model Flowchart')
+    dot.attr('graph', rankdir='LR', splines='ortho', bgcolor='transparent')
+    dot.attr('node', shape='box', style='rounded,filled', fontname='Kanit')
+    dot.attr('edge', fontname='Kanit')
+
+    # Styles for each node type
+    styles = {
+        "Input": {"fillcolor": "#a9def9", "shape": "folder"},
+        "Activity": {"fillcolor": "#e4c1f9", "shape": "ellipse"},
+        "Output": {"fillcolor": "#fcf6bd", "shape": "box"},
+        "Outcome": {"fillcolor": "#d0f4de", "shape": "box"},
+        "Impact": {"fillcolor": "#ff99c8", "shape": "diamond"}
+    }
+    
+    sequence = ["Input", "Activity", "Output", "Outcome", "Impact"]
+
+    # Add nodes for each item in the dataframe
+    for _, row in df.iterrows():
+        node_id = str(row["item_id"])
+        # Wrap long text for better display
+        desc_wrapped = '\\n'.join(row["description"][i:i+30] for i in range(0, len(row["description"]), 30))
+        node_label = f'{row["type"]}\\n{desc_wrapped}'
+        style = styles.get(row["type"], {})
+        dot.node(node_id, label=node_label, fillcolor=style.get("fillcolor", "#ffffff"), shape=style.get("shape", "box"))
+
+    # Add edges based on the sequence
+    for i in range(len(sequence) - 1):
+        current_type = sequence[i]
+        next_type = sequence[i+1]
+        
+        from_nodes = df[df["type"] == current_type]["item_id"].tolist()
+        to_nodes = df[df["type"] == next_type]["item_id"].tolist()
+        
+        if from_nodes and to_nodes:
+            for from_node in from_nodes:
+                for to_node in to_nodes:
+                    dot.edge(str(from_node), str(to_node))
+    return dot
+#! END: ฟังก์ชันใหม่สำหรับสร้าง Flowchart
+
+
 init_state()
 plan = st.session_state["plan"]
 logic_df = st.session_state["logic_items"]
@@ -338,22 +383,54 @@ How Much: [ข้อความ]
             st.session_state.plan["how"] = st.text_area("How (อย่างไร)", key="how_input")
             st.session_state.plan["how_much"] = st.text_input("How much (เท่าไร)", key="how_much_input")
 
+#! START: แก้ไข Tab Logic Model
 with tab_logic:
     st.subheader("ระบุ Logic Model: Input → Activities → Output → Outcome → Impact")
-    st.dataframe(logic_df, use_container_width=True, hide_index=True)
-    with st.expander("➕ เพิ่มรายการใน Logic Model"):
+    st.info("คุณสามารถแก้ไข เพิ่ม หรือลบข้อมูลได้โดยตรงในตารางด้านล่างนี้")
+    
+    # Use st.data_editor to make the dataframe editable
+    edited_logic_df = st.data_editor(
+        logic_df,
+        column_config={
+            "type": st.column_config.SelectboxColumn(
+                "Type",
+                help="ประเภทของรายการใน Logic Model",
+                options=["Input", "Activity", "Output", "Outcome", "Impact"],
+                required=True,
+            )
+        },
+        use_container_width=True,
+        hide_index=True,
+        num_rows="dynamic", # Allow adding and deleting rows
+        key="logic_editor"
+    )
+    # Automatically add Plan ID and generate Item ID for new rows
+    for i, row in edited_logic_df.iterrows():
+        if pd.isna(row['plan_id']) or not row['plan_id']:
+            edited_logic_df.at[i, 'plan_id'] = plan["plan_id"]
+        if pd.isna(row['item_id']) or not row['item_id']:
+             # Create a temporary df excluding the new row to find the next ID
+            temp_df = edited_logic_df.dropna(subset=['item_id'])
+            edited_logic_df.at[i, 'item_id'] = next_id("LG", temp_df, "item_id")
+
+    # Update the session state with the edited data
+    st.session_state["logic_items"] = edited_logic_df
+    
+    # --- NEW FEATURE: Flowchart Generation ---
+    st.divider()
+    st.subheader("📊 Flowchart Logic Model")
+    if not edited_logic_df.empty:
         with st.container(border=True):
-            colA, colB, colC = st.columns(3)
-            typ = colA.selectbox("ประเภท", ["Input","Activity","Output","Outcome","Impact"])
-            desc = colA.text_input("คำอธิบาย/รายละเอียด")
-            metric = colA.text_input("ตัวชี้วัด/metric (เช่น จำนวน, สัดส่วน)")
-            unit = colB.text_input("หน่วย", value="หน่วย", key="logic_unit")
-            target = colB.text_input("เป้าหมาย", value="", key="logic_target")
-            source = colC.text_input("แหล่งข้อมูล", value="", key="logic_source")
-            if st.button("เพิ่ม Logic Item", type="primary", key="add_logic_item_btn"):
-                new_row = pd.DataFrame([{"item_id": next_id("LG", logic_df, "item_id"),"plan_id": plan["plan_id"],"type": typ, "description": desc, "metric": metric,"unit": unit, "target": target, "source": source}])
-                st.session_state["logic_items"] = pd.concat([logic_df, new_row], ignore_index=True)
-                st.rerun()
+            try:
+                flowchart = create_logic_model_flowchart(edited_logic_df)
+                st.graphviz_chart(flowchart, use_container_width=True)
+            except Exception as e:
+                st.error(f"ไม่สามารถสร้าง Flowchart ได้: {e}")
+                st.warning("สำหรับการใช้งานบนเครื่องส่วนตัว (Local deployment) กรุณาตรวจสอบว่าได้ติดตั้งโปรแกรม Graphviz ในระบบแล้ว")
+    else:
+        st.info("กรุณาเพิ่มข้อมูลในตาราง Logic Model ด้านบนเพื่อสร้าง Flowchart")
+    # --- END NEW FEATURE ---
+#! END: แก้ไข Tab Logic Model
 
 with tab_method:
     st.subheader("ระบุวิธีการเก็บข้อมูล")
@@ -752,4 +829,3 @@ with tab_chatbot:
                         error_message = f"เกิดข้อผิดพลาดขณะประมวลผล: {e}"
                         message_placeholder.error(error_message)
                         st.session_state.chatbot_messages.append({"role": "assistant", "content": error_message})
-
