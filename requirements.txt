@@ -6,3 +6,4 @@ openpyxl  # จำเป็นสำหรับการอ่าน/เขี�
 xlsxwriter # จำเป็นสำหรับการเขียนไฟล์ .xlsx (ใน create_excel_template)
 PyPDF2==3.0.1
 groq
+graphviz
