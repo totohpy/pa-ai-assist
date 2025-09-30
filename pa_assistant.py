@@ -261,7 +261,6 @@ st.markdown("""
         padding: 8px 8px;
         margin: 1px;
         font-weight: normal;
-        font-size: 24px !important;
         color: white !important; 
         border: none;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -270,7 +269,7 @@ st.markdown("""
     button[data-baseweb="tab"][aria-selected="true"] {
         box-shadow: 0 4px 12px rgba(0,0,0,0.25);
         transform: translateY(-2px);
-        opacity: 0.50;
+        opacity: 0.60;
     }
     button[data-baseweb="tab"]:hover {
         transform: translateY(-1px);
