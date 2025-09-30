@@ -17,7 +17,7 @@ st.set_page_config(page_title="Planning Studio (+ Findings Suggestions)", page_i
 # ----------------- ⚙️ การตั้งค่ากลาง -----------------
 with st.sidebar:
     st.title("⚙️ PA Planning Studio")
-    st.info("ระบบมีฟีเจอร์ AI อาจทำผิดพลาดได้ ดังนั้นโปรดตรวจสอบคำตอบอีกครั้ง")
+    st.info("ระบบมีฟีเจอร์ AI อาจทำผิดพลาดได้ ดังนั้น โปรดตรวจสอบคำตอบอีกครั้ง")
 
     # --- Load API Key from Streamlit Secrets ---
     try:
@@ -30,7 +30,7 @@ with st.sidebar:
         st.error(f"เกิดข้อผิดพลาดในการโหลด API Key: {e}")
 
     st.markdown("---")
-    st.markdown("By 'PAO1' Audit Intelligence Team")
+    st.markdown("By **PAO1** Audit Intelligence Team")
 
 # ----------------- ฟังก์ชันสำหรับ Chatbot -----------------
 MAX_CHARS_LIMIT = 300000
