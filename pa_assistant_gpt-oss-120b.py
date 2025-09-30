@@ -23,7 +23,7 @@ with st.sidebar:
 # ----------------- ฟังก์ชันต่างๆ -----------------
 def init_state():
     ss = st.session_state
-    ss.setdefault("plan", {"plan_id": "PLN-" + datetime.now().strftime("%y%m%d-%H%M%S"),"plan_title": ""}) # (ย่อ)
+    ss.setdefault("plan", {"plan_id": "PLN-" + datetime.now().strftime("%y%m%d-%H%M%S"),"plan_title": ""})
     logic_cols = ["item_id","plan_id","type","description","metric","unit","target","source"]
     ss.setdefault("logic_items", pd.DataFrame(columns=logic_cols))
     # ... (ส่วนที่เหลือของ init_state เหมือนเดิม) ...
@@ -107,16 +107,16 @@ with tab_plan:
     # ... (โค้ดใน tab_plan เหมือนเดิมทั้งหมด) ...
     pass
 
-#! <<< START: แก้ไข Layout และ Logic ใน Tab นี้ทั้งหมด
+#! <<< START: แก้ไข Logic ใน Tab นี้
 with tab_logic:
     st.subheader("ระบุ Logic Model")
     st.info("""
     **วิธีใช้งาน:** แก้ไขข้อมูลในตารางได้โดยตรง | **เพิ่มแถว** โดยกดปุ่ม 'Add row' ด้านล่าง | **ลบแถว** โดยติ๊ก ✅ หน้าแถวแล้วกด 🗑️
     """)
-
-    # --- 1. ส่วนตารางแก้ไขข้อมูล (Data Editor) ---
+    
     with st.container():
-        edited_df = st.data_editor(
+        # --- 1. ตารางแก้ไขข้อมูล (Data Editor) ---
+        edited_df_from_editor = st.data_editor(
             st.session_state.logic_items,
             column_config={
                 "type": st.column_config.SelectboxColumn("ประเภท", options=["Objective", "Input", "Activity", "Output", "Outcome", "Impact"], required=True),
@@ -130,45 +130,47 @@ with tab_logic:
             },
             use_container_width=True,
             hide_index=True,
-            num_rows="dynamic", # เปิดใช้งานการเพิ่ม/ลบแถวในตัว
+            num_rows="dynamic",
             key="logic_editor"
         )
+        
+        # --- 2. ส่วนจัดการข้อมูลหลังการแก้ไข ---
+        # แปลงผลลัพธ์ที่ได้ (ซึ่งเป็น list of dicts) กลับเป็น DataFrame
+        current_df = pd.DataFrame(edited_df_from_editor)
 
-        # --- ส่วนจัดการข้อมูลหลังการแก้ไข ---
-        if edited_df is not None:
-            for i, row in enumerate(edited_df):
-                # สร้าง ID สำหรับแถวใหม่ที่ยังไม่มี ID
+        # ตรวจสอบและสร้าง ID สำหรับแถวใหม่
+        if not current_df.empty:
+            # สร้าง ID สำหรับแถวใหม่ที่ยังไม่มี ID
+            for i, row in current_df.iterrows():
+                # ใช้ .get() เพื่อป้องกัน KeyErrors ถ้าคอลัมน์ไม่มีอยู่
                 if pd.isna(row.get('item_id')) or row.get('item_id') == '':
-                    temp_df = pd.DataFrame(edited_df).dropna(subset=['item_id'])
-                    edited_df[i]['item_id'] = next_id("LG", temp_df, "item_id")
+                    temp_df = current_df.dropna(subset=['item_id'])
+                    current_df.loc[i, 'item_id'] = next_id("LG", temp_df, "item_id")
                 if pd.isna(row.get('plan_id')) or row.get('plan_id') == '':
-                     edited_df[i]['plan_id'] = plan["plan_id"]
-            
-            st.session_state.logic_items = pd.DataFrame(edited_df)
+                     current_df.loc[i, 'plan_id'] = plan["plan_id"]
 
-        # --- ปุ่ม Reset ที่มุมขวาล่าง ---
+        # บันทึก DataFrame ที่อัปเดตแล้วกลับไปยัง session_state
+        st.session_state.logic_items = current_df
+        
+        # --- 3. ปุ่ม Reset ---
         cols = st.columns([0.85, 0.15])
         with cols[1]:
             if st.button("🧹 ล้างทั้งหมด (Reset)", use_container_width=True):
-                # สร้าง DataFrame ว่างเปล่าที่มีคอลัมน์ครบถ้วน
                 empty_df = pd.DataFrame(columns=st.session_state.logic_items.columns)
                 st.session_state.logic_items = empty_df
                 st.rerun()
 
     st.markdown("---")
 
-    # --- 2. ส่วนแสดง Flowchart ---
+    # --- 4. ส่วนแสดง Flowchart ---
     st.subheader("📊 Flowchart Logic Model")
     with st.container(border=True):
         if not st.session_state.logic_items.empty:
             try:
-                # --- คำนวณความสูงของ Chart แบบ Dynamic ---
-                base_height = 300
-                num_rows = len(st.session_state.logic_items)
+                base_height = 300; num_rows = len(st.session_state.logic_items)
                 num_types = st.session_state.logic_items['type'].nunique()
-                # เพิ่มความสูงตามจำนวนรายการและจำนวนประเภท เพื่อให้มีพื้นที่พอสำหรับกล่อง
                 dynamic_height = base_height + (num_rows * 20) + (num_types * 50)
-                chart_height = min(max(dynamic_height, 400), 1200) # กำหนดความสูงต่ำสุดและสูงสุด
+                chart_height = min(max(dynamic_height, 400), 1200)
                 
                 mermaid_chart = create_mermaid_flowchart(st.session_state.logic_items)
                 st_mermaid(mermaid_chart, height=f"{chart_height}px")
