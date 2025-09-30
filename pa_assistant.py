@@ -258,8 +258,8 @@ st.markdown("""
     body { font-family: 'Kanit', sans-serif; } 
     button[data-baseweb="tab"] {
         border-radius: 10px;
-        padding: 6px 6px;
-        margin: 1px;
+        padding: 8px 8px;
+        margin: 2px;
         font-weight: normal;
         color: white !important; 
         border: none;
@@ -269,7 +269,7 @@ st.markdown("""
     button[data-baseweb="tab"][aria-selected="true"] {
         box-shadow: 0 4px 12px rgba(0,0,0,0.25);
         transform: translateY(-2px);
-        opacity: 0.75;
+        opacity: 0.85;
     }
     button[data-baseweb="tab"]:hover {
         transform: translateY(-1px);
@@ -284,7 +284,7 @@ st.markdown("""
         border-bottom: none !important; 
         margin-bottom: 15px; 
         flex-wrap: wrap; 
-        gap: 2px;
+        gap: 1px;
     } 
     h4 { 
         color: #007bff !important; 
