@@ -20,13 +20,10 @@ with st.sidebar:
     st.info("API Key ถูกตั้งค่าโดยผู้ดูแลระบบผ่าน Streamlit Secrets")
 
     # --- FIX for Streamlit Community Cloud Deployment ---
-    # Streamlit Cloud uses st.secrets to manage keys securely.
     try:
-        # This line attempts to read the secret named "api_key"
         st.session_state.api_key_global = st.secrets["api_key"]
         st.success("API Key ถูกโหลดจากระบบ Secrets เรียบร้อยแล้ว")
     except KeyError:
-        # If the secret is not found, set the key to empty and inform the user.
         st.session_state.api_key_global = ""
         st.error("ไม่พบ API Key ใน Secrets, กรุณาตั้งค่าในหน้าตั้งค่าของแอป")
     except Exception as e:
@@ -46,7 +43,7 @@ def load_local_documents(folder_path="Doc"):
     """อ่านไฟล์ทั้งหมดจากคลังข้อมูล"""
     text = ""
     if not os.path.isdir(folder_path):
-        return text 
+        return text
 
     try:
         files_in_doc = os.listdir(folder_path)
@@ -55,7 +52,7 @@ def load_local_documents(folder_path="Doc"):
             if len(text) >= MAX_CHARS_LIMIT:
                 st.warning(f"ถึงขีดจำกัดข้อมูลแล้ว ({MAX_CHARS_LIMIT:,} ตัวอักษร)")
                 break
-            
+
             file_path = os.path.join(folder_path, filename)
             try:
                 if filename.endswith('.pdf'):
@@ -71,13 +68,13 @@ def load_local_documents(folder_path="Doc"):
                     text += df.head(15).to_string()
             except Exception as e:
                 print(f"Could not read file {filename}: {e}")
-            
+
             progress_bar.progress((i + 1) / len(files_in_doc), text=f"กำลังโหลดเอกสาร... ({i+1}/{len(files_in_doc)})")
         progress_bar.empty()
-                
+
     except Exception as e:
         st.error(f"เกิดข้อผิดพลาดในการเข้าถึงคลังข้อมูล: {e}")
-    
+
     return text[:MAX_CHARS_LIMIT]
 
 def process_documents(files, source_type, limit, current_len=0):
@@ -117,8 +114,8 @@ def init_state():
     ss.setdefault("ref_seed", "")
     ss.setdefault("issue_query_text", "")
     ss.setdefault('api_key_global', '')
-    ss.setdefault("6w2h_output", "") 
-    
+    ss.setdefault("6w2h_output", "")
+
     ss.setdefault('chatbot_messages', [{"role": "assistant", "content": "สวัสดีครับ ผมคือ PA Chat ผู้ช่วยอัจฉริยะ"}])
     ss.setdefault('doc_context_uploaded', "")
     ss.setdefault('last_uploaded_files', set())
@@ -184,14 +181,13 @@ def search_candidates(query_text, findings_df, vec, X, top_k=8):
     out["score"] = out["sim_score"]*0.65 + out["sev_norm"]*0.25 + out["year_norm"]*0.10
     cols = ["finding_id","year","unit","program","issue_title","issue_detail","cause_category","cause_detail","recommendation","outcomes_impact","severity","score", "sim_score"]
     return out.sort_values("score", ascending=False).head(top_k)[[c for c in cols if c in out.columns]]
-    
+
 def create_excel_template():
     df = pd.DataFrame(columns=["finding_id", "issue_title", "unit", "program", "year", "cause_category", "cause_detail", "issue_detail", "recommendation", "outcomes_impact", "severity"])
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer: df.to_excel(writer, index=False, sheet_name='FindingsLibrary')
     return output.getvalue()
 
-#! START: ฟังก์ชันใหม่สำหรับสร้าง Flowchart
 def create_logic_model_flowchart(df: pd.DataFrame):
     """Creates a Graphviz flowchart from a Logic Model DataFrame."""
     dot = graphviz.Digraph('LogicModel', comment='Logic Model Flowchart')
@@ -199,7 +195,6 @@ def create_logic_model_flowchart(df: pd.DataFrame):
     dot.attr('node', shape='box', style='rounded,filled', fontname='Kanit')
     dot.attr('edge', fontname='Kanit')
 
-    # Styles for each node type
     styles = {
         "Input": {"fillcolor": "#a9def9", "shape": "folder"},
         "Activity": {"fillcolor": "#e4c1f9", "shape": "ellipse"},
@@ -210,16 +205,14 @@ def create_logic_model_flowchart(df: pd.DataFrame):
     
     sequence = ["Input", "Activity", "Output", "Outcome", "Impact"]
 
-    # Add nodes for each item in the dataframe
     for _, row in df.iterrows():
         node_id = str(row["item_id"])
-        # Wrap long text for better display
-        desc_wrapped = '\\n'.join(row["description"][i:i+30] for i in range(0, len(row["description"]), 30))
+        description = row["description"] if pd.notna(row["description"]) else ""
+        desc_wrapped = '\\n'.join(description[i:i+30] for i in range(0, len(description), 30))
         node_label = f'{row["type"]}\\n{desc_wrapped}'
         style = styles.get(row["type"], {})
         dot.node(node_id, label=node_label, fillcolor=style.get("fillcolor", "#ffffff"), shape=style.get("shape", "box"))
 
-    # Add edges based on the sequence
     for i in range(len(sequence) - 1):
         current_type = sequence[i]
         next_type = sequence[i+1]
@@ -232,7 +225,6 @@ def create_logic_model_flowchart(df: pd.DataFrame):
                 for to_node in to_nodes:
                     dot.edge(str(from_node), str(to_node))
     return dot
-#! END: ฟังก์ชันใหม่สำหรับสร้าง Flowchart
 
 
 init_state()
@@ -253,41 +245,16 @@ with st.expander("💡 คำแนะนำการใช้งาน"):
 st.markdown("""
 <style> 
     body { font-family: 'Kanit', sans-serif; } 
-    button[data-baseweb="tab"] {
-        border-radius: 10px;
-        padding: 6px 6px;
-        margin: 1px;
-        font-weight: normal;
-        color: white !important; 
-        border: none;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        transition: all 0.2s ease-in-out;
-    }
-    button[data-baseweb="tab"][aria-selected="true"] {
-        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-        transform: translateY(-2px);
-        opacity: 0.75;
-    }
-    button[data-baseweb="tab"]:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 3px 8px rgba(0,0,0,0.15);
-    }
+    button[data-baseweb="tab"] { border-radius: 10px; padding: 6px 6px; margin: 1px; font-weight: normal; color: white !important; border: none; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.2s ease-in-out; }
+    button[data-baseweb="tab"][aria-selected="true"] { box-shadow: 0 4px 12px rgba(0,0,0,0.25); transform: translateY(-2px); opacity: 0.75; }
+    button[data-baseweb="tab"]:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,0.15); }
     div[data-baseweb="tab-list"] button:nth-of-type(-n+5) { background-color: #A93C2D; }
     div[data-baseweb="tab-list"] button:nth-of-type(6), 
     div[data-baseweb="tab-list"] button:nth-of-type(7) { background-color: #4D8076; }
     div[data-baseweb="tab-list"] button:nth-of-type(8) { background-color: #4A6A8A; }
     div[data-baseweb="tab-list"] button:nth-of-type(9) { background-color: #4A6A8A; }
-    div[data-baseweb="tab-list"] { 
-        border-bottom: none !important; 
-        margin-bottom: 15px; 
-        flex-wrap: wrap; 
-        gap: 2px;
-    } 
-    h4 { 
-        color: #007bff !important; 
-        border-bottom: 2px solid #e0e0e0; 
-        padding-bottom: 5px; 
-    } 
+    div[data-baseweb="tab-list"] { border-bottom: none !important; margin-bottom: 15px; flex-wrap: wrap; gap: 2px; } 
+    h4 { color: #007bff !important; border-bottom: 2px solid #e0e0e0; padding-bottom: 5px; } 
 </style>
 """, unsafe_allow_html=True)
 
@@ -351,13 +318,10 @@ How Much: [ข้อความ]
                             top_p=0.9,
                         )
                         llm_output = response.choices[0].message.content
-                        
                         st.session_state["6w2h_output"] = llm_output
-
                         st.success("สร้าง 6W2H เรียบร้อยแล้ว! ผลลัพธ์แสดงอยู่ด้านล่าง")
                         st.balloons()
                         st.rerun()
-
                     except Exception as e:
                         st.error(f"เกิดข้อผิดพลาดในการเรียกใช้ AI: {e}")
 
@@ -383,54 +347,59 @@ How Much: [ข้อความ]
             st.session_state.plan["how"] = st.text_area("How (อย่างไร)", key="how_input")
             st.session_state.plan["how_much"] = st.text_input("How much (เท่าไร)", key="how_much_input")
 
-#! START: แก้ไข Tab Logic Model
+#! <<< START: แก้ไขส่วนนี้ทั้งหมด
 with tab_logic:
     st.subheader("ระบุ Logic Model: Input → Activities → Output → Outcome → Impact")
-    st.info("คุณสามารถแก้ไข เพิ่ม หรือลบข้อมูลได้โดยตรงในตารางด้านล่างนี้")
     
-    # Use st.data_editor to make the dataframe editable
-    edited_logic_df = st.data_editor(
-        logic_df,
-        column_config={
-            "type": st.column_config.SelectboxColumn(
-                "Type",
-                help="ประเภทของรายการใน Logic Model",
-                options=["Input", "Activity", "Output", "Outcome", "Impact"],
-                required=True,
-            )
-        },
-        use_container_width=True,
-        hide_index=True,
-        num_rows="dynamic", # Allow adding and deleting rows
-        key="logic_editor"
-    )
-    # Automatically add Plan ID and generate Item ID for new rows
-    for i, row in edited_logic_df.iterrows():
-        if pd.isna(row['plan_id']) or not row['plan_id']:
-            edited_logic_df.at[i, 'plan_id'] = plan["plan_id"]
-        if pd.isna(row['item_id']) or not row['item_id']:
-             # Create a temporary df excluding the new row to find the next ID
-            temp_df = edited_logic_df.dropna(subset=['item_id'])
-            edited_logic_df.at[i, 'item_id'] = next_id("LG", temp_df, "item_id")
+    # ส่วนแสดงตารางข้อมูล
+    st.dataframe(logic_df, use_container_width=True, hide_index=True)
 
-    # Update the session state with the edited data
-    st.session_state["logic_items"] = edited_logic_df
-    
-    # --- NEW FEATURE: Flowchart Generation ---
+    # ส่วนแสดง Flowchart (จะอัปเดตหลังจากกดปุ่มเพิ่มข้อมูล)
     st.divider()
     st.subheader("📊 Flowchart Logic Model")
-    if not edited_logic_df.empty:
+    if not logic_df.empty:
         with st.container(border=True):
             try:
-                flowchart = create_logic_model_flowchart(edited_logic_df)
+                flowchart = create_logic_model_flowchart(logic_df)
                 st.graphviz_chart(flowchart, use_container_width=True)
             except Exception as e:
                 st.error(f"ไม่สามารถสร้าง Flowchart ได้: {e}")
                 st.warning("สำหรับการใช้งานบนเครื่องส่วนตัว (Local deployment) กรุณาตรวจสอบว่าได้ติดตั้งโปรแกรม Graphviz ในระบบแล้ว")
     else:
-        st.info("กรุณาเพิ่มข้อมูลในตาราง Logic Model ด้านบนเพื่อสร้าง Flowchart")
-    # --- END NEW FEATURE ---
-#! END: แก้ไข Tab Logic Model
+        st.info("กรุณาเพิ่มข้อมูลในแบบฟอร์มด้านล่างเพื่อสร้าง Flowchart")
+
+    # ส่วนสำหรับกรอกข้อมูล (แบบฟอร์มเดิม)
+    with st.expander("➕ เพิ่มรายการใน Logic Model"):
+        with st.container(border=True):
+            colA, colB, colC = st.columns(3)
+            with colA:
+                typ = st.selectbox("ประเภท", ["Input","Activity","Output","Outcome","Impact"], key="logic_type")
+                desc = st.text_input("คำอธิบาย/รายละเอียด", key="logic_desc")
+                metric = st.text_input("ตัวชี้วัด/metric (เช่น จำนวน, สัดส่วน)", key="logic_metric")
+            with colB:
+                unit = st.text_input("หน่วย", value="หน่วย", key="logic_unit")
+                target = st.text_input("เป้าหมาย", value="", key="logic_target")
+            with colC:
+                source = st.text_input("แหล่งข้อมูล", value="", key="logic_source")
+            
+            if st.button("เพิ่ม Logic Item", type="primary", key="add_logic_item_btn"):
+                if desc: # ตรวจสอบว่ามีข้อมูลคำอธิบายหรือไม่
+                    new_row = pd.DataFrame([{
+                        "item_id": next_id("LG", logic_df, "item_id"),
+                        "plan_id": plan["plan_id"],
+                        "type": typ, 
+                        "description": desc, 
+                        "metric": metric,
+                        "unit": unit, 
+                        "target": target, 
+                        "source": source
+                    }])
+                    st.session_state["logic_items"] = pd.concat([logic_df, new_row], ignore_index=True)
+                    st.success("เพิ่มข้อมูลเรียบร้อยแล้ว")
+                    st.rerun()
+                else:
+                    st.warning("กรุณากรอก 'คำอธิบาย/รายละเอียด' ก่อนทำการเพิ่ม")
+#! <<< END: แก้ไขส่วนนี้ทั้งหมด
 
 with tab_method:
     st.subheader("ระบุวิธีการเก็บข้อมูล")
