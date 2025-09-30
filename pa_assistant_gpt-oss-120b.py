@@ -10,7 +10,6 @@ import os
 import io
 from PyPDF2 import PdfReader
 import graphviz
-from streamlit_mermaid import st_mermaid
 
 # ตั้งค่าหน้าเพจ
 st.set_page_config(page_title="Planning Studio (+ Findings Suggestions)", page_icon="🧭", layout="wide")
@@ -49,7 +48,6 @@ def next_id(prefix, df, col):
     n = max(nums) + 1 if nums else 1
     return f"{prefix}-{n:03d}"
 
-#! <<< START: แก้ไขฟังก์ชันนี้เป็น Graphviz + 3Es
 def create_graphviz_flowchart_with_3e(df: pd.DataFrame):
     """
     สร้าง Flowchart ด้วย Graphviz + HTML-like Label และเพิ่มกล่อง 3E
@@ -58,6 +56,11 @@ def create_graphviz_flowchart_with_3e(df: pd.DataFrame):
     dot.attr('graph', rankdir='LR', splines='ortho', bgcolor='transparent', compound='true', fontname='Kanit')
     dot.attr('node', shape='plain', fontname='Kanit')
     dot.attr('edge', fontname='Kanit')
+
+    #! <<< START: แก้ไข - เพิ่ม Dummy Node ที่มองไม่เห็น
+    # โหนดนี้จะช่วยแก้ปัญหาที่โหนดแรกสุดมีขนาดใหญ่ผิดปกติ
+    dot.node('start_node', label='', style='invis', width='0', height='0')
+    #! <<< END: สิ้นสุดการแก้ไข
 
     styles = {
         "Objective": "#E6E6FA", "Input": "#a9def9", "Activity": "#e4c1f9",
@@ -91,33 +94,30 @@ def create_graphviz_flowchart_with_3e(df: pd.DataFrame):
     if len(nodes_exist) > 1:
         dot.edges([(nodes_exist[i], nodes_exist[i+1]) for i in range(len(nodes_exist)-1)])
 
-    # สร้างและเชื่อมโยง 3E
+    # สร้างและเชื่อมโยง 3E (เมื่อมี Node หลัก 3 โหนดขึ้นไป)
     if len(nodes_exist) >= 3:
-        # สร้าง Node ของ 3E
         dot.node('Economy', label='ประหยัด (Economy)', shape='box', style='rounded,filled', fillcolor=styles["E_Box"])
         dot.node('Efficiency', label='ประสิทธิภาพ (Efficiency)', shape='box', style='rounded,filled', fillcolor=styles["E_Box"])
         dot.node('Effectiveness', label='ประสิทธิผล (Effectiveness)', shape='box', style='rounded,filled', fillcolor=styles["E_Box"])
 
         # เชื่อมโยงเส้น
         if "Input" in nodes_exist:
-            dot.edge('Economy', 'Input')
+            dot.edge('Economy', 'Input', style='dashed')
         if "Input" in nodes_exist and "Output" in nodes_exist:
-            dot.edge('Input', 'Efficiency', ltail='cluster_main', lhead='cluster_3e') # Example, might need adjustment
-            dot.edge('Efficiency', 'Output', ltail='cluster_3e', lhead='cluster_main')
-            # A simpler way without clusters:
-            dot.edge('Input', 'Efficiency', style='dashed', arrowhead='none')
-            dot.edge('Efficiency', 'Output', style='dashed', arrowhead='none')
-
-
-        if "Objective" in nodes_exist: dot.edge('Objective', 'Effectiveness', style='dashed', dir='back')
-        if "Output" in nodes_exist: dot.edge('Output', 'Effectiveness', style='dashed', dir='back')
-        if "Outcome" in nodes_exist: dot.edge('Effectiveness', 'Outcome', style='dashed')
-        if "Impact" in nodes_exist: dot.edge('Effectiveness', 'Impact', style='dashed')
-
-
+            dot.edge('Input', 'Efficiency', style='dashed')
+            dot.edge('Efficiency', 'Output', style='dashed')
+        if "Objective" in nodes_exist:
+            dot.edge('Objective', 'Effectiveness', style='dashed')
+        if "Output" in nodes_exist:
+            dot.edge('Output', 'Effectiveness', style='dashed')
+        if "Outcome" in nodes_exist:
+            dot.edge('Effectiveness', 'Outcome', style='dashed')
+        if "Impact" in nodes_exist:
+            dot.edge('Effectiveness', 'Impact', style='dashed')
+            
     return dot
-#! <<< END: สิ้นสุดการแก้ไขฟังก์ชัน
 
+# --- Main App ---
 init_state()
 plan = st.session_state.get("plan", {})
 logic_df = st.session_state.get("logic_items", pd.DataFrame())
@@ -131,7 +131,7 @@ tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_
 ])
 
 with tab_plan:
-    # ... (ส่วนนี้เหมือนเดิม)
+    # ... (โค้ดส่วนนี้เหมือนเดิม)
     pass
 
 with tab_logic:
@@ -196,7 +196,6 @@ with tab_logic:
     with st.container(border=True):
         if not st.session_state.logic_items.empty:
             try:
-                # เปลี่ยนมาเรียกใช้ st.graphviz_chart
                 graphviz_chart = create_graphviz_flowchart_with_3e(st.session_state.logic_items)
                 st.graphviz_chart(graphviz_chart, use_container_width=True)
             except Exception as e:
