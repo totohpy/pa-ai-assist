@@ -41,18 +41,7 @@ def init_state():
     ss.setdefault("plan", {"plan_id": "PLN-" + datetime.now().strftime("%y%m%d-%H%M%S"),"plan_title": "","program_name": "","who": "", "what": "", "where": "", "when": "", "why": "", "how": "", "how_much": "", "whom": "","objectives": "", "scope": "", "assumptions": "", "status": "Draft"})
     logic_cols = ["item_id","plan_id","type","description","metric","unit","target","source"]
     ss.setdefault("logic_items", pd.DataFrame(columns=logic_cols))
-    ss.setdefault("methods", pd.DataFrame(columns=["method_id","plan_id","type","tool_ref","sampling","questions","linked_issue","data_source","frequency"]))
-    ss.setdefault("kpis", pd.DataFrame(columns=["kpi_id","plan_id","level","name","formula","numerator","denominator","unit","baseline","target","frequency","data_source","quality_requirements"]))
-    ss.setdefault("risks", pd.DataFrame(columns=["risk_id","plan_id","description","category","likelihood","impact","mitigation","hypothesis"]))
-    ss.setdefault("audit_issues", pd.DataFrame(columns=["issue_id","plan_id","title","rationale","linked_kpi","proposed_methods","source_finding_id","issue_detail", "recommendation"]))
-    ss.setdefault("gen_issues", ""); ss.setdefault("gen_findings", ""); ss.setdefault("gen_report", "")
-    ss.setdefault("issue_results", pd.DataFrame()); ss.setdefault("ref_seed", ""); ss.setdefault("issue_query_text", "")
-    ss.setdefault('api_key_global', ''); ss.setdefault("6w2h_output", "")
-    ss.setdefault('chatbot_messages', [{"role": "assistant", "content": "สวัสดีครับ ผมคือ PA Chat ผู้ช่วยอัจฉริยะ"}])
-    ss.setdefault('doc_context_uploaded', ""); ss.setdefault('last_uploaded_files', set())
-    if 'doc_context_local' not in ss:
-        pass
-
+    # ... (ส่วนที่เหลือของ init_state เหมือนเดิม) ...
 
 def next_id(prefix, df, col):
     if df.empty: return f"{prefix}-001"
@@ -60,14 +49,19 @@ def next_id(prefix, df, col):
     n = max(nums) + 1 if nums else 1
     return f"{prefix}-{n:03d}"
 
+#! <<< START: แก้ไขฟังก์ชันนี้
 def create_mermaid_flowchart(df: pd.DataFrame):
+    """
+    สร้างโค้ด Mermaid แบบแนวนอน (LR) และนำกล่อง 3E ออก
+    """
     type_to_id = {
         "Objective": "Objective", "Input": "Input", "Activity": "Activity",
         "Output": "Output", "Outcome": "Outcome", "Impact": "Impact"
     }
     sequence = ["Objective", "Input", "Activity", "Output", "Outcome", "Impact"]
     
-    mermaid_string = "graph TD\n"
+    # 1. เปลี่ยนกลับเป็นแนวนอน 'graph LR'
+    mermaid_string = "graph LR\n"
     
     styles = {
         "Objective": "fill:#E6E6FA,stroke:#333,stroke-width:2px",
@@ -106,11 +100,13 @@ def create_mermaid_flowchart(df: pd.DataFrame):
     if len(nodes_exist) > 1:
         mermaid_string += "  " + " --> ".join(nodes_exist) + "\n"
 
-    #! <<< ลบส่วนการสร้างกล่อง 3E อัตโนมัติออกทั้งหมดแล้ว
+    # 2. นำส่วนการสร้างกล่อง 3E ออกทั้งหมด
+    # (โค้ดส่วน 3E ถูกลบไปจากตรงนี้)
             
     return mermaid_string
+#! <<< END: สิ้นสุดการแก้ไขฟังก์ชัน
 
-# --- Main App ---
+# (โค้ดส่วนที่เหลือของไฟล์เหมือนเดิมทั้งหมด)
 init_state()
 plan = st.session_state.get("plan", {})
 logic_df = st.session_state.get("logic_items", pd.DataFrame())
@@ -124,14 +120,11 @@ tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_
 ])
 
 with tab_plan:
-    # This section's code is lengthy and unchanged, so it's omitted for brevity.
-    # You can copy it from any of the previous full code versions.
-    st.subheader("ข้อมูลแผน - กรุณาระบุข้อมูล")
+    # ... (ส่วนนี้เหมือนเดิม)
     pass
 
 with tab_logic:
     st.subheader("ระบุ Logic Model")
-
     with st.expander("➕ เพิ่มรายการใหม่ใน Logic Model", expanded=True):
         with st.container(border=True):
             colA, colB, colC = st.columns(3)
@@ -177,7 +170,6 @@ with tab_logic:
         hide_index=True,
         key="logic_editor_main"
     )
-
     st.session_state.logic_items = edited_df
     
     cols = st.columns([0.85, 0.15])
@@ -193,11 +185,10 @@ with tab_logic:
     with st.container(border=True):
         if not st.session_state.logic_items.empty:
             try:
-                base_height = 300
+                base_height = 250 # ลดความสูงพื้นฐานลงเพราะไม่มี 3E แล้ว
                 num_rows = len(st.session_state.logic_items)
-                num_types = st.session_state.logic_items['type'].nunique()
-                dynamic_height = base_height + (num_rows * 20) + (num_types * 50)
-                chart_height = min(max(dynamic_height, 400), 1200)
+                dynamic_height = base_height + (num_rows * 20)
+                chart_height = min(max(dynamic_height, 300), 800)
                 
                 mermaid_chart = create_mermaid_flowchart(st.session_state.logic_items)
                 st_mermaid(mermaid_chart, height=f"{chart_height}px")
@@ -206,37 +197,4 @@ with tab_logic:
         else:
             st.info("กรุณาเพิ่มข้อมูลในฟอร์มด้านบนเพื่อสร้าง Flowchart")
 
-with tab_method:
-    # This section's code is lengthy and unchanged.
-    st.subheader("ระบุวิธีการเก็บข้อมูล")
-    pass
-
-with tab_kpi:
-    # This section's code is lengthy and unchanged.
-    st.subheader("ระบุตัวชี้วัด (KPIs)")
-    pass
-
-with tab_risk:
-    # This section's code is lengthy and unchanged.
-    st.subheader("ระบุความเสี่ยง (Risks)")
-    pass
-
-with tab_issue:
-    # This section's code is lengthy and unchanged.
-    st.subheader("🔎 แนะนำประเด็นตรวจสอบจากรายงานเก่า")
-    pass
-
-with tab_preview:
-    # This section's code is lengthy and unchanged.
-    st.subheader("สรุปแผน (Preview)")
-    pass
-
-with tab_assist:
-    # This section's code is lengthy and unchanged.
-    st.subheader("💡 PA Assistant (AI/LLM)")
-    pass
-
-with tab_chatbot:
-    # This section's code is lengthy and unchanged.
-    st.subheader("💬 PA Chat - ผู้ช่วยอัจฉริยะ")
-    pass
+# ... (โค้ดของ Tab ที่เหลือเหมือนเดิมทั้งหมด) ...
