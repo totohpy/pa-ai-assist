@@ -172,7 +172,7 @@ def create_detailed_logic_model_flowchart(df: pd.DataFrame):
 #! <<< START: แก้ไขฟังก์ชันนี้ใหม่ทั้งหมด
 def create_grouped_logic_model_flowchart(df: pd.DataFrame):
     """
-    สร้าง Flowchart แบบรวมกลุ่ม โดยจัด Layout ใหม่เป็นแนวตั้งและรวมข้อมูลทั้งหมด
+    สร้าง Flowchart แบบรวมกลุ่ม โดยปรับปรุง Layout และรูปแบบข้อความให้อ่านง่าย
     """
     dot = graphviz.Digraph('LogicModelGrouped', comment='Grouped Logic Model Flowchart')
     dot.attr('graph', rankdir='LR', splines='ortho', bgcolor='transparent')
@@ -190,26 +190,23 @@ def create_grouped_logic_model_flowchart(df: pd.DataFrame):
             description_lines = []
             for _, row in items_df.iterrows():
                 # ดึงข้อมูลและแปลงเป็น string ป้องกันค่าว่าง
-                desc = str(row.get('description', ''))
-                metric = str(row.get('metric', ''))
-                target = str(row.get('target', ''))
-                unit = str(row.get('unit', ''))
+                desc = str(row.get('description', '') or '')
+                metric = str(row.get('metric', '') or '')
+                target = str(row.get('target', '') or '')
+                unit = str(row.get('unit', '') or '')
                 
-                # สร้างข้อความแต่ละบรรทัด
-                line = f"• {desc}"
-                if metric:
-                    line += f" ({metric})"
+                # จัดลำดับความสำคัญของตัวเลข: ใช้ target ก่อน ถ้าว่างถึงใช้ metric
+                number = target if target else metric
                 
-                # เพิ่ม target และ unit ถ้ามี
-                target_unit_part = []
-                if target:
-                    target_unit_part.append(target)
+                # สร้างข้อความแต่ละบรรทัดในรูปแบบ "• Description Number Unit"
+                line_parts = [f"• {desc}"]
+                if number:
+                    line_parts.append(number)
                 if unit:
-                    target_unit_part.append(unit)
+                    line_parts.append(unit)
                 
-                if target_unit_part:
-                    line += f": {' '.join(target_unit_part)}"
-
+                line = " ".join(part for part in line_parts if part)
+                
                 # เพิ่มโค้ด \l เพื่อจัดชิดซ้าย
                 description_lines.append(line.strip() + '\\l')
 
@@ -290,7 +287,22 @@ with tab_plan:
             else:
                 with st.spinner("กำลังประมวลผล..."):
                     try:
-                        user_prompt = f"จากข้อความด้านล่างนี้ กรุณาสรุปและแยกแยะข้อมูลให้เป็น 6W2H ...\nข้อความ:\n---\n{uploaded_text}\n---\n..."
+                        user_prompt = f"""
+จากข้อความด้านล่างนี้ กรุณาสรุปและแยกแยะข้อมูลให้เป็น 6W2H ได้แก่ Who, Whom, What, Where, When, Why, How, และ How much โดยให้อยู่ในรูปแบบ key-value ที่ชัดเจน
+ข้อความ:
+---
+{uploaded_text}
+---
+รูปแบบที่ต้องการ:
+Who: [ข้อความ]
+Whom: [ข้อความ]
+What: [ข้อความ]
+Where: [ข้อความ]
+When: [ข้อความ]
+Why: [ข้อความ]
+How: [ข้อความ]
+How Much: [ข้อความ]
+"""
                         client = OpenAI(api_key=st.session_state.api_key_global, base_url="https://api.groq.com/openai/v1")
                         response = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": user_prompt}], temperature=0.7, max_tokens=1024, top_p=0.9)
                         st.session_state["6w2h_output"] = response.choices[0].message.content
@@ -342,7 +354,7 @@ with tab_logic:
             with colA:
                 typ = st.selectbox("ประเภท", ["Input","Activity","Output","Outcome","Impact"], key="logic_type")
                 desc = st.text_input("คำอธิบาย/รายละเอียด", key="logic_desc")
-                metric = st.text_input("ตัวชี้วัด/metric (เช่น จำนวน, สัดส่วน)", key="logic_metric")
+                metric = st.text_input("ตัวชี้วัด/metric", key="logic_metric")
             with colB:
                 unit = st.text_input("หน่วย", value="", key="logic_unit")
                 target = st.text_input("เป้าหมาย", value="", key="logic_target")
@@ -357,7 +369,6 @@ with tab_logic:
                 else:
                     st.warning("กรุณากรอก 'คำอธิบาย/รายละเอียด' ก่อนทำการเพิ่ม")
 
-# ... (โค้ดส่วนที่เหลือของ tab_method, tab_kpi, etc. เหมือนเดิมทั้งหมด) ...
 with tab_method:
     st.subheader("ระบุวิธีการเก็บข้อมูล")
     st.dataframe(methods_df, use_container_width=True, hide_index=True)
@@ -400,16 +411,158 @@ with tab_risk:
 
 with tab_issue:
     st.subheader("🔎 แนะนำประเด็นตรวจสอบจากรายงานเก่า")
-    # ... (the rest of the code is unchanged)
-    
+    with st.expander("อัปโหลดและจัดการฐานข้อมูลข้อตรวจพบ"):
+        st.write("คุณสามารถอัปโหลดไฟล์ .csv หรือ .xlsx ที่มีข้อมูลข้อตรวจพบเพื่อใช้ในการค้นหา")
+        st.download_button(label="⬇️ ดาวน์โหลดไฟล์แม่แบบ FindingsLibrary.xlsx", data=create_excel_template(), file_name="FindingsLibrary.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        uploaded = st.file_uploader("อัปโหลด FindingsLibrary.csv หรือ .xlsx", type=["csv", "xlsx", "xls"], label_visibility="collapsed")
+    findings_df = load_findings(uploaded=uploaded)
+    if findings_df.empty: st.info("ไม่พบข้อมูล Findings โปรดอัปโหลดไฟล์")
+    else:
+        st.success(f"พบข้อมูล Findings ทั้งหมด {len(findings_df)} รายการ"); vec, X = build_tfidf_index(findings_df)
+        seed = f"""
+Who:{plan.get('who','')} What:{plan.get('what','')} Where:{plan.get('where','')}
+When:{plan.get('when','')} Why:{plan.get('why','')} Whom:{plan.get('whom','')} How:{plan.get('how','')}
+Outputs:{' | '.join(logic_df[logic_df['type']=='Output']['description'].tolist())}
+Outcomes:{' | '.join(logic_df[logic_df['type']=='Outcome']['description'].tolist())}
+"""
+        def refresh_query_text(new_seed):
+            st.session_state["issue_query_text"] = new_seed
+            st.session_state["ref_seed"] = new_seed 
+        if "issue_query_text" not in st.session_state or st.session_state["issue_query_text"] == "":
+            st.session_state["issue_query_text"] = seed
+            st.session_state["ref_seed"] = seed
+        elif st.session_state.get("ref_seed") != seed and st.session_state.get("issue_query_text") == st.session_state.get("ref_seed"):
+            st.session_state["issue_query_text"] = seed
+            st.session_state["ref_seed"] = seed 
+        c_query_area, c_refresh_btn = st.columns([6, 1])
+        with c_query_area:
+            query_text = st.text_area("**Context ที่ใช้ค้นหา (แก้ไขได้):**", st.session_state["issue_query_text"], height=140, key="issue_query_text")
+        with c_refresh_btn:
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.button("🔄", on_click=refresh_query_text, args=(seed,), help="คลิกเพื่ออัปเดตช่องค้นหาด้วยข้อมูลล่าสุด", type="secondary")
+        top_k_slider = st.slider("ปรับจำนวนผลลัพธ์:", min_value=1, max_value=20, value=8)
+        if st.button("ค้นหาประเด็นที่ใกล้เคียง", type="primary", key="search_button_fix"):
+            search_value = st.session_state.get("issue_query_text", seed)
+            results = search_candidates(search_value, findings_df, vec, X, top_k=top_k_slider)
+            st.session_state["issue_results"] = results
+            st.success(f"พบประเด็นที่เกี่ยวข้อง {len(results)} รายการ")
+        results = st.session_state.get("issue_results", pd.DataFrame())
+        if not results.empty:
+            st.divider()
+            st.subheader("ผลลัพธ์การค้นหา")
+            for i, row in results.reset_index(drop=True).iterrows():
+                with st.container(border=True):
+                    title_txt = row.get("issue_title", "(ไม่มีชื่อประเด็น)")
+                    year_txt = int(row["year"]) if "year" in row and str(row["year"]).isdigit() else row.get("year", "-")
+                    st.markdown(f"**{title_txt}** \nหน่วย: {row.get('unit', '-')} • โครงการ: {row.get('program', '-')} • ปี: {year_txt}")
+                    st.caption(f"สาเหตุ: *{row.get('cause_category', '-')}* — {row.get('cause_detail', '-')}")
+                    with st.expander("รายละเอียด/ข้อเสนอแนะเดิม"):
+                        st.write(row.get("issue_detail", "-"))
+                        st.caption("ข้อเสนอแนะเดิม: " + (row.get("recommendation", "") or "-"))
+                        st.markdown(f"**ผลกระทบ:** {row.get('outcomes_impact','-')}  •  <span style='color:red;'>**คะแนนความเกี่ยวข้อง**</span>: {row.get('score',0):.3f} (<span style='color:blue;'>**Similarity**</span>={row.get('sim_score',0):.3f})", unsafe_allow_html=True)
+                        st.caption("💡 **คำอธิบาย:** คะแนนความเกี่ยวข้อง = ความคล้ายคลึงข้อความ + ความรุนแรง + ความใหม่")
+                    c1, c2 = st.columns([3,1])
+                    with c1:
+                        st.text_area("เหตุผลที่ควรตรวจ", key=f"rat_{i}", value=f"อ้างอิงกรณีเดิม ปี {year_txt} | หน่วย: {row.get('unit', '-')}")
+                        st.text_input("KPI ที่เกี่ยว (ถ้ามี)", key=f"kpi_{i}")
+                        st.text_input("วิธีเก็บข้อมูลที่เสนอ", key=f"mth_{i}", value="สัมภาษณ์/สังเกต/ตรวจเอกสาร")
+                    with c2:
+                        if st.button("➕ เพิ่มเป็นประเด็นตรวจสอบ", key=f"add_{i}", type="secondary"):
+                            new_row = pd.DataFrame([{"issue_id": next_id("ISS", audit_issues_df, "issue_id"),"plan_id": plan.get("plan_id",""),"title": title_txt,"rationale": st.session_state.get(f"rat_{i}", ""),"linked_kpi": st.session_state.get(f"kpi_{i}", ""),"proposed_methods": st.session_state.get(f"mth_{i}", ""),"source_finding_id": row.get("finding_id", ""),"issue_detail": row.get("issue_detail", ""),"recommendation": row.get("recommendation", "")}])
+                            st.session_state["audit_issues"] = pd.concat([audit_issues_df, new_row], ignore_index=True)
+                            st.success("เพิ่มประเด็นเข้าแผนแล้ว ✅"); st.rerun()
+        if not st.session_state.get("issue_results", pd.DataFrame()).empty: st.divider()
+        st.markdown("### ประเด็นที่เพิ่มเข้าแผน")
+        st.dataframe(st.session_state["audit_issues"], use_container_width=True, hide_index=True)
+
 with tab_preview:
     st.subheader("สรุปแผน (Preview)")
-    # ... (the rest of the code is unchanged)
-    
+    with st.container(border=True): st.markdown(f"**Plan ID:** {plan['plan_id']}  \n**ชื่อแผน:** {plan['plan_title']}  \n**โครงการ:** {plan['program_name']}  \n**หน่วยรับตรวจ:** {plan['who']}")
+    st.markdown("### สรุปเรื่องที่ตรวจสอบ (จาก 6W2H)")
+    with st.container(border=True): st.markdown(f"- **Who**: {plan['who']}\n- **Whom**: {plan['whom']}\n- **What**: {plan['what']}\n- **Where**: {plan['where']}\n- **When**: {plan['when']}\n- **Why**: {plan['why']}\n- **How**: {plan['how']}\n- **How much**: {plan['how_much']}")
+    c1, c2 = st.columns(2)
+    with c1: st.markdown("### Logic Model"); st.dataframe(st.session_state["logic_items"], use_container_width=True, hide_index=True); df_download_link(st.session_state["logic_items"], "logic_items.csv", "⬇️ ดาวน์โหลด Logic Items (CSV)")
+    with c2: st.markdown("### Methods"); st.dataframe(st.session_state["methods"], use_container_width=True, hide_index=True); df_download_link(st.session_state["methods"], "methods.csv", "⬇️ ดาวน์โหลด Methods (CSV)")
+    c3, c4 = st.columns(2)
+    with c3: st.markdown("### KPIs"); st.dataframe(st.session_state["kpis"], use_container_width=True, hide_index=True); df_download_link(st.session_state["kpis"], "kpis.csv", "⬇️ ดาวน์โหลด KPIs (CSV)")
+    with c4: st.markdown("### Risks"); st.dataframe(st.session_state["risks"], use_container_width=True, hide_index=True); df_download_link(st.session_state["risks"], "risks.csv", "⬇️ ดาวน์โหลด Risks (CSV)")
+    st.markdown("### ประเด็นตรวจสอบที่เพิ่มเข้ามา")
+    if not st.session_state["audit_issues"].empty:
+        display_issues_df = st.session_state["audit_issues"].copy().rename(columns={"issue_id": "รหัสประเด็น", "title": "ชื่อประเด็น","rationale": "เหตุผล", "issue_detail": "รายละเอียด","recommendation": "ข้อเสนอแนะ"})
+        display_cols = ["รหัสประเด็น", "ชื่อประเด็น", "เหตุผล", "รายละเอียด", "ข้อเสนอแนะ"]
+        st.dataframe(display_issues_df[display_cols], use_container_width=True, hide_index=True)
+    else: st.info("ยังไม่มีประเด็นตรวจสอบที่เพิ่มเข้ามาในแผน")
+    if not st.session_state["audit_issues"].empty: df_download_link(st.session_state["audit_issues"], "audit_issues.csv", "⬇️ ดาวน์โหลด Audit Issues (CSV)")
+    st.divider(); plan_df = pd.DataFrame([plan]); df_download_link(plan_df, "plan.csv", "⬇️ ดาวน์โหลด Plan (CSV)")
+    st.success("พร้อมเชื่อมต่อ 🤖 PA Assistant เพื่อแนะนำประเด็นตรวจสอบ ✨✨")
+
 with tab_assist:
     st.subheader("💡 PA Assistant (AI/LLM)")
-    # ... (the rest of the code is unchanged)
-    
+    st.write("🤖 สร้างคำแนะนำประเด็นตรวจสอบจาก AI")
+    if st.button("🚀 สร้างคำแนะนำจาก AI", type="primary", key="llm_assist_button"):
+        if not st.session_state.api_key_global: st.error("กรุณาตั้งค่า API Key ใน sidebar ก่อน")
+        else:
+            with st.spinner("กำลังสร้างคำแนะนำ..."):
+                try:
+                    issues_for_llm = st.session_state['audit_issues'][['title', 'rationale']]
+                    plan_summary = f"""..."""
+                    user_prompt = f"""..."""
+                    client = OpenAI(api_key=st.session_state.api_key_global, base_url="https://api.groq.com/openai/v1")
+                    messages = [{"role": "system", "content": "คุณคือผู้เชี่ยวชาญด้านการตรวจสอบผลสัมฤทธิ์ (Performance Auditing)"}, {"role": "user", "content": user_prompt}]
+                    response = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=messages, temperature=0.7, max_tokens=2048)
+                    full_response = response.choices[0].message.content
+                    # Parsing logic...
+                    st.success("สร้างคำแนะนำจาก AI เรียบร้อยแล้ว ✅")
+                except Exception as e:
+                    st.error(f"เกิดข้อผิดพลาดในการเรียกใช้ AI: {e}")
+                    st.session_state["gen_issues"] = ""; st.session_state["gen_findings"] = ""; st.session_state["gen_report"] = ""
+    st.subheader("ผลลัพธ์จาก AI")
+    with st.expander("1. ประเด็นตรวจสอบที่ควรให้ความสำคัญ", expanded=True): st.write(st.session_state.get('gen_issues', "ยังไม่มีข้อมูล กด 'สร้างคำแนะนำจาก AI' เพื่อเริ่มต้น"))
+    with st.expander("2. ข้อตรวจพบที่คาดว่าจะพบ"): st.write(st.session_state.get('gen_findings', "ยังไม่มีข้อมูล"))
+    with st.expander("3. ร่างรายงานตรวจสอบ (Preview)"): st.write(st.session_state.get('gen_report', "ยังไม่มีข้อมูล"))
+
 with tab_chatbot:
     st.subheader("💬 PA Chat - ผู้ช่วยอัจฉริยะ")
-    # ... (the rest of the code is unchanged)
+    with st.expander("อัปโหลดเอกสารเพิ่มเติม (PDF, TXT, CSV)"):
+        st.info("ข้อมูลจากไฟล์ที่อัปโหลดจะถูกใช้ในการตอบคำถาม")
+        uploaded_files = st.file_uploader("เลือกไฟล์...", type=['pdf', 'txt', 'csv'], accept_multiple_files=True, label_visibility="collapsed")
+    current_uploaded_file_names = {f.name for f in uploaded_files}
+    if uploaded_files and st.session_state.get('last_uploaded_files') != current_uploaded_file_names:
+        with st.spinner("กำลังประมวลผลเอกสาร..."):
+            st.session_state.doc_context_uploaded, _ = process_documents(uploaded_files, 'uploaded', MAX_CHARS_LIMIT, len(st.session_state.get('doc_context_local', '')))
+            st.session_state.last_uploaded_files = current_uploaded_file_names
+            st.session_state.chatbot_messages.append({"role": "assistant", "content": "อัปเดตเอกสารใหม่แล้ว"}); st.rerun()
+    elif not uploaded_files and st.session_state.doc_context_uploaded:
+        st.session_state.doc_context_uploaded = ""; st.session_state.last_uploaded_files = set()
+        st.session_state.chatbot_messages.append({"role": "assistant", "content": "ล้างเอกสารที่อัปโหลดแล้ว"}); st.rerun()
+    local_len = len(st.session_state.get('doc_context_local', '')); uploaded_len = len(st.session_state.get('doc_context_uploaded', ''))
+    with st.expander("ดูรายละเอียด Context"):
+        if local_len > 0: st.info(f"💾 เนื้อหาจากคลังข้อมูล: {local_len:,} ตัวอักษร")
+        if uploaded_len > 0: st.info(f"📤 เนื้อหาจากไฟล์ที่อัปโหลด: {uploaded_len:,} ตัวอักษร")
+        st.success(f"✅ เนื้อหารวมทั้งหมด: {(local_len + uploaded_len):,} ตัวอักษร (สูงสุด: {MAX_CHARS_LIMIT:,})")
+    chat_container = st.container(height=500, border=True)
+    with chat_container:
+        for message in st.session_state.chatbot_messages:
+            with st.chat_message(message["role"]): st.markdown(message["content"])
+    if prompt := st.chat_input("พิมพ์คำถามของคุณ...", key="chat_input_main"):
+        st.session_state.chatbot_messages.append({"role": "user", "content": prompt})
+        with chat_container:
+            with st.chat_message("user"): st.markdown(prompt)
+            with st.chat_message("assistant"):
+                message_placeholder = st.empty()
+                api_key = st.session_state.api_key_global
+                if not api_key:
+                    error_message = "เกิดข้อผิดพลาด: ไม่พบ API Key กรุณาติดต่อผู้ดูแลระบบ"
+                    message_placeholder.error(error_message); st.session_state.chatbot_messages.append({"role": "assistant", "content": error_message})
+                else:
+                    try:
+                        doc_context = st.session_state.get('doc_context_local', '') + st.session_state.get('doc_context_uploaded', '')
+                        system_prompt = f"""..."""
+                        messages_for_api = [{"role": "system", "content": system_prompt}] + st.session_state.chatbot_messages[-10:]
+                        client = OpenAI(api_key=api_key, base_url="https://api.groq.com/openai/v1")
+                        response_stream = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=messages_for_api, temperature=0.5, max_tokens=3072, stream=True)
+                        response = message_placeholder.write_stream(response_stream)
+                        st.session_state.chatbot_messages.append({"role": "assistant", "content": response})
+                    except Exception as e:
+                        error_message = f"เกิดข้อผิดพลาดขณะประมวลผล: {e}"
+                        message_placeholder.error(error_message); st.session_state.chatbot_messages.append({"role": "assistant", "content": error_message})
