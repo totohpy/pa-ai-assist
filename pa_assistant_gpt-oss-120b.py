@@ -107,62 +107,70 @@ with tab_plan:
     # ... (โค้ดใน tab_plan เหมือนเดิมทั้งหมด) ...
     pass
 
-#! <<< START: แก้ไข Logic ใน Tab นี้
+#! <<< START: แก้ไข Layout และ Logic ใน Tab นี้ทั้งหมด
 with tab_logic:
     st.subheader("ระบุ Logic Model")
-    st.info("""
-    **วิธีใช้งาน:** แก้ไขข้อมูลในตารางได้โดยตรง | **เพิ่มแถว** โดยกดปุ่ม 'Add row' ด้านล่าง | **ลบแถว** โดยติ๊ก ✅ หน้าแถวแล้วกด 🗑️
-    """)
+
+    # --- 1. ส่วน "เพิ่ม" ข้อมูล (ฟอร์มแบบเดิม) ---
+    with st.expander("➕ เพิ่มรายการใหม่ใน Logic Model", expanded=True):
+        with st.container(border=True):
+            colA, colB, colC = st.columns(3)
+            with colA:
+                typ = st.selectbox("ประเภท", ["Objective", "Input", "Activity", "Output", "Outcome", "Impact"], key="logic_type")
+                desc = st.text_input("คำอธิบาย/รายละเอียด", key="logic_desc")
+                metric = st.text_input("ตัวชี้วัด/metric", key="logic_metric")
+            with colB:
+                unit = st.text_input("หน่วย", value="", key="logic_unit")
+                target = st.text_input("เป้าหมาย", value="", key="logic_target")
+            with colC:
+                source = st.text_input("แหล่งข้อมูล", value="", key="logic_source")
+            
+            if st.button("เพิ่ม Logic Item", type="primary", key="add_logic_item_btn"):
+                if desc:
+                    new_row = pd.DataFrame([{"item_id": next_id("LG", st.session_state.logic_items, "item_id"), "plan_id": plan["plan_id"], "type": typ, "description": desc, "metric": metric, "unit": unit, "target": target, "source": source}])
+                    st.session_state.logic_items = pd.concat([st.session_state.logic_items, new_row], ignore_index=True)
+                    st.success("เพิ่มข้อมูลเรียบร้อยแล้ว"); st.rerun()
+                else:
+                    st.warning("กรุณากรอก 'คำอธิบาย/รายละเอียด' ก่อนทำการเพิ่ม")
     
-    with st.container():
-        # --- 1. ตารางแก้ไขข้อมูล (Data Editor) ---
-        edited_df_from_editor = st.data_editor(
-            st.session_state.logic_items,
-            column_config={
-                "type": st.column_config.SelectboxColumn("ประเภท", options=["Objective", "Input", "Activity", "Output", "Outcome", "Impact"], required=True),
-                "description": st.column_config.TextColumn("คำอธิบาย/รายละเอียด", required=True),
-                "metric": st.column_config.TextColumn("ตัวชี้วัด/metric"),
-                "target": st.column_config.TextColumn("เป้าหมาย"),
-                "unit": st.column_config.TextColumn("หน่วย"),
-                "source": st.column_config.TextColumn("แหล่งข้อมูล"),
-                "item_id": st.column_config.TextColumn("ID", disabled=True),
-                "plan_id": st.column_config.TextColumn("Plan ID", disabled=True),
-            },
-            use_container_width=True,
-            hide_index=True,
-            num_rows="dynamic",
-            key="logic_editor"
-        )
-        
-        # --- 2. ส่วนจัดการข้อมูลหลังการแก้ไข ---
-        # แปลงผลลัพธ์ที่ได้ (ซึ่งเป็น list of dicts) กลับเป็น DataFrame
-        current_df = pd.DataFrame(edited_df_from_editor)
+    st.markdown("---")
+    
+    # --- 2. ส่วน "แสดงผลและแก้ไข" ข้อมูล (Data Editor) ---
+    st.markdown("##### 📝 ตาราง Logic Model (สามารถแก้ไขหรือลบแถวได้โดยตรง)")
+    
+    # ใช้ Data Editor สำหรับการแก้ไขและลบ แต่ไม่ใช้สำหรับเพิ่มแถว (num_rows="dynamic" ถูกเอาออก)
+    edited_df = st.data_editor(
+        st.session_state.logic_items,
+        column_config={
+            "type": st.column_config.SelectboxColumn("ประเภท", options=["Objective", "Input", "Activity", "Output", "Outcome", "Impact"], required=True),
+            "description": st.column_config.TextColumn("คำอธิบาย/รายละเอียด", required=True),
+            "metric": st.column_config.TextColumn("ตัวชี้วัด/metric"),
+            "target": st.column_config.TextColumn("เป้าหมาย"),
+            "unit": st.column_config.TextColumn("หน่วย"),
+            "source": st.column_config.TextColumn("แหล่งข้อมูล"),
+            "item_id": st.column_config.TextColumn("ID", disabled=True),
+            "plan_id": st.column_config.TextColumn("Plan ID", disabled=True),
+        },
+        use_container_width=True,
+        hide_index=True,
+        key="logic_editor_main"
+    )
 
-        # ตรวจสอบและสร้าง ID สำหรับแถวใหม่
-        if not current_df.empty:
-            # สร้าง ID สำหรับแถวใหม่ที่ยังไม่มี ID
-            for i, row in current_df.iterrows():
-                # ใช้ .get() เพื่อป้องกัน KeyErrors ถ้าคอลัมน์ไม่มีอยู่
-                if pd.isna(row.get('item_id')) or row.get('item_id') == '':
-                    temp_df = current_df.dropna(subset=['item_id'])
-                    current_df.loc[i, 'item_id'] = next_id("LG", temp_df, "item_id")
-                if pd.isna(row.get('plan_id')) or row.get('plan_id') == '':
-                     current_df.loc[i, 'plan_id'] = plan["plan_id"]
-
-        # บันทึก DataFrame ที่อัปเดตแล้วกลับไปยัง session_state
-        st.session_state.logic_items = current_df
-        
-        # --- 3. ปุ่ม Reset ---
-        cols = st.columns([0.85, 0.15])
-        with cols[1]:
-            if st.button("🧹 ล้างทั้งหมด (Reset)", use_container_width=True):
-                empty_df = pd.DataFrame(columns=st.session_state.logic_items.columns)
-                st.session_state.logic_items = empty_df
-                st.rerun()
+    # บันทึกการเปลี่ยนแปลงจาก data_editor กลับไปยัง session_state
+    # st.data_editor จะ return DataFrame ที่แก้ไขแล้ว
+    st.session_state.logic_items = edited_df
+    
+    # --- ปุ่มควบคุม (Reset) ---
+    cols = st.columns([0.85, 0.15])
+    with cols[1]:
+        if st.button("🧹 ล้างทั้งหมด (Reset)", use_container_width=True):
+            empty_df = pd.DataFrame(columns=st.session_state.logic_items.columns)
+            st.session_state.logic_items = empty_df
+            st.rerun()
 
     st.markdown("---")
 
-    # --- 4. ส่วนแสดง Flowchart ---
+    # --- 3. ส่วนแสดง Flowchart ---
     st.subheader("📊 Flowchart Logic Model")
     with st.container(border=True):
         if not st.session_state.logic_items.empty:
@@ -177,7 +185,7 @@ with tab_logic:
             except Exception as e:
                 st.error(f"ไม่สามารถสร้าง Flowchart ได้: {e}")
         else:
-            st.info("กรุณาเพิ่มข้อมูลในตารางด้านบนเพื่อสร้าง Flowchart")
+            st.info("กรุณาเพิ่มข้อมูลในฟอร์มด้านบนเพื่อสร้าง Flowchart")
 
 #! <<< END: สิ้นสุดการแก้ไข Tab Logic
 
