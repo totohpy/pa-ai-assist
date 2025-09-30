@@ -259,9 +259,9 @@ st.markdown("""
     button[data-baseweb="tab"] {
         border-radius: 10px;
         padding: 4px 4px;
-        margin: 4px;
+        margin: 1px;
         font-weight: normal;
-        font-size: 16px;
+        font-size: 18px;
         color: white !important; 
         border: none;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
