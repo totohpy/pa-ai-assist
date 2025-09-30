@@ -258,10 +258,10 @@ st.markdown("""
     body { font-family: 'Kanit', sans-serif; } 
     button[data-baseweb="tab"] {
         border-radius: 10px;
-        padding: 4px 4px;
+        padding: 8px 8px;
         margin: 1px;
         font-weight: normal;
-        font-size: 18px;
+        font-size: 20px;
         color: white !important; 
         border: none;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -283,14 +283,14 @@ st.markdown("""
     div[data-baseweb="tab-list"] button:nth-of-type(9) { background-color: #4A6A8A; }
     div[data-baseweb="tab-list"] { 
         border-bottom: none !important; 
-        margin-bottom: 15px; 
+        margin-bottom: 20px; 
         flex-wrap: wrap; 
-        gap: 0px;
+        gap: 4px;
     } 
     h4 { 
         color: #007bff !important; 
         border-bottom: 2px solid #e0e0e0; 
-        padding-bottom: 5px; 
+        padding-bottom: 8px; 
     } 
 </style>
 """, unsafe_allow_html=True)
