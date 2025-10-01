@@ -258,7 +258,7 @@ st.markdown("""
     body { font-family: 'Kanit', sans-serif; } 
     button[data-baseweb="tab"] {
         border-radius: 10px;
-        padding: 16px 20px; /* <- แก้ไขตรงนี้ */
+        padding: 18px 22px; /* <- แก้ไขตรงนี้ */
         margin: 1px;
         font-size: 20px;    /* <- เพิ่มบรรทัดนี้ */
         font-weight: normal;
