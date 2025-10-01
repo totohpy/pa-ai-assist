@@ -267,14 +267,13 @@ st.markdown("""
     border-radius: 10px;
     padding: 10px 15px;      /* <-- เพิ่ม Padding ให้นั่งสบายขึ้น */
     margin: 1px;
-    font-size: 18px;         /* <-- กำหนดขนาดฟอนต์ให้ชัดเจน */
+    font-size: 20px;         /* <-- กำหนดขนาดฟอนต์ให้ชัดเจน */
     letter-spacing: 0.3px;   /* <-- เพิ่มระยะห่างระหว่างตัวอักษรเล็กน้อย */
     font-weight: normal;
     color: white !important; 
     border: none;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     transition: all 0.2s ease-in-out;
-    width: 200px;  /* กำหนดความกว้างคงที่ (ปรับตัวเลขได้) */
     height: 50px; /* กำหนดความสูงคงที่ (ปรับตัวเลขได้) */
     display: flex; /* จัดให้ข้อความอยู่ตรงกลาง */
     align-items: center;
