@@ -34,12 +34,14 @@ with st.sidebar:
     st.markdown(
         '<p style="font-family: \'Kanit\', sans-serif;">'
         '<span style="color: grey;">By PAO1 </span><br>'
-        '<span style="font-size: 16px;">'  # <-- ครอบส่วนที่ต้องการเปลี่ยนขนาด
+        # --- แก้ไขบรรทัดนี้ ---
+        '<span style="font-size: 16px; letter-spacing: 0.5px;">'
         '<span style="color: red; font-weight: bold;">A</span>udit '
         '<span style="color: red; font-weight: bold;">I</span>ntelligence Team'
-        '</span>' # <-- ปิดส่วนที่ครอบ
+        '</span>'
         '</p>',
         unsafe_allow_html=True
+    )
     )
 # ----------------- ฟังก์ชันสำหรับ Chatbot -----------------
 MAX_CHARS_LIMIT = 300000
