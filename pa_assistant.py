@@ -260,7 +260,7 @@ st.markdown("""
         border-radius: 10px;
         padding: 16px 20px; /* <- แก้ไขตรงนี้ */
         margin: 1px;
-        font-size: 16px;    /* <- เพิ่มบรรทัดนี้ */
+        font-size: 20px;    /* <- เพิ่มบรรทัดนี้ */
         font-weight: normal;
         color: white !important; 
         border: none;
