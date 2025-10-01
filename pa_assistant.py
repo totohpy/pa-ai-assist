@@ -255,12 +255,16 @@ with st.expander("💡 คำแนะนำการใช้งาน"):
 
 st.markdown("""
 <style> 
+    /* โค้ดที่เพิ่มเข้ามาเพื่อปรับขนาด Title */
+    h1 {
+        font-size: 32px !important; /* คุณสามารถปรับขนาดตัวเลขได้ตามต้องการ */
+    }
+
     body { font-family: 'Kanit', sans-serif; } 
     button[data-baseweb="tab"] {
         border-radius: 10px;
-        padding: 18px 22px; /* <- แก้ไขตรงนี้ */
+        padding: 6px 6px;
         margin: 1px;
-        font-size: 20px !important;    /* <- เพิ่มบรรทัดนี้ */
         font-weight: normal;
         color: white !important; 
         border: none;
@@ -270,7 +274,7 @@ st.markdown("""
     button[data-baseweb="tab"][aria-selected="true"] {
         box-shadow: 0 4px 12px rgba(0,0,0,0.25);
         transform: translateY(-2px);
-        opacity: 0.70;
+        opacity: 0.75;
     }
     button[data-baseweb="tab"]:hover {
         transform: translateY(-1px);
@@ -283,14 +287,14 @@ st.markdown("""
     div[data-baseweb="tab-list"] button:nth-of-type(9) { background-color: #4A6A8A; }
     div[data-baseweb="tab-list"] { 
         border-bottom: none !important; 
-        margin-bottom: 20px; 
+        margin-bottom: 15px; 
         flex-wrap: wrap; 
         gap: 2px;
     } 
     h4 { 
         color: #007bff !important; 
         border-bottom: 2px solid #e0e0e0; 
-        padding-bottom: 8px; 
+        padding-bottom: 5px; 
     } 
 </style>
 """, unsafe_allow_html=True)
