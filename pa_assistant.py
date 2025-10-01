@@ -31,7 +31,7 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown(
-    '<p style="font-family: \'Kanit\', sans-serif;">By PAO1 <span style="color: red; font-weight: bold;">A</span>udit <span style="color: red; font-weight: bold;">I</span>ntelligence Team</p>',
+    '<p style="font-family: \'Kanit\', sans-serif;">By PAO1 <br> <span style="color: red; font-weight: bold;">A</span>udit <span style="color: red; font-weight: bold;">I</span>ntelligence Team</p>',
     unsafe_allow_html=True
 )
 # ----------------- ฟังก์ชันสำหรับ Chatbot -----------------
