@@ -30,18 +30,18 @@ with st.sidebar:
         st.error(f"เกิดข้อผิดพลาดในการโหลด API Key: {e}")
 
     # --- ย้ายโค้ด 2 บรรทัดนี้เข้ามาข้างใน ---
-    st.markdown("---")
-    st.markdown(
-        '<p style="font-family: \'Kanit\', sans-serif;">'
-        '<span style="color: grey;">By PAO1 </span><br>'
-        # --- แก้ไขบรรทัดนี้ ---
-        '<span style="font-size: 16px; letter-spacing: 0.5px;">'
-        '<span style="color: red; font-weight: bold;">A</span>udit '
-        '<span style="color: red; font-weight: bold;">I</span>ntelligence Team'
-        '</span>'
-        '</p>',
-        unsafe_allow_html=True
-    )
+st.markdown("---")
+st.markdown(
+    '<p style="font-family: \'Kanit\', sans-serif;">'
+    '<span style="color: grey;">By PAO1 </span><br>'
+    # --- แก้ไขบรรทัดนี้ ---
+    '<span style="font-size: 16px; letter-spacing: 0.5px;">'
+    '<span style="color: red; font-weight: bold;">A</span>udit '
+    '<span style="color: red; font-weight: bold;">I</span>ntelligence Team'
+    '</span>'
+    '</p>',
+    unsafe_allow_html=True
+)
     )
 # ----------------- ฟังก์ชันสำหรับ Chatbot -----------------
 MAX_CHARS_LIMIT = 300000
