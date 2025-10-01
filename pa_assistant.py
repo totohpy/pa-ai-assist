@@ -274,6 +274,11 @@ st.markdown("""
     border: none;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     transition: all 0.2s ease-in-out;
+    width: 200px;  /* กำหนดความกว้างคงที่ (ปรับตัวเลขได้) */
+    height: 50px; /* กำหนดความสูงคงที่ (ปรับตัวเลขได้) */
+    display: flex; /* จัดให้ข้อความอยู่ตรงกลาง */
+    align-items: center;
+    justify-content: center;
     }
     }
     button[data-baseweb="tab"][aria-selected="true"] {
