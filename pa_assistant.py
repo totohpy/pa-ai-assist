@@ -314,7 +314,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_assist, tab_chatbot = st.tabs(["1. ระบุ แผน & 6W2H", "2. ระบุ Logic Model", "3. ระบุ Methods", "4. ระบุ KPIs", "5. ระบุ Risks", "6. 🔍 ค้นหาข้อตรวจพบที่ผ่านมา", "7. 📋 สรุปข้อมูล (Preview)", "8. ✨ PA Assistant แนะนำประเด็น", "9. 💬 PA Chat"]) 
+tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_assist, tab_chatbot = st.tabs(["1. ระบุ แผน & 6W2H", "2. ระบุ Logic Model", "3. ระบุ Methods", "4. ระบุ KPIs", "5. ระบุ Risks", "6. 🔍 ค้นหาข้อตรวจพบที่ผ่านมา", " 7. 📋 สรุปข้อมูล (Preview)", "8. ✨ PA Assistant แนะนำประเด็น", "9. 💬 PA Assistant Chat"]) 
 
 with tab_plan:
     st.subheader("ข้อมูลแผน - กรุณาระบุข้อมูล")
@@ -783,7 +783,7 @@ Logic Model:
 
 
 with tab_chatbot:
-    st.subheader("💬 PA Chat - ผู้ช่วยอัจฉริยะ (Typhoon AI)")
+    st.subheader("💬 PA Chat - ผู้ช่วยอัจฉริยะ (AI)")
     
     with st.expander("อัปโหลดเอกสารเพิ่มเติม (PDF, TXT, CSV)"):
         st.info("ข้อมูลจากไฟล์ที่อัปโหลดจะถูกใช้ในการตอบคำถาม")
