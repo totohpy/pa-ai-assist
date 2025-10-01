@@ -42,7 +42,7 @@ st.markdown(
     '</p>',
     unsafe_allow_html=True
 )
-    )
+
 # ----------------- ฟังก์ชันสำหรับ Chatbot -----------------
 MAX_CHARS_LIMIT = 300000
 
