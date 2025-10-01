@@ -30,7 +30,7 @@ with st.sidebar:
         st.error(f"เกิดข้อผิดพลาดในการโหลด API Key: {e}")
 
     st.markdown("---")
-    st.markdown("By PAO1 Audit Intelligence Team")
+    st.markdown("By PAO1 **A**udit **I**ntelligence Team")
 
 # ----------------- ฟังก์ชันสำหรับ Chatbot -----------------
 MAX_CHARS_LIMIT = 300000
