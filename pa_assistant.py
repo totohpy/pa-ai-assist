@@ -259,7 +259,7 @@ st.markdown("""
 <style> 
     /* โค้ดที่เพิ่มเข้ามาเพื่อปรับขนาด Title */
     h1 {
-        font-size: 32px !important; /* คุณสามารถปรับขนาดตัวเลขได้ตามต้องการ */
+        font-size: 34px !important; /* คุณสามารถปรับขนาดตัวเลขได้ตามต้องการ */
     }
 
     body { font-family: 'Kanit', sans-serif; } 
@@ -267,8 +267,8 @@ st.markdown("""
     border-radius: 10px;
     padding: 10px 15px;      /* <-- เพิ่ม Padding ให้นั่งสบายขึ้น */
     margin: 1px;
-    font-size: 15px;         /* <-- กำหนดขนาดฟอนต์ให้ชัดเจน */
-    letter-spacing: 0.5px;   /* <-- เพิ่มระยะห่างระหว่างตัวอักษรเล็กน้อย */
+    font-size: 18px;         /* <-- กำหนดขนาดฟอนต์ให้ชัดเจน */
+    letter-spacing: 0.3px;   /* <-- เพิ่มระยะห่างระหว่างตัวอักษรเล็กน้อย */
     font-weight: normal;
     color: white !important; 
     border: none;
