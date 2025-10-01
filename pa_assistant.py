@@ -124,7 +124,7 @@ def init_state():
     ss.setdefault('api_key_global', '')
     ss.setdefault("6w2h_output", "") 
     
-    ss.setdefault('chatbot_messages', [{"role": "assistant", "content": "สวัสดีครับ ผมคือ PA Chat ผู้ช่วยอัจฉริยะ"}])
+    ss.setdefault('chatbot_messages', [{"role": "assistant", "content": "สวัสดีครับ ผมคือ PA Chat Assistant ผู้ช่วยอัจฉริยะด้านการตรวจสอบ"}])
     ss.setdefault('doc_context_uploaded', "")
     ss.setdefault('last_uploaded_files', set())
 
@@ -268,7 +268,7 @@ st.markdown("""
 <style> 
     /* โค้ดที่เพิ่มเข้ามาเพื่อปรับขนาด Title */
     h1 {
-        font-size: 34px !important; /* คุณสามารถปรับขนาดตัวเลขได้ตามต้องการ */
+        font-size: 36px !important; /* คุณสามารถปรับขนาดตัวเลขได้ตามต้องการ */
     }
 
     body { font-family: 'Kanit', sans-serif; } 
@@ -314,7 +314,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_assist, tab_chatbot = st.tabs(["1. ระบุ แผน & 6W2H", "2. ระบุ Logic Model", "3. ระบุ Methods", "4. ระบุ KPIs", "5. ระบุ Risks", "6. 🔍 ค้นหาข้อตรวจพบที่ผ่านมา", " 7. 📋 สรุปข้อมูล (Preview)", "8. ✨ PA Assistant แนะนำประเด็น", "9. 💬 PA Assistant Chat"]) 
+tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_assist, tab_chatbot = st.tabs(["1.ระบุ แผน & 6W2H", "2. ระบุ Logic Model", "3. ระบุ Methods", "4. ระบุ KPIs", "5. ระบุ Risks", "6. 🔍 ค้นหาข้อตรวจพบที่ผ่านมา", " 7. 📋 สรุปข้อมูล (Preview)", "8. ✨ PA Assistant แนะนำประเด็น", "9. 💬 PA Assistant Chat"]) 
 
 with tab_plan:
     st.subheader("ข้อมูลแผน - กรุณาระบุข้อมูล")
