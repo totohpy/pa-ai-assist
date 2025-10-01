@@ -264,8 +264,8 @@ st.markdown("""
 
     body { font-family: 'Kanit', sans-serif; } 
     button[data-baseweb="tab"] {
-    border-radius: 10px;
-    padding: 10px 15px;      /* <-- เพิ่ม Padding ให้นั่งสบายขึ้น */
+    border-radius: 8px;
+    padding: 12px 16px;      /* <-- เพิ่ม Padding ให้นั่งสบายขึ้น */
     margin: 1px;
     font-size: 20px;         /* <-- กำหนดขนาดฟอนต์ให้ชัดเจน */
     letter-spacing: 0.3px;   /* <-- เพิ่มระยะห่างระหว่างตัวอักษรเล็กน้อย */
@@ -274,10 +274,6 @@ st.markdown("""
     border: none;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     transition: all 0.2s ease-in-out;
-    height: 50px; /* กำหนดความสูงคงที่ (ปรับตัวเลขได้) */
-    display: flex; /* จัดให้ข้อความอยู่ตรงกลาง */
-    align-items: center;
-    justify-content: center;
     }
     }
     button[data-baseweb="tab"][aria-selected="true"] {
