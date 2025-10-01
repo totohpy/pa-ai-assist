@@ -264,18 +264,19 @@ st.markdown("""
 
     body { font-family: 'Kanit', sans-serif; } 
     button[data-baseweb="tab"] {
-    border-radius: 8px;
-    padding: 12px 16px;      /* <-- เพิ่ม Padding ให้นั่งสบายขึ้น */
-    margin: 1px;
-    font-size: 20px;         /* <-- กำหนดขนาดฟอนต์ให้ชัดเจน */
-    letter-spacing: 0.5px;   /* <-- เพิ่มระยะห่างระหว่างตัวอักษรเล็กน้อย */
-    font-weight: normal;
-    color: white !important; 
-    border: none;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    transition: all 0.2s ease-in-out;
-    }
-    }
+        border-radius: 8px;
+        padding: 12px 16px;      /* <-- เพิ่ม Padding ให้นั่งสบายขึ้น */
+        margin: 1px;
+        font-size: 20px;         /* <-- กำหนดขนาดฟอนต์ให้ชัดเจน */
+        letter-spacing: 0.5px;   /* <-- เพิ่มระยะห่างระหว่างตัวอักษรเล็กน้อย */
+        font-weight: normal;
+        color: white !important; 
+        border: none;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: all 0.2s ease-in-out;
+    } 
+    /* <<<--- จุดที่ลบวงเล็บปีกกาเกินออก ---<<< */
+
     button[data-baseweb="tab"][aria-selected="true"] {
         box-shadow: 0 4px 12px rgba(0,0,0,0.25);
         transform: translateY(-2px);
