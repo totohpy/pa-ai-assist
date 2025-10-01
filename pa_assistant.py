@@ -268,7 +268,7 @@ st.markdown("""
     padding: 12px 16px;      /* <-- เพิ่ม Padding ให้นั่งสบายขึ้น */
     margin: 1px;
     font-size: 20px;         /* <-- กำหนดขนาดฟอนต์ให้ชัดเจน */
-    letter-spacing: 0.3px;   /* <-- เพิ่มระยะห่างระหว่างตัวอักษรเล็กน้อย */
+    letter-spacing: 0.5px;   /* <-- เพิ่มระยะห่างระหว่างตัวอักษรเล็กน้อย */
     font-weight: normal;
     color: white !important; 
     border: none;
