@@ -29,16 +29,18 @@ with st.sidebar:
         st.session_state.api_key_global = ""
         st.error(f"เกิดข้อผิดพลาดในการโหลด API Key: {e}")
 
-st.markdown(
-    '<p style="font-family: \'Kanit\', sans-serif;">'
-    '<span style="color: grey;">By PAO1 </span><br>'
-    '<span style="font-size: 16px;">'  # <-- ครอบส่วนที่ต้องการเปลี่ยนขนาด
-    '<span style="color: red; font-weight: bold;">A</span>udit '
-    '<span style="color: red; font-weight: bold;">I</span>ntelligence Team'
-    '</span>' # <-- ปิดส่วนที่ครอบ
-    '</p>',
-    unsafe_allow_html=True
-)
+    # --- ย้ายโค้ด 2 บรรทัดนี้เข้ามาข้างใน ---
+    st.markdown("---")
+    st.markdown(
+        '<p style="font-family: \'Kanit\', sans-serif;">'
+        '<span style="color: grey;">By PAO1 </span><br>'
+        '<span style="font-size: 16px;">'  # <-- ครอบส่วนที่ต้องการเปลี่ยนขนาด
+        '<span style="color: red; font-weight: bold;">A</span>udit '
+        '<span style="color: red; font-weight: bold;">I</span>ntelligence Team'
+        '</span>' # <-- ปิดส่วนที่ครอบ
+        '</p>',
+        unsafe_allow_html=True
+    )
 # ----------------- ฟังก์ชันสำหรับ Chatbot -----------------
 MAX_CHARS_LIMIT = 300000
 
