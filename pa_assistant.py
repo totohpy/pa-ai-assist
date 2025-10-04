@@ -273,7 +273,7 @@ st.markdown("""
 
     body { font-family: 'Kanit', sans-serif; } 
     button[data-baseweb="tab"] {
-        border-radius: 1px;
+        border-radius: 2px;
         padding: 12px 10px;      /* <-- เพิ่ม Padding ให้นั่งสบายขึ้น */
         margin: 0px;
         font-size: 20px;         /* <-- กำหนดขนาดฟอนต์ให้ชัดเจน */
