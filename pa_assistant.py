@@ -275,7 +275,7 @@ st.markdown("""
     button[data-baseweb="tab"] {
         border-radius: 0px;
         padding: 12px 10px;      /* <-- เพิ่ม Padding ให้นั่งสบายขึ้น */
-        margin: 1px;
+        margin: 0px;
         font-size: 20px;         /* <-- กำหนดขนาดฟอนต์ให้ชัดเจน */
         letter-spacing: 0.4px;   /* <-- เพิ่มระยะห่างระหว่างตัวอักษรเล็กน้อย */
         font-weight: normal;
