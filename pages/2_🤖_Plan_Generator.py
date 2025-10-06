@@ -3,7 +3,7 @@ from fpdf import FPDF
 from datetime import datetime
 import json
 import re
-import requests # Import the requests library
+from openai import OpenAI # Import the OpenAI library
 
 # --- Page Configuration ---
 st.set_page_config(layout="wide", page_title="AI Plan Generator")
@@ -52,14 +52,16 @@ def add_issue(obj_index, parent_issue_path=None):
     }
     target_list.append(new_issue)
 
-# --- AI Function (Using direct REST API call) ---
-def call_gemini_api(context_text):
+# --- AI Function (Using OpenAI/Typhoon AI for reliability) ---
+def call_typhoon_api(context_text):
     try:
-        api_key = st.secrets["GOOGLE_API_KEY"]
+        # Using the same secret key as your main app for consistency
+        api_key = st.secrets["api_key"]
         
-        # Final definitive change: Using the absolute base model name gemini-1.0-pro
-        # This, combined with a fresh API key and enabled API, will resolve the issue.
-        api_url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.0-pro:generateContent?key={api_key}"
+        client = OpenAI(
+            api_key=api_key,
+            base_url="https://api.opentyphoon.ai/v1"
+        )
 
         full_prompt = f"""คุณคือผู้เชี่ยวชาญด้านการตรวจสอบภาครัฐ (State Auditor) 
 หน้าที่ของคุณคือช่วยร่างแผนและแนวการตรวจสอบตามข้อมูลที่ได้รับ 
@@ -81,14 +83,15 @@ def call_gemini_api(context_text):
 }}
 """
         
-        payload = {"contents": [{"parts": [{"text": full_prompt}]}]}
-        headers = {"Content-Type": "application/json"}
-
-        response = requests.post(api_url, headers=headers, json=payload)
-        response.raise_for_status() 
-
-        response_json = response.json()
-        generated_text = response_json['candidates'][0]['content']['parts'][0]['text']
+        messages = [{"role": "user", "content": full_prompt}]
+        
+        response = client.chat.completions.create(
+            model="typhoon-v2.1-12b-instruct",
+            messages=messages,
+            temperature=0.5
+        )
+        
+        generated_text = response.choices[0].message.content
         
         match = re.search(r'\{.*\}', generated_text, re.DOTALL)
         if match:
@@ -99,16 +102,8 @@ def call_gemini_api(context_text):
             st.code(generated_text, language="text")
             return None
 
-    except requests.exceptions.RequestException as e:
-        st.error(f"เกิดข้อผิดพลาดในการเชื่อมต่อกับ API: {e}")
-        if 'response' in locals():
-            st.error(f"Response Status Code: {response.status_code}")
-            st.error(f"Response Body: {response.text}")
-        return None
     except Exception as e:
-        st.error(f"เกิดข้อผิดพลาดในการประมวลผล AI response: {e}")
-        if 'response_json' in locals():
-             st.code(response_json, language='json')
+        st.error(f"เกิดข้อผิดพลาดในการเรียก Typhoon AI: {e}")
         return None
 
 # --- PDF Generation Function ---
@@ -219,7 +214,7 @@ for i, obj in enumerate(st.session_state.plan_gen_data["objectives"]):
                                     context = f"เรื่องที่ตรวจสอบ: {st.session_state.plan_gen_data['general_info']['topic']}\n"
                                     context += f"วัตถุประสงค์: {obj['text']}\n"
                                     context += f"ประเด็นการตรวจสอบ: {issue['text']}"
-                                    ai_result = call_gemini_api(context)
+                                    ai_result = call_typhoon_api(context) # Changed to the new function
                                     if ai_result:
                                         if all(k in ai_result for k in issue['details'].keys()):
                                             issue['details'] = ai_result
