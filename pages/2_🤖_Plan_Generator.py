@@ -185,7 +185,8 @@ def generate_html_report():
         objectives_html += "</div>"
         
     sig = plan_data['signatures']
-    date_format = lambda d: d.strftime('%d/%m/%Y') if d and isinstance(d, datetime) else ''
+    # Corrected date_format lambda to handle datetime.date objects
+    date_format = lambda d: d.strftime('%d/%m/%Y') if d else ''
     
     maker_text = f"ลงชื่อ: {sig['maker']['name']}\nตำแหน่ง: {sig['maker']['position']}\nวันที่: {date_format(sig['maker']['date'])}\nความเห็น: {sig['maker']['comment']}"
     reviewer_text = f"ลงชื่อ: {sig['reviewer']['name']}\nตำแหน่ง: {sig['reviewer']['position']}\nวันที่: {date_format(sig['reviewer']['date'])}\nความเห็น: {sig['reviewer']['comment']}"
@@ -210,7 +211,7 @@ def generate_html_report():
         @media print {{
             body, .page {{ margin: 0; padding: 0; box-shadow: none; border: none; background: white; }}
             .print-button {{ display: none !important; }}
-            #root > div:first-child, .stApp > header, .stApp .main > div:first-child, .stButton, .stDownloadButton, .stSpinner, .ai-expander {{ display: none !important; }}
+            #root > div:first-child, .stApp > header, .stApp .main > div:first-child, .stButton, .stDownloadButton, .stSpinner, .ai-expander, .stExpander {{ display: none !important; }}
             .main .block-container {{ padding: 0 !important; margin: 0 !important; max-width: 100% !important; }}
             @page {{
                 size: A4 landscape;
