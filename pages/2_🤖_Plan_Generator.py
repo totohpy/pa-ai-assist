@@ -15,10 +15,9 @@ st.set_page_config(layout="wide", page_title="AI Plan Generator")
 st.title("🤖 AI Plan Generator")
 st.markdown("เครื่องมือช่วยสร้างแผนและแนวการตรวจสอบ พร้อมระบบ AI ช่วยร่างเนื้อหา")
 
-# --- Custom CSS for Styling App Interface (Unchanged) ---
+# --- Custom CSS for Styling App Interface ---
 st.markdown("""
 <style>
-/* ... CSS from previous version remains the same ... */
 div[data-testid="stExpander"] div[role="button"] p { font-size: 1.1rem; }
 .ai-expander .st-emotion-cache-ff2938 { background-color: #e9f5e9; border: 1px solid #5cb85c; border-radius: 0.5rem; }
 .ai-expander .st-emotion-cache-ff2938:hover { background-color: #d9ead3; }
@@ -29,7 +28,7 @@ div[data-testid="stExpander"] div[role="button"] p { font-size: 1.1rem; }
 """, unsafe_allow_html=True)
 
 
-# --- State Initialization and Helper Functions (Unchanged) ---
+# --- State Initialization and Helper Functions ---
 def init_plan_state():
     ss = st.session_state
     if "plan_gen_data" not in ss:
@@ -58,11 +57,13 @@ def add_issue(obj_index, parent_issue_path=None):
     st.session_state.ui_feedback_message = None
 
 
-# --- AI Function (Unchanged) ---
+# --- AI Function ---
 def run_ai_for_field(obj_index, path, field_name):
-    # This function remains unchanged
     st.session_state.ui_feedback_message = None
     try:
+        if "api_key" not in st.secrets:
+            st.session_state.ui_feedback_message = ("error", "ไม่พบ API Key ใน Streamlit Secrets")
+            return
         api_key = st.secrets["api_key"]
         client = OpenAI(api_key=api_key, base_url="https://api.opentyphoon.ai/v1")
         obj = st.session_state.plan_gen_data["objectives"][obj_index]
@@ -107,22 +108,31 @@ def run_ai_for_field(obj_index, path, field_name):
     except Exception as e: st.session_state.ui_feedback_message = ("error", f"เกิดข้อผิดพลาดในการเรียก AI: {e}")
 
 
-# --- NEW: Function to load and encode fonts ---
+# --- Function to load and encode fonts ---
 @st.cache_data
 def load_font_as_base64(font_path):
     try:
         with open(font_path, "rb") as f:
             return base64.b64encode(f.read()).decode()
     except FileNotFoundError:
-        st.warning(f"ไม่พบไฟล์ฟอนต์ที่ {font_path}. จะใช้ฟอนต์มาตรฐานแทน")
+        st.warning(f"ไม่พบไฟล์ฟอนต์ที่ {font_path} จะใช้ฟอนต์มาตรฐานของเบราว์เซอร์แทน")
         return None
 
-# --- NEW: Function to generate HTML report ---
+# --- Function to generate HTML report ---
 def generate_html_report(data):
     sarabun_regular_b64 = load_font_as_base64("Sarabun-Regular.ttf")
     sarabun_bold_b64 = load_font_as_base64("Sarabun-Bold.ttf")
     sarabun_italic_b64 = load_font_as_base64("Sarabun-Italic.ttf")
     
+    # Create font face rules only if fonts were loaded successfully
+    font_faces = ""
+    if sarabun_regular_b64:
+        font_faces += f"@font-face {{ font-family: 'Sarabun'; src: url(data:font/truetype;charset=utf-8;base64,{sarabun_regular_b64}) format('truetype'); font-weight: normal; font-style: normal; }}\n"
+    if sarabun_bold_b64:
+        font_faces += f"@font-face {{ font-family: 'Sarabun'; src: url(data:font/truetype;charset=utf-8;base64,{sarabun_bold_b64}) format('truetype'); font-weight: bold; font-style: normal; }}\n"
+    if sarabun_italic_b64:
+        font_faces += f"@font-face {{ font-family: 'Sarabun'; src: url(data:font/truetype;charset=utf-8;base64,{sarabun_italic_b64}) format('truetype'); font-weight: normal; font-style: italic; }}\n"
+
     html_template = f"""
     <!DOCTYPE html>
     <html lang="th">
@@ -130,18 +140,7 @@ def generate_html_report(data):
         <meta charset="UTF-8">
         <title>แผนและแนวการตรวจสอบ</title>
         <style>
-            @font-face {{
-                font-family: 'Sarabun'; src: url(data:font/truetype;charset=utf-8;base64,{sarabun_regular_b64}) format('truetype');
-                font-weight: normal; font-style: normal;
-            }}
-            @font-face {{
-                font-family: 'Sarabun'; src: url(data:font/truetype;charset=utf-8;base64,{sarabun_bold_b64}) format('truetype');
-                font-weight: bold; font-style: normal;
-            }}
-            @font-face {{
-                font-family: 'Sarabun'; src: url(data:font/truetype;charset=utf-8;base64,{sarabun_italic_b64}) format('truetype');
-                font-weight: normal; font-style: italic;
-            }}
+            {font_faces}
             body {{ font-family: 'Sarabun', sans-serif; font-size: 16px; margin: 2cm; }}
             h2 {{ text-align: center; font-weight: bold; }}
             table {{ width: 100%; border-collapse: collapse; margin-top: 1em; margin-bottom: 1em; }}
@@ -150,11 +149,12 @@ def generate_html_report(data):
             .signature-table td {{ height: 120px; }}
             .no-border {{ border: none; }}
             .print-button-container {{ text-align: center; margin-bottom: 20px; }}
-            .print-button {{ padding: 10px 20px; font-size: 16px; cursor: pointer; }}
+            .print-button {{ padding: 10px 20px; font-size: 16px; cursor: pointer; border-radius: 5px; border: 1px solid #ccc; background-color: #f0f0f0; }}
 
             @media print {{
                 .no-print {{ display: none; }}
                 @page {{ size: A4 landscape; margin: 1.5cm; }}
+                body {{ margin: 0; }}
             }}
         </style>
     </head>
@@ -175,11 +175,11 @@ def generate_html_report(data):
 
         {''.join([f'''
         <div class="objective-info">
-            <p><b>วัตถุประสงค์การตรวจสอบที่ {i+1}:</b> {obj.get('text', '')}</p>
+            <p><b>วัตถุประสงค์การตรวจสอบที่ {i+1}:</b> {html.escape(obj.get('text', ''))}</p>
         </div>
         {''.join([f'''
             <table>
-                <tr><td colspan="5"><b>ประเด็นการตรวจสอบที่ {i+1}.{j+1}:</b> {issue.get('text', '')}</td></tr>
+                <tr><td colspan="5"><b>ประเด็นการตรวจสอบที่ {i+1}.{j+1}:</b> {html.escape(issue.get('text', ''))}</td></tr>
                 <tr style="font-weight: bold;">
                     <td>เกณฑ์การตรวจสอบ</td>
                     <td>ข้อมูลที่ต้องการ</td>
@@ -188,18 +188,18 @@ def generate_html_report(data):
                     <td>วิธีการวิเคราะห์หลักฐาน</td>
                 </tr>
                 <tr>
-                    <td>{issue['details'].get('criteria', '')}</td>
-                    <td>{issue['details'].get('info_needed', '')}</td>
-                    <td>{issue['details'].get('source', '')}</td>
-                    <td>{issue['details'].get('collection_method', '')}</td>
-                    <td>{issue['details'].get('analysis_method', '')}</td>
+                    <td>{html.escape(issue['details'].get('criteria', ''))}</td>
+                    <td>{html.escape(issue['details'].get('info_needed', ''))}</td>
+                    <td>{html.escape(issue['details'].get('source', ''))}</td>
+                    <td>{html.escape(issue['details'].get('collection_method', ''))}</td>
+                    <td>{html.escape(issue['details'].get('analysis_method', ''))}</td>
                 </tr>
             </table>
         ''' for j, issue in enumerate(obj.get('issues', [])) if not issue.get('issues')])}
-        ''' for i, obj in enumerate(data['objectives']])}
+        ''' for i, obj in enumerate(data['objectives'])])}
         
-        <p><b>ประมาณการค่าใช้จ่ายในการตรวจสอบ:</b><br>- {data['estimates'].get('cost', '..................')}</p>
-        <p><b>ประมาณการคน/วันที่ใช้ในการตรวจสอบ:</b><br>- {data['estimates'].get('effort', '..................')}</p>
+        <p><b>ประมาณการค่าใช้จ่ายในการตรวจสอบ:</b><br>- {html.escape(data['estimates'].get('cost', '..................'))}</p>
+        <p><b>ประมาณการคน/วันที่ใช้ในการตรวจสอบ:</b><br>- {html.escape(data['estimates'].get('effort', '..................'))}</p>
 
         <table class="signature-table">
             <tr style="font-weight: bold; text-align: center;">
@@ -208,9 +208,9 @@ def generate_html_report(data):
                 <td>ผู้อนุมัติ (รผต. / ผอ. สำนัก)</td>
             </tr>
             <tr>
-                <td><b>ลงชื่อ:</b> {data['signatures']['maker'].get('name', '')}<br><b>ตำแหน่ง:</b> {data['signatures']['maker'].get('position', '')}<br><b>วันที่:</b> {data['signatures']['maker'].get('date').strftime('%Y-%m-%d') if data['signatures']['maker'].get('date') else ''}<br><b>ความเห็นเพิ่มเติม:</b> {data['signatures']['maker'].get('comment', '')}</td>
-                <td><b>ลงชื่อ:</b> {data['signatures']['reviewer'].get('name', '')}<br><b>ตำแหน่ง:</b> {data['signatures']['reviewer'].get('position', '')}<br><b>วันที่:</b> {data['signatures']['reviewer'].get('date').strftime('%Y-%m-%d') if data['signatures']['reviewer'].get('date') else ''}<br><b>ความเห็นเพิ่มเติม:</b> {data['signatures']['reviewer'].get('comment', '')}</td>
-                <td><b>ลงชื่อ:</b> {data['signatures']['approver'].get('name', '')}<br><b>ตำแหน่ง:</b> {data['signatures']['approver'].get('position', '')}<br><b>วันที่:</b> {data['signatures']['approver'].get('date').strftime('%Y-%m-%d') if data['signatures']['approver'].get('date') else ''}<br><b>ความเห็นเพิ่มเติม:</b> {data['signatures']['approver'].get('comment', '')}</td>
+                <td><b>ลงชื่อ:</b> {html.escape(data['signatures']['maker'].get('name', ''))}<br><b>ตำแหน่ง:</b> {html.escape(data['signatures']['maker'].get('position', ''))}<br><b>วันที่:</b> {data['signatures']['maker'].get('date').strftime('%Y-%m-%d') if data['signatures']['maker'].get('date') else ''}<br><b>ความเห็นเพิ่มเติม:</b> {html.escape(data['signatures']['maker'].get('comment', ''))}</td>
+                <td><b>ลงชื่อ:</b> {html.escape(data['signatures']['reviewer'].get('name', ''))}<br><b>ตำแหน่ง:</b> {html.escape(data['signatures']['reviewer'].get('position', ''))}<br><b>วันที่:</b> {data['signatures']['reviewer'].get('date').strftime('%Y-%m-%d') if data['signatures']['reviewer'].get('date') else ''}<br><b>ความเห็นเพิ่มเติม:</b> {html.escape(data['signatures']['reviewer'].get('comment', ''))}</td>
+                <td><b>ลงชื่อ:</b> {html.escape(data['signatures']['approver'].get('name', ''))}<br><b>ตำแหน่ง:</b> {html.escape(data['signatures']['approver'].get('position', ''))}<br><b>วันที่:</b> {data['signatures']['approver'].get('date').strftime('%Y-%m-%d') if data['signatures']['approver'].get('date') else ''}<br><b>ความเห็นเพิ่มเติม:</b> {html.escape(data['signatures']['approver'].get('comment', ''))}</td>
             </tr>
         </table>
     </body>
@@ -220,7 +220,6 @@ def generate_html_report(data):
 
 # --- Function to generate DOCX (Kept as an option) ---
 def generate_docx_report(data):
-    # This function remains unchanged
     doc = docx.Document()
     current_section = doc.sections[-1]
     new_width, new_height = current_section.page_height, current_section.page_width
@@ -269,7 +268,6 @@ if st.session_state.get("ui_feedback_message"):
     else: st.error(msg_content)
     st.session_state.ui_feedback_message = None
 
-# Sections 1, 2, 3 for data input are unchanged
 with st.form("general_info_form"):
     st.subheader("1. ข้อมูลทั่วไป")
     c1, c2 = st.columns(2)
@@ -343,12 +341,14 @@ st.divider()
 st.subheader("4. แสดงผลและส่งออกเอกสาร")
 
 # Generate and display the HTML report
+# The st.html component will render the interactive form with the print button
 html_report = generate_html_report(st.session_state.plan_gen_data)
 st.html(html_report)
 
 st.divider()
 
 # Provide the DOCX download as a secondary option
+st.markdown("##### หรือดาวน์โหลดเป็นไฟล์ Word")
 docx_buffer = generate_docx_report(st.session_state.plan_gen_data)
 st.download_button(
     label="📂 ดาวน์โหลดเป็นไฟล์ Word (.docx)",
