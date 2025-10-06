@@ -175,6 +175,51 @@ def generate_pdf():
     pdf.write_thai(f"ประมาณการค่าใช้จ่าย: {plan_data['estimates']['cost']}")
     pdf.write_thai(f"ประมาณการคน/วัน: {plan_data['estimates']['effort']}")
     
+    # Add signature section to PDF
+    pdf.ln(10)
+    sig_data = plan_data['signatures']
+    
+    col_width = pdf.w / 3.2 
+    line_height = 7
+    
+    # Headers
+    pdf.set_font('Sarabun', 'B', 11)
+    pdf.cell(col_width, line_height, 'ผู้จัดทำ', border=1, align='C')
+    pdf.cell(col_width, line_height, 'ผู้สอบทาน', border=1, align='C')
+    pdf.cell(col_width, line_height, 'ผู้อนุมัติ (รผต. / ผอ. สำนัก)', border=1, align='C')
+    pdf.ln(line_height)
+    
+    # Body
+    pdf.set_font('Sarabun', '', 10)
+    
+    # Get max rows needed
+    maker_comment_lines = pdf.get_string_width(sig_data['maker']['comment']) / (col_width -2)
+    reviewer_comment_lines = pdf.get_string_width(sig_data['reviewer']['comment']) / (col_width-2)
+    approver_comment_lines = pdf.get_string_width(sig_data['approver']['comment']) / (col_width-2)
+    
+    max_lines = max(maker_comment_lines, reviewer_comment_lines, approver_comment_lines)
+    
+    y_before = pdf.get_y()
+
+    # Column 1: Maker
+    pdf.multi_cell(col_width, line_height, f"ลงชื่อ: {sig_data['maker']['name']}\nตำแหน่ง: {sig_data['maker']['position']}\nวันที่: {sig_data['maker']['date'] or ''}\nความเห็น: {sig_data['maker']['comment']}", border=1)
+    
+    y1 = pdf.get_y()
+    pdf.set_y(y_before)
+    pdf.set_x(pdf.get_x() + col_width)
+
+    # Column 2: Reviewer
+    pdf.multi_cell(col_width, line_height, f"ลงชื่อ: {sig_data['reviewer']['name']}\nตำแหน่ง: {sig_data['reviewer']['position']}\nวันที่: {sig_data['reviewer']['date'] or ''}\nความเห็น: {sig_data['reviewer']['comment']}", border=1)
+
+    y2 = pdf.get_y()
+    pdf.set_y(y_before)
+    pdf.set_x(pdf.get_x() + col_width * 2)
+
+    # Column 3: Approver
+    pdf.multi_cell(col_width, line_height, f"ลงชื่อ: {sig_data['approver']['name']}\nตำแหน่ง: {sig_data['approver']['position']}\nวันที่: {sig_data['approver']['date'] or ''}\nความเห็น: {sig_data['approver']['comment']}", border=1)
+    
+    pdf.set_y(max(y1, y2, pdf.get_y()))
+
     pdf_bytes = pdf.output(dest='S').encode('latin-1')
     return pdf_bytes
 
@@ -219,6 +264,7 @@ for i, obj in enumerate(st.session_state.plan_gen_data["objectives"]):
                                         if all(k in ai_result for k in issue['details'].keys()):
                                             issue['details'] = ai_result
                                             st.success("AI สร้างเนื้อหาเรียบร้อยแล้ว")
+                                            st.rerun() # Force a rerun to update the UI
                                         else:
                                             st.warning("AI ไม่ได้ส่งข้อมูลกลับมาในรูปแบบที่ถูกต้องครบถ้วน")
 
