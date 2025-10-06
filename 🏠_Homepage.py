@@ -6,7 +6,21 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- Enhanced CSS for the homepage ---
+# --- Add the credit to the sidebar on the homepage ---
+with st.sidebar:
+    st.markdown("---")
+    st.markdown(
+        '<p style="font-family: \'Kanit\', sans-serif;">'
+        '<span style="color: grey;">By PAO1 </span><br>'
+        '<span style="font-size: 16px; letter-spacing: 0.5px;">'
+        '<span style="color: red; font-weight: bold;">A</span>udit '
+        '<span style="color: red; font-weight: bold;">I</span>ntelligence Team'
+        '</span>'
+        '</p>',
+        unsafe_allow_html=True
+    )
+
+# --- Homepage CSS ---
 st.markdown(
     """
     <style>
@@ -66,7 +80,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --- New Homepage Layout ---
+# --- Homepage Layout ---
 with st.container():
     st.title("🧭 Planning Studio – Performance Audit")
     st.header("เครื่องมือดิจิทัลสำหรับงานตรวจสอบผลการดำเนินงาน", anchor=False)
@@ -76,7 +90,6 @@ with st.container():
     col1, col2, col3 = st.columns(3, gap="large")
 
     with col1:
-        # Use st.markdown with an <a> tag to make the box clickable
         st.markdown(
             """
             <a href="Design_Assistant" target="_self" class="feature-link">
