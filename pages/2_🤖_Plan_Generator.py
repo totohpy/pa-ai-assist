@@ -5,53 +5,43 @@ import re
 from openai import OpenAI
 import os
 import html
+import io
+import docx
+from docx.enum.section import WD_ORIENT
+from docx.shared import Inches, Pt
 
 # --- Page Configuration ---
 st.set_page_config(layout="wide", page_title="AI Plan Generator")
 st.title("🤖 AI Plan Generator")
 st.markdown("เครื่องมือช่วยสร้างแผนและแนวการตรวจสอบ พร้อมระบบ AI ช่วยร่างเนื้อหา")
 
-# --- Custom CSS for Styling ---
+# --- Custom CSS for Styling (same as before) ---
 st.markdown("""
 <style>
 /* General expander button text */
 div[data-testid="stExpander"] div[role="button"] p {
     font-size: 1.1rem;
 }
-
-/* Custom style for the AI section expander */
 .ai-expander .st-emotion-cache-ff2938 {
-    background-color: #e7f3ff; /* Light blue background */
-    border: 1px solid #007bff; /* Blue border */
-    border-radius: 0.5rem;
+    background-color: #e7f3ff; border: 1px solid #007bff; border-radius: 0.5rem;
 }
 .ai-expander .st-emotion-cache-ff2938:hover {
-    background-color: #d0e8ff; /* Slightly darker blue on hover */
+    background-color: #d0e8ff;
 }
 .ai-expander .st-emotion-cache-ff2938 p {
-    color: #004085; /* Darker blue text */
-    font-weight: bold;
+    color: #004085; font-weight: bold;
 }
-
-/* Custom style for the AI action button */
 .ai-button-container .stButton > button {
-    background-color: #d4edda; /* Light green background */
-    color: #155724; /* Dark green text */
-    border: 1px solid #c3e6cb;
-    font-weight: bold;
-    border-radius: 0.5rem;
-    width: 100%; /* Make buttons full width */
+    background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb;
+    font-weight: bold; border-radius: 0.5rem; width: 100%;
 }
 .ai-button-container .stButton > button:hover {
-    background-color: #c3e6cb;
-    color: #155724;
-    border-color: #b1dfbb;
+    background-color: #c3e6cb; color: #155724; border-color: #b1dfbb;
 }
 </style>
 """, unsafe_allow_html=True)
 
-
-# --- Initialize Session State ---
+# --- State Initialization and Helper Functions (same as before) ---
 def init_plan_state():
     ss = st.session_state
     if "plan_gen_data" not in ss:
@@ -69,7 +59,6 @@ def init_plan_state():
         ss.ui_feedback_message = None
 init_plan_state()
 
-# --- Helper Functions ---
 def add_objective():
     new_obj = {"id": f"obj_{len(st.session_state.plan_gen_data['objectives']) + 1}", "text": "", "issues": []}
     st.session_state.plan_gen_data["objectives"].append(new_obj)
@@ -85,21 +74,18 @@ def add_issue(obj_index, parent_issue_path=None):
     if parent_issue_path:
         for index in parent_issue_path:
             target_container = target_container["issues"][index]
-    
     new_issue = {
-        "id": f"issue_{obj_index}_{len(target_container['issues']) + 1}",
-        "text": "",
-        "details": {"criteria": "", "info_needed": "", "source": "", "collection_method": "", "analysis_method": ""},
-        "issues": []
+        "id": f"issue_{obj_index}_{len(target_container['issues']) + 1}", "text": "",
+        "details": {"criteria": "", "info_needed": "", "source": "", "collection_method": "", "analysis_method": ""}, "issues": []
     }
     target_container["issues"].append(new_issue)
     st.session_state.ui_feedback_message = None
 
-# --- AI Function ---
+# --- AI Function (same as before) ---
 def run_ai_for_field(obj_index, path, field_name):
+    # ... This function remains unchanged from the previous version
     st.session_state.ui_feedback_message = None
     try:
-        # ... (rest of the function is the same until the end) ...
         api_key = st.secrets["api_key"]
         client = OpenAI(api_key=api_key, base_url="https://api.opentyphoon.ai/v1")
         obj = st.session_state.plan_gen_data["objectives"][obj_index]
@@ -136,11 +122,8 @@ def run_ai_for_field(obj_index, path, field_name):
             model="typhoon-v2.1-12b-instruct", messages=messages, temperature=0.5
         )
         generated_text = response.choices[0].message.content.strip()
-
-        # UPDATED: Clean the markdown symbols
         cleaned_text = re.sub(r'^\s*[\*\-]\s*', '', generated_text, flags=re.MULTILINE)
         cleaned_text = cleaned_text.replace("**", "")
-        
         if cleaned_text:
             target_issue['details'][field_name] = cleaned_text
             key_suffix = f"{obj_index}_{'_'.join(map(str, path))}"
@@ -152,77 +135,94 @@ def run_ai_for_field(obj_index, path, field_name):
     except Exception as e:
         st.session_state.ui_feedback_message = ("error", f"เกิดข้อผิดพลาดในการเรียก AI: {e}")
 
-# --- NEW: Function to generate text report ---
-def generate_report_text(data):
-    """Formats the plan data into a single string for download."""
-    report_lines = []
-
-    def line(text=""):
-        report_lines.append(text)
-
-    def header(text, level=1):
-        report_lines.append(f"{'#' * level} {text}")
-
-    # 1. General Info
-    header("แผนการตรวจสอบ", 1)
+# --- NEW: Function to generate DOCX report ---
+def generate_docx_report(data):
+    """Formats the plan data into a .docx file in memory."""
+    doc = docx.Document()
+    
+    # Change orientation to landscape
+    current_section = doc.sections[-1]
+    new_width, new_height = current_section.page_height, current_section.page_width
+    current_section.orientation = WD_ORIENT.LANDSCAPE
+    current_section.page_width = new_width
+    current_section.page_height = new_height
+    
+    # Set font
+    font = doc.styles['Normal'].font
+    font.name = 'TH SarabunPSK'
+    font.size = Pt(14)
+    
+    doc.add_heading('แผนและแนวการตรวจสอบ', level=1)
+    
     info = data["general_info"]
-    line(f"**เรื่องที่ตรวจสอบ:** {info.get('topic', 'N/A')}")
-    line(f"**หน่วยงาน:** {info.get('agency', 'N/A')} **กระทรวง:** {info.get('ministry', 'N/A')}")
-    line(f"**สำนักงาน/จังหวัด/กลุ่ม:** {info.get('office', 'N/A')}")
-    line()
-
-    # 2. Objectives and Issues
-    header("วัตถุประสงค์และประเด็นการตรวจสอบ", 2)
+    doc.add_paragraph(
+        f"เรื่องที่ตรวจสอบ: {info.get('topic', 'N/A')}    "
+        f"หน่วยงาน: {info.get('agency', 'N/A')}    "
+        f"กระทรวง: {info.get('ministry', 'N/A')}"
+    )
+    doc.add_paragraph(f"สำนักงาน/จังหวัด/กลุ่ม: {info.get('office', 'N/A')}")
     
-    def process_issues(issues_list, prefix, indent_level):
-        indent = "    " * indent_level
-        for i, issue in enumerate(issues_list):
-            issue_prefix = f"{prefix}.{i+1}"
-            line(f"{indent}**ประเด็น {issue_prefix}:** {issue.get('text', '')}")
-            
-            # Check for details only if it's a leaf node
-            if not issue.get('issues'):
-                details = issue.get('details', {})
-                line(f"{indent}    - **เกณฑ์การตรวจสอบ:** {details.get('criteria', '')}")
-                line(f"{indent}    - **ข้อมูลที่ต้องการ:** {details.get('info_needed', '')}")
-                line(f"{indent}    - **แหล่งข้อมูล:** {details.get('source', '')}")
-                line(f"{indent}    - **วิธีการรวบรวม:** {details.get('collection_method', '')}")
-                line(f"{indent}    - **วิธีการวิเคราะห์:** {details.get('analysis_method', '')}")
-            
-            # Recursive call for sub-issues
-            if issue.get('issues'):
-                process_issues(issue['issues'], issue_prefix, indent_level + 1)
-            line()
-
     for i, obj in enumerate(data["objectives"]):
-        obj_prefix = str(i + 1)
-        line(f"**วัตถุประสงค์ที่ {obj_prefix}:** {obj.get('text', '')}")
-        line()
-        if obj.get('issues'):
-            process_issues(obj['issues'], obj_prefix, 1)
+        doc.add_paragraph().add_run(f"วัตถุประสงค์การตรวจสอบที่ {i+1}: {obj.get('text', '')}").bold = True
+        
+        for j, issue in enumerate(obj.get('issues', [])):
+            doc.add_paragraph(f"ประเด็นการตรวจสอบที่ {i+1}.{j+1}: {issue.get('text', '')}")
+            
+            if not issue.get('issues'): # It's a leaf node with details
+                details = issue.get('details', {})
+                table = doc.add_table(rows=1, cols=5)
+                table.style = 'Table Grid'
+                hdr_cells = table.rows[0].cells
+                hdr_cells[0].text = 'เกณฑ์การตรวจสอบ'
+                hdr_cells[1].text = 'ข้อมูลที่ต้องการ'
+                hdr_cells[2].text = 'แหล่งข้อมูล'
+                hdr_cells[3].text = 'วิธีการรวบรวมหลักฐาน'
+                hdr_cells[4].text = 'วิธีการวิเคราะห์หลักฐาน'
+                
+                row_cells = table.add_row().cells
+                row_cells[0].text = details.get('criteria', '')
+                row_cells[1].text = details.get('info_needed', '')
+                row_cells[2].text = details.get('source', '')
+                row_cells[3].text = details.get('collection_method', '')
+                row_cells[4].text = details.get('analysis_method', '')
+                doc.add_paragraph() # Add space after table
 
-    # 3. Estimates
-    header("ประมาณการ", 2)
+    doc.add_heading('ประมาณการ', level=2)
     estimates = data["estimates"]
-    line(f"**ประมาณการค่าใช้จ่าย:** {estimates.get('cost', '')}")
-    line(f"**ประมาณการคน/วัน:** {estimates.get('effort', '')}")
-    line()
-
-    # 4. Signatures
-    header("ผู้จัดทำและลงนาม", 2)
-    sigs = data["signatures"]
-    for role, title in [("maker", "ผู้จัดทำ"), ("reviewer", "ผู้สอบทาน"), ("approver", "ผู้อนุมัติ")]:
-        sig = sigs.get(role, {})
-        line(f"**{title}**")
-        line(f"- **ลงชื่อ:** {sig.get('name', '')}")
-        line(f"- **ตำแหน่ง:** {sig.get('position', '')}")
-        line(f"- **วันที่:** {sig.get('date', '')}")
-        line(f"- **ความเห็น:** {sig.get('comment', '')}")
-        line()
+    doc.add_paragraph(f"ประมาณการค่าใช้จ่ายในการตรวจสอบ: {estimates.get('cost', '')}")
+    doc.add_paragraph(f"ประมาณการคน/วันที่ใช้ในการตรวจสอบ: {estimates.get('effort', '')}")
     
-    return "\n".join(report_lines)
+    doc.add_heading('ผู้จัดทำและลงนาม', level=2)
+    sigs = data["signatures"]
+    sig_table = doc.add_table(rows=1, cols=3)
+    sig_table.style = 'Table Grid'
+    hdr_cells = sig_table.rows[0].cells
+    hdr_cells[0].text = 'ผู้จัดทำ'
+    hdr_cells[1].text = 'ผู้สอบทาน'
+    hdr_cells[2].text = 'ผู้อนุมัติ (รผต. / ผอ. สำนัก)'
 
-# --- UI Rendering ---
+    data_row = sig_table.add_row().cells
+    for idx, role in enumerate(["maker", "reviewer", "approver"]):
+        sig = sigs.get(role, {})
+        date_str = sig.get('date').strftime('%Y-%m-%d') if sig.get('date') else ''
+        cell_text = (
+            f"ลงชื่อ: {sig.get('name', '')}\n"
+            f"ตำแหน่ง: {sig.get('position', '')}\n"
+            f"วันที่: {date_str}\n"
+            f"ความเห็นเพิ่มเติม: {sig.get('comment', '')}"
+        )
+        data_row[idx].text = cell_text
+
+    # Save to a memory buffer
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    return buffer
+
+
+# --- UI Rendering (Main part of the app) ---
+# ... (The UI rendering code for sections 1, 2, 3 is the same as before) ...
+
 if st.session_state.get("ui_feedback_message"):
     msg_type, msg_content = st.session_state.ui_feedback_message
     if msg_type == "success": st.success(msg_content)
@@ -253,10 +253,8 @@ for i, obj in enumerate(st.session_state.plan_gen_data["objectives"]):
 
                 with st.container():
                     st.markdown(f"<div style='margin-left: {len(current_path) * 20}px;'>", unsafe_allow_html=True)
-                    
                     target_issue = issue
                     target_issue['text'] = st.text_area(f"ประเด็นการตรวจสอบที่ {prefix}", value=target_issue.get('text', ''), key=f"issue_text_{key_suffix}")
-
                     if not target_issue.get('issues'):
                         st.markdown('<div class="ai-expander">', unsafe_allow_html=True)
                         with st.expander("เพิ่มรายละเอียดแนวการตรวจสอบ (ให้ AI ช่วย)"):
@@ -268,13 +266,10 @@ for i, obj in enumerate(st.session_state.plan_gen_data["objectives"]):
                                     details[field] = st.text_area(label, value=details.get(field, ''), key=f"{field}_{key_suffix}")
                                 with col2:
                                     st.markdown('<div class="ai-button-container">', unsafe_allow_html=True)
-                                    # UPDATED: Button text changed to ✨
                                     st.button(f"✨สร้าง", key=f"ai_btn_{field}_{key_suffix}", on_click=run_ai_for_field, args=(i, current_path, field))
                                     st.markdown('</div>', unsafe_allow_html=True)
                         st.markdown('</div>', unsafe_allow_html=True)
-
                     st.button(f"➕ เพิ่มประเด็นย่อย (สำหรับ {prefix})", key=f"add_sub_issue_{key_suffix}", on_click=add_issue, args=(obj_index, current_path))
-                    
                     if target_issue.get('issues'): display_issues(target_issue['issues'], obj_index, current_path)
                     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -309,23 +304,19 @@ with st.form("estimates_signatures_form"):
         sig_data["approver"]["comment"] = st.text_area("ความเห็นเพิ่มเติม", value=sig_data["approver"].get("comment", ""), key="approver_comment")
     st.form_submit_button("บันทึกข้อมูลผู้จัดทำ", use_container_width=True)
 
-# --- NEW: Section for saving and downloading the report ---
+# --- UPDATED: Section for saving and downloading the DOCX report ---
 st.divider()
 st.subheader("4. บันทึกและสร้างเอกสาร")
 
-# Generate the report text from session state
-report_content = generate_report_text(st.session_state.plan_gen_data)
+# Generate the docx file in memory
+docx_buffer = generate_docx_report(st.session_state.plan_gen_data)
 
-# Show a preview in an expander
-with st.expander("📄 ดูตัวอย่างเอกสาร"):
-    st.markdown(report_content)
-
-# Provide the download button
+# Provide the download button for .docx
 st.download_button(
-    label="📂 ดาวน์โหลดแผนและแนวการตรวจ (.txt)",
-    data=report_content.encode('utf-8'),
-    file_name=f"audit_plan_{datetime.now().strftime('%Y-%m-%d')}.txt",
-    mime='text/plain',
+    label="📂 ดาวน์โหลดแผนและแนวการตรวจ (.docx)",
+    data=docx_buffer,
+    file_name=f"audit_plan_{datetime.now().strftime('%Y-%m-%d')}.docx",
+    mime='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     use_container_width=True,
     type="primary"
 )
