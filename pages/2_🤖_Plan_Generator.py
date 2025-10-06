@@ -33,7 +33,7 @@ div[data-testid="stExpander"] div[role="button"] p { font-size: 1.1rem; }
 """, unsafe_allow_html=True)
 
 
-# --- State Initialization and Helper Functions ---
+# --- State Initialization and Helper Functions (Unchanged) ---
 def init_plan_state():
     ss = st.session_state
     if "plan_gen_data" not in ss:
@@ -62,7 +62,7 @@ def add_issue(obj_index, parent_issue_path=None):
     st.session_state.ui_feedback_message = None
 
 
-# --- AI Function ---
+# --- AI Function (Unchanged from previous working version) ---
 def run_ai_for_field(obj_index, path, field_name):
     st.session_state.ui_feedback_message = None
     try:
@@ -116,7 +116,7 @@ def run_ai_for_field(obj_index, path, field_name):
         st.session_state.ui_feedback_message = ("error", f"เกิดข้อผิดพลาดในการเรียก AI: {e}")
 
 
-# --- Function to load and encode fonts ---
+# --- Function to load and encode fonts (Unchanged) ---
 @st.cache_data
 def load_font_as_base64(font_path):
     try:
@@ -126,7 +126,7 @@ def load_font_as_base64(font_path):
         st.warning(f"ไม่พบไฟล์ฟอนต์ที่ {font_path} จะใช้ฟอนต์มาตรฐานของเบราว์เซอร์แทน")
         return None
 
-# --- Function to generate HTML report ---
+# --- Function to generate HTML report (Unchanged) ---
 def generate_html_report(data):
     sarabun_regular_b64 = load_font_as_base64("Sarabun-Regular.ttf")
     sarabun_bold_b64 = load_font_as_base64("Sarabun-Bold.ttf")
@@ -152,7 +152,7 @@ def generate_html_report(data):
         <title>แผนและแนวการตรวจสอบ</title>
         <style>
             {font_faces}
-            body {{ font-family: 'Sarabun', sans-serif; font-size: 16px; margin: 2cm; }}
+            body {{ font-family: 'Sarabun', sans-serif; font-size: 16px; margin: 1cm; }}
             h2 {{ text-align: center; font-weight: bold; }}
             table {{ width: 100%; border-collapse: collapse; margin-top: 1em; margin-bottom: 1em; }}
             th, td {{ border: 1px solid black; padding: 8px; text-align: left; vertical-align: top; }}
@@ -220,7 +220,7 @@ def generate_html_report(data):
     """
     return html_template
 
-# --- Function to generate DOCX (Kept as an option) ---
+# --- Function to generate DOCX (Unchanged) ---
 def generate_docx_report(data):
     doc = docx.Document()
     current_section = doc.sections[-1]
@@ -272,7 +272,6 @@ def generate_docx_report(data):
     for idx, role in enumerate(["maker", "reviewer", "approver"]):
         sig = sigs.get(role, {})
         date_str = sig.get('date').strftime('%Y-%m-%d') if sig.get('date') else ''
-        # THIS IS THE CORRECTED LINE
         cell_text = f"ลงชื่อ: {sig.get('name', '')}\nตำแหน่ง: {sig.get('position', '')}\nวันที่: {date_str}\nความเห็นเพิ่มเติม: {sig.get('comment', '')}"
         data_row[idx].text = cell_text
     buffer = io.BytesIO()
@@ -366,17 +365,22 @@ with st.form("estimates_signatures_form"):
         sig_data["approver"]["comment"] = st.text_area("ความเห็นเพิ่มเติม", value=sig_data["approver"].get("comment", ""), key="approver_comment")
     st.form_submit_button("บันทึกข้อมูลผู้จัดทำ", use_container_width=True)
 
-# --- Section for HTML preview and DOCX download ---
+
+# --- UPDATED: Section for direct HTML preview ---
 st.divider()
 
+# Added border using st.container
 with st.container(border=True):
     st.subheader("4. แสดงผลและส่งออกเอกสาร")
+
+    # Add instructions for printing
+    st.info("💡 **วิธีพิมพ์หรือบันทึกเป็น PDF:** คลิกขวาที่รายงานด้านล่างแล้วเลือก 'Print...' หรือใช้คีย์บอร์ด `Ctrl+P` (Windows) / `Cmd+P` (Mac)")
+
+    # Generate and display the HTML report directly
     html_report = generate_html_report(st.session_state.plan_gen_data)
-    b64_html = base64.b64encode(html_report.encode()).decode()
-    link_html = f'<a href="data:text/html;base64,{b64_html}" target="_blank" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-align: center; text-decoration: none; border-radius: 5px;">🖨️ เปิดตัวอย่างเพื่อพิมพ์ / บันทึกเป็น PDF</a>'
-    st.markdown(link_html, unsafe_allow_html=True)
+    st.html(html_report)
     
-    st.markdown("---")
+    st.markdown("---") # Visual separator
     
     st.markdown("##### หรือดาวน์โหลดเป็นไฟล์ Word")
     docx_buffer = generate_docx_report(st.session_state.plan_gen_data)
