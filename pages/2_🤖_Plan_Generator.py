@@ -9,6 +9,7 @@ import docx
 from docx.enum.section import WD_ORIENT
 from docx.shared import Pt
 import base64
+import json
 import streamlit.components.v1 as components
 
 # --- Page Configuration ---
@@ -22,17 +23,14 @@ st.markdown("""
 /* General expander button text */
 div[data-testid="stExpander"] div[role="button"] p { font-size: 1.1rem; }
 
-/* CSS for the AI expander (Blue color) */
-.ai-expander .st-emotion-cache-ff2938 { 
-    background-color: #D1E8FF;
-    border: 1px solid #007BFF;
+/* --- UPDATED: CSS for the AI expander (Blue color) using a stable selector --- */
+.ai-expander [data-testid="stExpander"] > div:first-of-type { 
+    background-color: #D1E8FF; /* Light blue background */
+    border: 1px solid #007BFF; /* Blue border */
     border-radius: 0.5rem; 
 }
-.ai-expander .st-emotion-cache-ff2938:hover { 
-    background-color: #BBDDFF;
-}
-.ai-expander .st-emotion-cache-ff2938 p { 
-    color: #004085;
+.ai-expander [data-testid="stExpander"] p { 
+    color: #004085; /* Dark blue text */
     font-weight: bold; 
 }
 
@@ -43,7 +41,7 @@ div[data-testid="stExpander"] div[role="button"] p { font-size: 1.1rem; }
 """, unsafe_allow_html=True)
 
 
-# --- State Initialization and Helper Functions ---
+# --- State Initialization and Helper Functions (Unchanged) ---
 def init_plan_state():
     ss = st.session_state
     if "plan_gen_data" not in ss:
@@ -72,8 +70,9 @@ def add_issue(obj_index, parent_issue_path=None):
     st.session_state.ui_feedback_message = None
 
 
-# --- AI Function ---
+# --- AI Function (Unchanged) ---
 def run_ai_for_field(obj_index, path, field_name):
+    # This function remains unchanged
     st.session_state.ui_feedback_message = None
     try:
         if "api_key" not in st.secrets:
@@ -125,7 +124,7 @@ def run_ai_for_field(obj_index, path, field_name):
     except Exception as e:
         st.session_state.ui_feedback_message = ("error", f"เกิดข้อผิดพลาดในการเรียก AI: {e}")
 
-# --- Function to load and encode fonts ---
+# --- Function to load and encode fonts (Unchanged) ---
 @st.cache_data
 def load_font_as_base64(font_path):
     try:
@@ -135,8 +134,9 @@ def load_font_as_base64(font_path):
         st.warning(f"ไม่พบไฟล์ฟอนต์ที่ {font_path} จะใช้ฟอนต์มาตรฐานของเบราว์เซอร์แทน")
         return None
 
-# --- Function to generate HTML report ---
+# --- Function to generate HTML report (Unchanged) ---
 def generate_html_report(data):
+    # This function is the same as the last working version
     sarabun_regular_b64 = load_font_as_base64("Sarabun-Regular.ttf")
     sarabun_bold_b64 = load_font_as_base64("Sarabun-Bold.ttf")
     sarabun_italic_b64 = load_font_as_base64("Sarabun-Italic.ttf")
@@ -144,11 +144,9 @@ def generate_html_report(data):
     if sarabun_regular_b64: font_faces += f"@font-face {{ font-family: 'Sarabun'; src: url(data:font/truetype;charset=utf-8;base64,{sarabun_regular_b64}) format('truetype'); font-weight: normal; font-style: normal; }}\n"
     if sarabun_bold_b64: font_faces += f"@font-face {{ font-family: 'Sarabun'; src: url(data:font/truetype;charset=utf-8;base64,{sarabun_bold_b64}) format('truetype'); font-weight: bold; font-style: normal; }}\n"
     if sarabun_italic_b64: font_faces += f"@font-face {{ font-family: 'Sarabun'; src: url(data:font/truetype;charset=utf-8;base64,{sarabun_italic_b64}) format('truetype'); font-weight: normal; font-style: italic; }}\n"
-    
     def format_text(text):
         if not text: return ""
         return html.escape(text).replace('\n', '<br>')
-
     html_template = f"""
     <!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><title>แผนและแนวการตรวจสอบ</title>
     <style>
@@ -190,6 +188,7 @@ def generate_html_report(data):
 
 # --- Function to generate DOCX (Unchanged) ---
 def generate_docx_report(data):
+    # This function is unchanged
     doc = docx.Document()
     current_section = doc.sections[-1]
     new_width, new_height = current_section.page_height, current_section.page_width
