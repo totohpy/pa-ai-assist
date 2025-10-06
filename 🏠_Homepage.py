@@ -6,26 +6,26 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- New, Enhanced CSS for a beautiful homepage ---
+# --- Enhanced CSS for the homepage ---
 st.markdown(
     """
     <style>
-    /* Main container styling */
-    .main-container {
-        padding: 2rem;
-        background-color: #f8f9fa;
-        border-radius: 15px;
-    }
-
     /* Remove Streamlit's default top padding */
     .block-container {
         padding-top: 2rem;
     }
 
-    /* Clickable Feature Box Styling */
+    /* Styling for the link to remove underline and inherit color */
     .feature-link {
         text-decoration: none;
+        color: inherit;
     }
+    .feature-link:hover {
+        text-decoration: none;
+        color: inherit;
+    }
+
+    /* Clickable Feature Box Styling */
     .feature-box {
         background-color: #ffffff;
         padding: 2.5rem 2rem;
@@ -58,9 +58,9 @@ st.markdown(
     }
 
     /* Color Overrides for each box */
-    .box-1 h3 { color: #A93C2D; } /* Red from Design Assistant tabs */
-    .box-2 h3 { color: #2E8B57; } /* A nice green for Plan Generator */
-    .box-3 h3 { color: #4A6A8A; } /* Blue from PA Assistant Chat tab */
+    .box-1 h3 { color: #A93C2D; } /* Red */
+    .box-2 h3 { color: #2E8B57; } /* Green */
+    .box-3 h3 { color: #4A6A8A; } /* Blue */
     </style>
     """,
     unsafe_allow_html=True
@@ -76,43 +76,47 @@ with st.container():
     col1, col2, col3 = st.columns(3, gap="large")
 
     with col1:
-        # The entire markdown block is wrapped in a page link
-        st.page_link(
-            "pages/2_✨_Design_Assistant.py",
-            label="""
-            <div class="feature-box box-1">
-                <span class="emoji">✨</span>
-                <h3>Design Assistant</h3>
-                <p>แนะนำประเด็นตรวจสอบที่น่าสนใจ จากการวิเคราะห์ข้อมูลแผน, 6W2H, และฐานข้อมูลข้อตรวจพบในอดีต</p>
-            </div>
+        # Use st.markdown with an <a> tag to make the box clickable
+        st.markdown(
+            """
+            <a href="Design_Assistant" target="_self" class="feature-link">
+                <div class="feature-box box-1">
+                    <span class="emoji">✨</span>
+                    <h3>Design Assistant</h3>
+                    <p>แนะนำประเด็นตรวจสอบที่น่าสนใจ จากการวิเคราะห์ข้อมูลแผน, 6W2H, และฐานข้อมูลข้อตรวจพบในอดีต</p>
+                </div>
+            </a>
             """,
             unsafe_allow_html=True
         )
 
     with col2:
-        st.page_link(
-            "pages/3_📜_Plan_Generator.py",
-            label="""
-            <div class="feature-box box-2">
-                <span class="emoji">📜</span>
-                <h3>Plan Generator</h3>
-                <p>ช่วยร่างแผนและแนวการตรวจสอบ พร้อมระบบ AI ช่วยสร้างเนื้อหาในแต่ละส่วน และส่งออกเป็นเอกสารได้</p>
-            </div>
+        st.markdown(
+            """
+            <a href="Plan_Generator" target="_self" class="feature-link">
+                <div class="feature-box box-2">
+                    <span class="emoji">📜</span>
+                    <h3>Plan Generator</h3>
+                    <p>ช่วยร่างแผนและแนวการตรวจสอบ พร้อมระบบ AI ช่วยสร้างเนื้อหาในแต่ละส่วน และส่งออกเป็นเอกสารได้</p>
+                </div>
+            </a>
             """,
             unsafe_allow_html=True
         )
 
     with col3:
-        st.page_link(
-            "pages/4_💬_PA_Assistant_Chat.py",
-            label="""
-            <div class="feature-box box-3">
-                <span class="emoji">💬</span>
-                <h3>PA Assistant Chat</h3>
-                <p>ผู้ช่วยอัจฉริยะที่สามารถถาม-ตอบข้อสงสัยจากคลังข้อมูลและเอกสารต่างๆ เพื่อช่วยสนับสนุนการทำงาน</p>
-            </div>
+        st.markdown(
+            """
+            <a href="PA_Assistant_Chat" target="_self" class="feature-link">
+                <div class="feature-box box-3">
+                    <span class="emoji">💬</span>
+                    <h3>PA Assistant Chat</h3>
+                    <p>ผู้ช่วยอัจฉริยะที่สามารถถาม-ตอบข้อสงสัยจากคลังข้อมูลและเอกสารต่างๆ เพื่อช่วยสนับสนุนการทำงาน</p>
+                </div>
+            </a>
             """,
             unsafe_allow_html=True
         )
 
-# Remove the old footer from here, as it's now managed in the sub-pages' sidebars
+st.markdown("---")
+st.info("💡 กรุณาเลือกเมนูจากแถบด้านข้าง (Sidebar) เพื่อเริ่มต้นใช้งาน")
