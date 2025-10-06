@@ -14,23 +14,37 @@ st.markdown("เครื่องมือช่วยสร้างแผน�
 # --- Custom CSS for Styling ---
 st.markdown("""
 <style>
-/* Style for the AI expander */
+/* General expander button text */
 div[data-testid="stExpander"] div[role="button"] p {
     font-size: 1.1rem;
 }
-/* Targeting the expander by its label text is tricky, so we'll apply a general style.
-   To be more specific, we would need to wrap it in a custom component or use JS,
-   which is overly complex for this. A general style is a good compromise. */
 
-/* Custom style for AI section expander */
+/* Custom style for the AI section expander */
 .ai-expander .st-emotion-cache-ff2938 {
-    background-color: #e6f3ff; /* Light blue background */
+    background-color: #e7f3ff; /* Light blue background */
     border: 1px solid #007bff; /* Blue border */
     border-radius: 0.5rem;
+}
+.ai-expander .st-emotion-cache-ff2938:hover {
+    background-color: #d0e8ff; /* Slightly darker blue on hover */
 }
 .ai-expander .st-emotion-cache-ff2938 p {
     color: #004085; /* Darker blue text */
     font-weight: bold;
+}
+
+/* Custom style for the AI action button */
+.ai-button-container .stButton > button {
+    background-color: #d4edda; /* Light green background */
+    color: #155724; /* Dark green text */
+    border: 1px solid #c3e6cb;
+    font-weight: bold;
+    border-radius: 0.5rem;
+}
+.ai-button-container .stButton > button:hover {
+    background-color: #c3e6cb;
+    color: #155724;
+    border-color: #b1dfbb;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -150,7 +164,8 @@ def generate_html_report():
 
     def escape(text):
         raw_text = str(text) if text is not None else ""
-        return html.escape(raw_text).replace("\n", "<br>")
+        processed_text = raw_text.replace('\\n', '\n')
+        return html.escape(processed_text).replace("\n", "<br>")
 
     def render_issues_html(issues_list, prefix_num):
         if not issues_list: return ""
@@ -181,9 +196,6 @@ def generate_html_report():
         objectives_html += render_issues_html(obj.get('issues', []), str(i+1))
         objectives_html += "</div>"
     
-    sig = plan_data['signatures']
-    date_format = lambda d: d.strftime('%d/%m/%Y') if d else ''
-
     report_html = f"""
     <!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><title>แผนและแนวการตรวจสอบ</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
@@ -192,14 +204,16 @@ def generate_html_report():
         .page {{ background: white; width: 29.7cm; min-height: 21cm; padding: 2cm; margin: 1cm auto; border: 1px #D3D3D3 solid; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); box-sizing: border-box; }}
         h1, h3, h4 {{ margin-top: 0; font-weight: 700; }}
         .header-info p {{ margin: 4px 0; }}
-        .section-title {{ font-weight: bold; border-bottom: 1px solid #999; padding-bottom: 4px; margin: 20px 0 10px 0; }}
-        .details-table {{ width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 20px; table-layout: fixed; }}
+        .details-table {{ width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 20px; table-layout: auto; }}
         .details-table th, .details-table td {{ border: 1px solid #999; padding: 8px; text-align: left; vertical-align: top; word-wrap: break-word; }}
         .details-table th {{ background-color: #f2f2f2; font-weight: bold; }}
-        .signature-table {{ width: 100%; border-collapse: collapse; margin-top: 25px; table-layout: fixed; }}
-        .signature-table th, .signature-table td {{ border: 1px solid #000; padding: 8px; text-align: left; vertical-align: top; word-wrap: break-word; }}
-        .signature-table th {{ text-align: center; font-weight: bold; }} .signature-table td {{ height: 120px; }}
-        @media print {{ body, .page {{ margin: 0; box-shadow: none; border: none; }} @page {{ size: A4 landscape; margin: 2cm; }} }}
+        
+        @media print {{
+            body, .page {{ margin: 0; padding: 0; box-shadow: none; border: none; background: white; }}
+            .stApp > header, .stApp .main > div:first-child, .stButton, .stDownloadButton, .stSpinner {{ display: none !important; }}
+            .main .block-container {{ padding: 0 !important; margin: 0 !important; max-width: 100% !important; }}
+            @page {{ size: A4 landscape; margin: 1.5cm; }}
+        }}
     </style></head><body><div class="page">
         <h1 style="text-align: center; font-weight: 700;">แผนและแนวการตรวจสอบ</h1>
         <div class="header-info">
@@ -208,15 +222,7 @@ def generate_html_report():
             <p><strong>สำนักงาน:</strong> {escape(plan_data['general_info']['office'])}</p>
         </div>
         {objectives_html}
-        <div class="section-title">ประมาณการและผู้จัดทำ</div>
-        <p><strong>ประมาณการค่าใช้จ่าย:</strong> {escape(plan_data['estimates']['cost'])}</p>
-        <p><strong>ประมาณการคน/วัน:</strong> {escape(plan_data['estimates']['effort'])}</p>
-        <table class="signature-table"><thead><tr><th>ผู้จัดทำ</th><th>ผู้สอบทาน</th><th>ผู้อนุมัติ (รผต. / ผอ. สำนัก)</th></tr></thead>
-            <tbody><tr>
-                <td>{escape(f"ลงชื่อ: {sig['maker']['name']}\\nตำแหน่ง: {sig['maker']['position']}\\nวันที่: {date_format(sig['maker']['date'])}\\nความเห็น: {sig['maker']['comment']}")}</td>
-                <td>{escape(f"ลงชื่อ: {sig['reviewer']['name']}\\nตำแหน่ง: {sig['reviewer']['position']}\\nวันที่: {date_format(sig['reviewer']['date'])}\\nความเห็น: {sig['reviewer']['comment']}")}</td>
-                <td>{escape(f"ลงชื่อ: {sig['approver']['name']}\\nตำแหน่ง: {sig['approver']['position']}\\nวันที่: {date_format(sig['approver']['date'])}\\nความเห็น: {sig['approver']['comment']}")}</td>
-            </tr></tbody></table></div></body></html>
+        </div></body></html>
     """
     return report_html
 
@@ -260,14 +266,16 @@ for i, obj in enumerate(st.session_state.plan_gen_data["objectives"]):
                     if not issue.get('issues'):
                         st.markdown('<div class="ai-expander">', unsafe_allow_html=True)
                         with st.expander("เพิ่มรายละเอียดแนวการตรวจสอบ (ให้ AI ช่วย)"):
+                            st.markdown('<div class="ai-button-container">', unsafe_allow_html=True)
                             if st.button(f"🤖 ให้ AI ช่วยร่าง (ประเด็น {prefix})", key=f"ai_btn_{key_suffix}"):
                                 with st.spinner("AI กำลังประมวลผล..."):
                                     context = f"เรื่องที่ตรวจสอบ: {st.session_state.plan_gen_data['general_info']['topic']}\nวัตถุประสงค์: {obj.get('text', '')}\nประเด็นการตรวจสอบ: {issue.get('text', '')}"
                                     ai_result = call_typhoon_api(context)
                                     if ai_result:
-                                        target_container["issues"][j]['details'] = ai_result
+                                        target_container["issues"][j]['details'].update(ai_result)
                                         st.session_state.ui_feedback_message = ("success", f"AI สร้างเนื้อหาสำหรับประเด็น {prefix} เรียบร้อยแล้ว")
                                         st.rerun()
+                            st.markdown('</div>', unsafe_allow_html=True)
                             
                             details = issue.get('details', {})
                             target_container["issues"][j]['details']['criteria'] = st.text_area("เกณฑ์การตรวจสอบ", value=details.get('criteria', ''), key=f"crit_{key_suffix}")
