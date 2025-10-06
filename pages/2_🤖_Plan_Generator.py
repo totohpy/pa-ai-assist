@@ -40,6 +40,7 @@ div[data-testid="stExpander"] div[role="button"] p {
     border: 1px solid #c3e6cb;
     font-weight: bold;
     border-radius: 0.5rem;
+    width: 100%; /* Make buttons full width */
 }
 .ai-button-container .stButton > button:hover {
     background-color: #c3e6cb;
@@ -95,9 +96,9 @@ def add_issue(obj_index, parent_issue_path=None):
     st.session_state.ui_feedback_message = None
 
 # --- AI Function ---
-def run_ai_for_issue(obj_index, path, prefix):
-    """Callback function to run AI and update session state."""
-    st.session_state.ui_feedback_message = None # Clear previous messages
+def run_ai_for_field(obj_index, path, field_name):
+    """Callback function to run AI for a specific field."""
+    st.session_state.ui_feedback_message = None
     try:
         if "api_key" not in st.secrets:
             st.session_state.ui_feedback_message = ("error", "ไม่พบ API Key ใน Streamlit Secrets")
@@ -106,65 +107,54 @@ def run_ai_for_issue(obj_index, path, prefix):
         api_key = st.secrets["api_key"]
         client = OpenAI(api_key=api_key, base_url="https://api.opentyphoon.ai/v1")
 
-        # Navigate to the correct issue in the session state
         obj = st.session_state.plan_gen_data["objectives"][obj_index]
         target_issue = obj
         for index in path:
             target_issue = target_issue["issues"][index]
 
-        context = f"เรื่องที่ตรวจสอบ: {st.session_state.plan_gen_data['general_info']['topic']}\nวัตถุประสงค์: {obj.get('text', '')}\nประเด็นการตรวจสอบ: {target_issue.get('text', '')}"
+        # Build context sequentially
+        context = f"เรื่องที่ตรวจสอบ: {st.session_state.plan_gen_data['general_info']['topic']}\n"
+        context += f"วัตถุประสงค์: {obj.get('text', '')}\n"
+        context += f"ประเด็นการตรวจสอบ: {target_issue.get('text', '')}\n"
         
-        full_prompt = f"""คุณคือผู้เชี่ยวชาญด้านการตรวจสอบภาครัฐ (State Auditor) 
-วิเคราะห์ context ต่อไปนี้:
---- CONTEXT START ---
-{context}
---- CONTEXT END ---
-**คำสั่ง:**
-สร้างเนื้อหาสำหรับแนวการตรวจสอบโดยละเอียด แล้วตอบกลับโดยใช้ XML tags ต่อไปนี้เท่านั้น:
-<CRITERIA>...</CRITERIA>
-<INFO_NEEDED>...</INFO_NEEDED>
-<SOURCE>...</SOURCE>
-<COLLECTION_METHOD>...</COLLECTION_METHOD>
-<ANALYSIS_METHOD>...</ANALYSIS_METHOD>
-"""
-        
+        prompt_instruction = ""
+        if field_name == "criteria":
+            prompt_instruction = "จาก context ข้างต้น จงสร้างเฉพาะ 'เกณฑ์การตรวจสอบ' (Audit Criteria) ที่เหมาะสม"
+        elif field_name == "info_needed":
+            context += f"เกณฑ์การตรวจสอบ: {target_issue['details'].get('criteria', '')}\n"
+            prompt_instruction = "จาก context ข้างต้น จงระบุ 'ข้อมูลที่ต้องการ' เพื่อสนับสนุนข้อตรวจพบ, สรุปผล, และข้อเสนอแนะ รวมถึงการตอบประเด็น, สภาพปัญหา, ผลกระทบ, และสาเหตุ"
+        elif field_name == "source":
+            context += f"เกณฑ์การตรวจสอบ: {target_issue['details'].get('criteria', '')}\n"
+            context += f"ข้อมูลที่ต้องการ: {target_issue['details'].get('info_needed', '')}\n"
+            prompt_instruction = "จาก context ข้างต้น จงระบุ 'แหล่งข้อมูล' ที่จะสามารถรวบรวมข้อมูลได้"
+        elif field_name == "collection_method":
+            context += f"เกณฑ์การตรวจสอบ: {target_issue['details'].get('criteria', '')}\n"
+            context += f"ข้อมูลที่ต้องการ: {target_issue['details'].get('info_needed', '')}\n"
+            context += f"แหล่งข้อมูล: {target_issue['details'].get('source', '')}\n"
+            prompt_instruction = "จาก context ข้างต้น จงระบุ 'วิธีการรวบรวมหลักฐาน' เช่น การสุ่มตัวอย่าง, การตรวจสอบเอกสาร, การสัมภาษณ์, การสังเกตการณ์"
+        elif field_name == "analysis_method":
+            context += f"เกณฑ์การตรวจสอบ: {target_issue['details'].get('criteria', '')}\n"
+            context += f"ข้อมูลที่ต้องการ: {target_issue['details'].get('info_needed', '')}\n"
+            context += f"แหล่งข้อมูล: {target_issue['details'].get('source', '')}\n"
+            context += f"วิธีการรวบรวมหลักฐาน: {target_issue['details'].get('collection_method', '')}\n"
+            prompt_instruction = "จาก context ข้างต้น จงระบุ 'วิธีการวิเคราะห์หลักฐาน' ที่จะใช้ในการประมวลผล"
+
+        full_prompt = f"คุณคือผู้เชี่ยวชาญด้านการตรวจสอบภาครัฐ\n{context}\n**คำสั่ง:**\n{prompt_instruction}\nตอบกลับเป็นข้อความธรรมดาในรูปแบบรายการ (bullet points) เท่านั้น"
+
         messages = [{"role": "user", "content": full_prompt}]
         response = client.chat.completions.create(
             model="typhoon-v2.1-12b-instruct", messages=messages, temperature=0.5
         )
-        generated_text = response.choices[0].message.content
-        
-        def extract_tag_content(tag, text):
-            # 1. Extract content from the main tag
-            match = re.search(f'<{tag}>(.*?)</{tag}>', text, re.DOTALL)
-            content = match.group(1).strip() if match else ""
-            
-            # 2. If content is found, strip any inner XML tags to get clean text
-            if content:
-                # Replace all inner tags with a newline to separate items
-                cleaned_content = re.sub('<[^>]+>', '\n', content)
-                # Split into lines and filter out empty ones
-                items = [item.strip() for item in cleaned_content.split('\n') if item.strip()]
-                # Format as a bulleted list
-                return "\n".join([f"- {item.lstrip('- ')}" for item in items if item])
-            return ""
+        generated_text = response.choices[0].message.content.strip()
 
-        details = {
-            "criteria": extract_tag_content("CRITERIA", generated_text),
-            "info_needed": extract_tag_content("INFO_NEEDED", generated_text),
-            "source": extract_tag_content("SOURCE", generated_text),
-            "collection_method": extract_tag_content("COLLECTION_METHOD", generated_text),
-            "analysis_method": extract_tag_content("ANALYSIS_METHOD", generated_text),
-        }
-
-        if any(details.values()):
-            target_issue['details'].update(details)
-            st.session_state.ui_feedback_message = ("success", f"AI สร้างเนื้อหาสำหรับประเด็น {prefix} เรียบร้อยแล้ว")
+        if generated_text:
+            target_issue['details'][field_name] = generated_text
+            st.session_state.ui_feedback_message = ("success", f"AI สร้าง '{field_name}' เรียบร้อยแล้ว")
         else:
-            st.session_state.ui_feedback_message = ("error", f"AI ไม่สามารถแยกแยะข้อมูลจากข้อความที่สร้างขึ้นได้:\n{generated_text}")
+            st.session_state.ui_feedback_message = ("error", f"AI ไม่สามารถสร้างเนื้อหาสำหรับ '{field_name}' ได้")
 
     except Exception as e:
-        st.session_state.ui_feedback_message = ("error", f"เกิดข้อผิดพลาดในการเรียก Typhoon AI: {e}")
+        st.session_state.ui_feedback_message = ("error", f"เกิดข้อผิดพลาดในการเรียก AI: {e}")
 
 
 # --- UI Rendering ---
@@ -172,7 +162,7 @@ if st.session_state.get("ui_feedback_message"):
     msg_type, msg_content = st.session_state.ui_feedback_message
     if msg_type == "success": st.success(msg_content)
     else: st.error(msg_content)
-    st.session_state.ui_feedback_message = None # Clear after displaying
+    st.session_state.ui_feedback_message = None
 
 with st.form("general_info_form"):
     st.subheader("1. ข้อมูลทั่วไป")
@@ -205,19 +195,26 @@ for i, obj in enumerate(st.session_state.plan_gen_data["objectives"]):
                     if not target_issue.get('issues'):
                         st.markdown('<div class="ai-expander">', unsafe_allow_html=True)
                         with st.expander("เพิ่มรายละเอียดแนวการตรวจสอบ (ให้ AI ช่วย)"):
-                            st.markdown('<div class="ai-button-container">', unsafe_allow_html=True)
-                            
-                            st.button(f"🤖 ให้ AI ช่วยร่าง (ประเด็น {prefix})", key=f"ai_btn_{key_suffix}", 
-                                on_click=run_ai_for_issue, args=(obj_index, current_path, prefix))
-
-                            st.markdown('</div>', unsafe_allow_html=True)
-                            
                             details = target_issue.get('details', {})
-                            target_issue['details']['criteria'] = st.text_area("เกณฑ์การตรวจสอบ", value=details.get('criteria', ''), key=f"crit_{key_suffix}")
-                            target_issue['details']['info_needed'] = st.text_area("ข้อมูลที่ต้องการ", value=details.get('info_needed', ''), key=f"info_{key_suffix}")
-                            target_issue['details']['source'] = st.text_area("แหล่งข้อมูล", value=details.get('source', ''), key=f"src_{key_suffix}")
-                            target_issue['details']['collection_method'] = st.text_area("วิธีการรวบรวมหลักฐาน", value=details.get('collection_method', ''), key=f"coll_{key_suffix}")
-                            target_issue['details']['analysis_method'] = st.text_area("วิธีการวิเคราะห์หลักฐาน", value=details.get('analysis_method', ''), key=f"anal_{key_suffix}")
+                            
+                            field_map = {
+                                "criteria": "เกณฑ์การตรวจสอบ",
+                                "info_needed": "ข้อมูลที่ต้องการ",
+                                "source": "แหล่งข้อมูล",
+                                "collection_method": "วิธีการรวบรวมหลักฐาน",
+                                "analysis_method": "วิธีการวิเคราะห์หลักฐาน"
+                            }
+
+                            for field, label in field_map.items():
+                                col1, col2 = st.columns([4, 1])
+                                with col1:
+                                    details[field] = st.text_area(label, value=details.get(field, ''), key=f"{field}_{key_suffix}")
+                                with col2:
+                                    st.markdown('<div class="ai-button-container">', unsafe_allow_html=True)
+                                    st.button(f"🤖 สร้าง", key=f"ai_btn_{field}_{key_suffix}", 
+                                              on_click=run_ai_for_field, args=(i, current_path, field))
+                                    st.markdown('</div>', unsafe_allow_html=True)
+                        
                         st.markdown('</div>', unsafe_allow_html=True)
 
                     st.button(f"➕ เพิ่มประเด็นย่อย (สำหรับ {prefix})", key=f"add_sub_issue_{key_suffix}", on_click=add_issue, args=(obj_index, current_path))
@@ -264,15 +261,5 @@ with st.form("estimates_signatures_form"):
 # st.subheader("สร้างเอกสาร")
 # if 'show_report' not in st.session_state:
 #     st.session_state.show_report = False
-
-# if st.button("📄 แสดง/ซ่อนตัวอย่างเอกสาร (HTML)", type="primary", use_container_width=True):
-#     st.session_state.show_report = not st.session_state.show_report
-
-# if st.session_state.show_report:
-#     with st.spinner("กำลังสร้างตัวอย่างเอกสาร..."):
-#         # You would need a function here to generate the HTML report
-#         # report_html = generate_html_report() 
-#         # with st.expander("แสดงตัวอย่างเอกสาร", expanded=True):
-#         #     st.components.v1.html(report_html, height=800, scrolling=True)
-#         st.info("ส่วนของการสร้างเอกสารถูกปิดใช้งานชั่วคราว")
+# ... (rest of the code is commented out) ...
 
