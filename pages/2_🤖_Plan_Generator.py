@@ -23,9 +23,11 @@ def init_plan_state():
                 "maker": {"name": "", "position": "", "date": None, "comment": ""},
                 "reviewer": {"name": "", "position": "", "date": None, "comment": ""},
                 "approver": {"name": "", "position": "", "date": None, "comment": ""},
-            },
-            "ui_feedback_message": None # For showing success/error messages reliably
+            }
         }
+    # Ensure ui_feedback_message is always initialized at the top level
+    if "ui_feedback_message" not in ss:
+        ss.ui_feedback_message = None
 init_plan_state()
 
 # --- Helper Functions ---
@@ -120,7 +122,7 @@ def generate_pdf():
     # --- Add all font styles to FPDF ---
     try:
         pdf.add_font('Sarabun', '', FONT_REGULAR, uni=True)
-        pdf.add_font('Sarabun', 'B', FONT_BOLD, uni=True)
+        pdf.add_font('Srabun', 'B', FONT_BOLD, uni=True)
         pdf.add_font('Sarabun', 'I', FONT_ITALIC, uni=True)
     except Exception as e:
         st.error(f"เกิดข้อผิดพลาดร้ายแรงในการโหลดฟอนต์: {e}")
