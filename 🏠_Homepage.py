@@ -6,7 +6,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- Add credit to the sidebar on the homepage ---
+# --- Add the credit to the sidebar on the homepage ---
 with st.sidebar:
     st.markdown("---")
     st.markdown(
@@ -29,9 +29,9 @@ st.markdown(
         padding-top: 2rem;
     }
 
-    /* --- UPDATED: Styling for the link to remove underline --- */
+    /* Styling for the link to remove underline and inherit color */
     .feature-link {
-        text-decoration: none !important; /* <--- ลบขีดเส้นใต้ */
+        text-decoration: none !important;
         color: inherit !important;
     }
     .feature-link:hover {
@@ -76,12 +76,44 @@ st.markdown(
     .box-2 h3 { color: #2E8B57; } /* Green */
     .box-3 h3 { color: #4A6A8A; } /* Blue */
 
-    /* --- NEW: Style the active page link in the sidebar --- */
-    div[data-testid="stSidebarNav"] a[aria-current="page"] {
-        background-color: #D1E8FF; /* สีพื้นหลังของหน้าที่เลือก */
-        color: #004085; /* สีตัวอักษรของหน้าที่เลือก */
-        border-radius: 5px;
+    /* --- NEW: Style the sidebar navigation --- */
+    
+    /* Move the whole navigation block down */
+    div[data-testid="stSidebarNav"] {
+        margin-top: 20px;
     }
+
+    /* Style each navigation link */
+    div[data-testid="stSidebarNav"] > ul > li > a {
+        padding: 12px !important;      /* Make the link taller */
+        font-size: 18px !important;     /* Make the font bigger */
+        margin-bottom: 8px;           /* Add space between links */
+        border-radius: 5px;
+        color: #333 !important;        /* Default text color for inactive links */
+        background-color: #f0f2f6;     /* Default background for inactive links */
+    }
+    
+    /* Set specific background colors for each link (except the active one) */
+    div[data-testid="stSidebarNav"] ul li:nth-of-type(2) a { /* Design Assistant */
+        background-color: #A93C2D;
+        color: white !important;
+    }
+    div[data-testid="stSidebarNav"] ul li:nth-of-type(3) a { /* Plan Generator */
+        background-color: #4D8076;
+        color: white !important;
+    }
+    div[data-testid="stSidebarNav"] ul li:nth-of-type(4) a { /* PA Assistant Chat */
+        background-color: #4A6A8A;
+        color: white !important;
+    }
+
+    /* Style the ACTIVE page link */
+    div[data-testid="stSidebarNav"] a[aria-current="page"] {
+        background-color: #D1E8FF;     /* Highlight color for the selected page */
+        color: #004085 !important;     /* Text color for the selected page */
+        font-weight: bold;
+    }
+
     </style>
     """,
     unsafe_allow_html=True
@@ -97,7 +129,6 @@ with st.container():
     col1, col2, col3 = st.columns(3, gap="large")
 
     with col1:
-        # Use st.markdown with an <a> tag to make the box clickable
         st.markdown(
             """
             <a href="Design_Assistant" target="_self" class="feature-link">
