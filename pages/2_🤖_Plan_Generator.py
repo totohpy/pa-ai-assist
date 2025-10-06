@@ -60,7 +60,7 @@ def call_gemini_api(context_text):
         genai.configure(api_key=api_key)
 
         # Changed model to a stable and compatible version
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-1.0-pro')
         
         system_prompt = """คุณคือผู้เชี่ยวชาญด้านการตรวจสอบภาครัฐ (State Auditor) มีหน้าที่ในการช่วยร่างแผนและแนวการตรวจสอบตามข้อมูลที่ได้รับ จงสร้างเนื้อหาสำหรับแนวการตรวจสอบโดยละเอียดสำหรับประเด็นสุดท้ายเท่านั้น ตอบกลับเป็น JSON object ที่ถูกต้องสมบูรณ์ โดยใช้ key ต่อไปนี้: "criteria", "info_needed", "source", "collection_method", "analysis_method" เนื้อหาต้องเป็นภาษาไทยที่กระชับและชัดเจน"""
         
