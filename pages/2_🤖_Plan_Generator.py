@@ -199,7 +199,16 @@ def generate_html_report():
             .print-button {{ display: none !important; }}
             #root > div:first-child, .stApp > header, .stApp .main > div:first-child, .stButton, .stDownloadButton, .stSpinner {{ display: none !important; }}
             .main .block-container {{ padding: 0 !important; margin: 0 !important; max-width: 100% !important; }}
-            @page {{ size: A4 landscape; margin: 1.5cm; }}
+            @page {{
+                size: A4 landscape;
+                margin: 1.5cm;
+                @bottom-right {{
+                    content: "Page " counter(page);
+                    font-family: 'Sarabun', sans-serif;
+                    font-size: 10pt;
+                    color: #888;
+                }}
+            }}
         }}
     </style></head><body><div class="page">
         <button class="print-button" onclick="window.print()">🖨️ พิมพ์เอกสาร</button>
@@ -263,13 +272,15 @@ for i, obj in enumerate(st.session_state.plan_gen_data["objectives"]):
                             st.markdown('<div class="ai-button-container">', unsafe_allow_html=True)
                             
                             if st.button(f"🤖 ให้ AI ช่วยร่าง (ประเด็น {prefix})", key=f"ai_btn_{key_suffix}"):
-                                ai_result, error = call_typhoon_api(f"เรื่องที่ตรวจสอบ: {st.session_state.plan_gen_data['general_info']['topic']}\nวัตถุประสงค์: {obj.get('text', '')}\nประเด็นการตรวจสอบ: {target_issue.get('text', '')}")
-                                if error:
-                                    st.session_state.ui_feedback_message = error
-                                else:
-                                    target_issue['details'].update(ai_result)
-                                    st.session_state.ui_feedback_message = ("success", f"AI สร้างเนื้อหาสำหรับประเด็น {prefix} เรียบร้อยแล้ว")
-                                st.rerun()
+                                with st.spinner("AI กำลังประมวลผล..."):
+                                    context = f"เรื่องที่ตรวจสอบ: {st.session_state.plan_gen_data['general_info']['topic']}\nวัตถุประสงค์: {obj.get('text', '')}\nประเด็นการตรวจสอบ: {target_issue.get('text', '')}"
+                                    ai_result, error = call_typhoon_api(context)
+                                    if error:
+                                        st.session_state.ui_feedback_message = error
+                                    else:
+                                        target_issue['details'].update(ai_result)
+                                        st.session_state.ui_feedback_message = ("success", f"AI สร้างเนื้อหาสำหรับประเด็น {prefix} เรียบร้อยแล้ว")
+                                    st.rerun()
 
                             st.markdown('</div>', unsafe_allow_html=True)
                             
