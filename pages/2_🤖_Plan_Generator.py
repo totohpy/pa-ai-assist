@@ -95,28 +95,20 @@ def add_issue(obj_index, parent_issue_path=None):
     target_container["issues"].append(new_issue)
     st.session_state.ui_feedback_message = None
 
-# --- AI Function (Corrected Version) ---
+# --- AI Function ---
 def run_ai_for_field(obj_index, path, field_name):
-    """Callback function to run AI for a specific field."""
     st.session_state.ui_feedback_message = None
     try:
-        if "api_key" not in st.secrets:
-            st.session_state.ui_feedback_message = ("error", "ไม่พบ API Key ใน Streamlit Secrets")
-            return
-
+        # ... (rest of the function is the same until the end) ...
         api_key = st.secrets["api_key"]
         client = OpenAI(api_key=api_key, base_url="https://api.opentyphoon.ai/v1")
-
         obj = st.session_state.plan_gen_data["objectives"][obj_index]
         target_issue = obj
         for index in path:
             target_issue = target_issue["issues"][index]
-
-        # Build context sequentially
         context = f"เรื่องที่ตรวจสอบ: {st.session_state.plan_gen_data['general_info']['topic']}\n"
         context += f"วัตถุประสงค์: {obj.get('text', '')}\n"
         context += f"ประเด็นการตรวจสอบ: {target_issue.get('text', '')}\n"
-        
         prompt_instruction = ""
         if field_name == "criteria":
             prompt_instruction = "จาก context ข้างต้น จงสร้างเฉพาะ 'เกณฑ์การตรวจสอบ' (Audit Criteria) ที่เหมาะสม"
@@ -138,34 +130,97 @@ def run_ai_for_field(obj_index, path, field_name):
             context += f"แหล่งข้อมูล: {target_issue['details'].get('source', '')}\n"
             context += f"วิธีการรวบรวมหลักฐาน: {target_issue['details'].get('collection_method', '')}\n"
             prompt_instruction = "จาก context ข้างต้น จงระบุ 'วิธีการวิเคราะห์หลักฐาน' ที่จะใช้ในการประมวลผล"
-
         full_prompt = f"คุณคือผู้เชี่ยวชาญด้านการตรวจสอบภาครัฐ\n{context}\n**คำสั่ง:**\n{prompt_instruction}\nตอบกลับเป็นข้อความธรรมดาในรูปแบบรายการ (bullet points) เท่านั้น"
-
         messages = [{"role": "user", "content": full_prompt}]
         response = client.chat.completions.create(
             model="typhoon-v2.1-12b-instruct", messages=messages, temperature=0.5
         )
         generated_text = response.choices[0].message.content.strip()
 
-        if generated_text:
-            # Update the main data structure
-            target_issue['details'][field_name] = generated_text
-            
-            # --- This is the fix ---
-            # Construct the exact key of the widget that was clicked
+        # UPDATED: Clean the markdown symbols
+        cleaned_text = re.sub(r'^\s*[\*\-]\s*', '', generated_text, flags=re.MULTILINE)
+        cleaned_text = cleaned_text.replace("**", "")
+        
+        if cleaned_text:
+            target_issue['details'][field_name] = cleaned_text
             key_suffix = f"{obj_index}_{'_'.join(map(str, path))}"
             widget_key = f"{field_name}_{key_suffix}"
-            # Directly update the widget's state in session_state
-            st.session_state[widget_key] = generated_text
-            # ----------------------
-
+            st.session_state[widget_key] = cleaned_text
             st.session_state.ui_feedback_message = ("success", f"AI สร้าง '{field_name}' เรียบร้อยแล้ว")
         else:
             st.session_state.ui_feedback_message = ("error", f"AI ไม่สามารถสร้างเนื้อหาสำหรับ '{field_name}' ได้")
-
     except Exception as e:
         st.session_state.ui_feedback_message = ("error", f"เกิดข้อผิดพลาดในการเรียก AI: {e}")
 
+# --- NEW: Function to generate text report ---
+def generate_report_text(data):
+    """Formats the plan data into a single string for download."""
+    report_lines = []
+
+    def line(text=""):
+        report_lines.append(text)
+
+    def header(text, level=1):
+        report_lines.append(f"{'#' * level} {text}")
+
+    # 1. General Info
+    header("แผนการตรวจสอบ", 1)
+    info = data["general_info"]
+    line(f"**เรื่องที่ตรวจสอบ:** {info.get('topic', 'N/A')}")
+    line(f"**หน่วยงาน:** {info.get('agency', 'N/A')} **กระทรวง:** {info.get('ministry', 'N/A')}")
+    line(f"**สำนักงาน/จังหวัด/กลุ่ม:** {info.get('office', 'N/A')}")
+    line()
+
+    # 2. Objectives and Issues
+    header("วัตถุประสงค์และประเด็นการตรวจสอบ", 2)
+    
+    def process_issues(issues_list, prefix, indent_level):
+        indent = "    " * indent_level
+        for i, issue in enumerate(issues_list):
+            issue_prefix = f"{prefix}.{i+1}"
+            line(f"{indent}**ประเด็น {issue_prefix}:** {issue.get('text', '')}")
+            
+            # Check for details only if it's a leaf node
+            if not issue.get('issues'):
+                details = issue.get('details', {})
+                line(f"{indent}    - **เกณฑ์การตรวจสอบ:** {details.get('criteria', '')}")
+                line(f"{indent}    - **ข้อมูลที่ต้องการ:** {details.get('info_needed', '')}")
+                line(f"{indent}    - **แหล่งข้อมูล:** {details.get('source', '')}")
+                line(f"{indent}    - **วิธีการรวบรวม:** {details.get('collection_method', '')}")
+                line(f"{indent}    - **วิธีการวิเคราะห์:** {details.get('analysis_method', '')}")
+            
+            # Recursive call for sub-issues
+            if issue.get('issues'):
+                process_issues(issue['issues'], issue_prefix, indent_level + 1)
+            line()
+
+    for i, obj in enumerate(data["objectives"]):
+        obj_prefix = str(i + 1)
+        line(f"**วัตถุประสงค์ที่ {obj_prefix}:** {obj.get('text', '')}")
+        line()
+        if obj.get('issues'):
+            process_issues(obj['issues'], obj_prefix, 1)
+
+    # 3. Estimates
+    header("ประมาณการ", 2)
+    estimates = data["estimates"]
+    line(f"**ประมาณการค่าใช้จ่าย:** {estimates.get('cost', '')}")
+    line(f"**ประมาณการคน/วัน:** {estimates.get('effort', '')}")
+    line()
+
+    # 4. Signatures
+    header("ผู้จัดทำและลงนาม", 2)
+    sigs = data["signatures"]
+    for role, title in [("maker", "ผู้จัดทำ"), ("reviewer", "ผู้สอบทาน"), ("approver", "ผู้อนุมัติ")]:
+        sig = sigs.get(role, {})
+        line(f"**{title}**")
+        line(f"- **ลงชื่อ:** {sig.get('name', '')}")
+        line(f"- **ตำแหน่ง:** {sig.get('position', '')}")
+        line(f"- **วันที่:** {sig.get('date', '')}")
+        line(f"- **ความเห็น:** {sig.get('comment', '')}")
+        line()
+    
+    return "\n".join(report_lines)
 
 # --- UI Rendering ---
 if st.session_state.get("ui_feedback_message"):
@@ -206,25 +261,16 @@ for i, obj in enumerate(st.session_state.plan_gen_data["objectives"]):
                         st.markdown('<div class="ai-expander">', unsafe_allow_html=True)
                         with st.expander("เพิ่มรายละเอียดแนวการตรวจสอบ (ให้ AI ช่วย)"):
                             details = target_issue.get('details', {})
-                            
-                            field_map = {
-                                "criteria": "เกณฑ์การตรวจสอบ",
-                                "info_needed": "ข้อมูลที่ต้องการ",
-                                "source": "แหล่งข้อมูล",
-                                "collection_method": "วิธีการรวบรวมหลักฐาน",
-                                "analysis_method": "วิธีการวิเคราะห์หลักฐาน"
-                            }
-
+                            field_map = { "criteria": "เกณฑ์การตรวจสอบ", "info_needed": "ข้อมูลที่ต้องการ", "source": "แหล่งข้อมูล", "collection_method": "วิธีการรวบรวมหลักฐาน", "analysis_method": "วิธีการวิเคราะห์หลักฐาน" }
                             for field, label in field_map.items():
                                 col1, col2 = st.columns([4, 1])
                                 with col1:
                                     details[field] = st.text_area(label, value=details.get(field, ''), key=f"{field}_{key_suffix}")
                                 with col2:
                                     st.markdown('<div class="ai-button-container">', unsafe_allow_html=True)
-                                    st.button(f"🤖 สร้าง", key=f"ai_btn_{field}_{key_suffix}", 
-                                              on_click=run_ai_for_field, args=(i, current_path, field))
+                                    # UPDATED: Button text changed to ✨
+                                    st.button(f"✨สร้าง", key=f"ai_btn_{field}_{key_suffix}", on_click=run_ai_for_field, args=(i, current_path, field))
                                     st.markdown('</div>', unsafe_allow_html=True)
-                            
                         st.markdown('</div>', unsafe_allow_html=True)
 
                     st.button(f"➕ เพิ่มประเด็นย่อย (สำหรับ {prefix})", key=f"add_sub_issue_{key_suffix}", on_click=add_issue, args=(obj_index, current_path))
@@ -241,10 +287,8 @@ with st.form("estimates_signatures_form"):
     st.subheader("3. ประมาณการและผู้จัดทำ")
     st.session_state.plan_gen_data["estimates"]["cost"] = st.text_area("ประมาณการค่าใช้จ่ายในการตรวจสอบ", st.session_state.plan_gen_data["estimates"]["cost"])
     st.session_state.plan_gen_data["estimates"]["effort"] = st.text_area("ประมาณการคน/วันที่ใช้ในการตรวจสอบ", st.session_state.plan_gen_data["estimates"]["effort"])
-    
     c1, c2, c3 = st.columns(3)
     sig_data = st.session_state.plan_gen_data["signatures"]
-    
     with c1:
         st.markdown("**ผู้จัดทำ**")
         sig_data["maker"]["name"] = st.text_input("ลงชื่อ", value=sig_data["maker"].get("name", ""), key="maker_name")
@@ -263,5 +307,25 @@ with st.form("estimates_signatures_form"):
         sig_data["approver"]["position"] = st.text_input("ตำแหน่ง", value=sig_data["approver"].get("position", ""), key="approver_pos")
         sig_data["approver"]["date"] = st.date_input("วันที่", value=sig_data["approver"].get("date"), key="approver_date")
         sig_data["approver"]["comment"] = st.text_area("ความเห็นเพิ่มเติม", value=sig_data["approver"].get("comment", ""), key="approver_comment")
-        
     st.form_submit_button("บันทึกข้อมูลผู้จัดทำ", use_container_width=True)
+
+# --- NEW: Section for saving and downloading the report ---
+st.divider()
+st.subheader("4. บันทึกและสร้างเอกสาร")
+
+# Generate the report text from session state
+report_content = generate_report_text(st.session_state.plan_gen_data)
+
+# Show a preview in an expander
+with st.expander("📄 ดูตัวอย่างเอกสาร"):
+    st.markdown(report_content)
+
+# Provide the download button
+st.download_button(
+    label="📂 ดาวน์โหลดแผนและแนวการตรวจ (.txt)",
+    data=report_content.encode('utf-8'),
+    file_name=f"audit_plan_{datetime.now().strftime('%Y-%m-%d')}.txt",
+    mime='text/plain',
+    use_container_width=True,
+    type="primary"
+)
