@@ -9,7 +9,7 @@ import docx
 from docx.enum.section import WD_ORIENT
 from docx.shared import Pt
 import base64
-import json
+import streamlit.components.v1 as components
 
 # --- Page Configuration ---
 st.set_page_config(layout="wide", page_title="AI Plan Generator")
@@ -60,6 +60,7 @@ def add_issue(obj_index, parent_issue_path=None):
 
 # --- AI Function (Unchanged) ---
 def run_ai_for_field(obj_index, path, field_name):
+    # This function remains unchanged from the previous working version
     st.session_state.ui_feedback_message = None
     try:
         if "api_key" not in st.secrets:
@@ -122,7 +123,7 @@ def load_font_as_base64(font_path):
         return None
 
 # --- Function to generate HTML report ---
-def generate_html_report(data, for_printing=False):
+def generate_html_report(data):
     sarabun_regular_b64 = load_font_as_base64("Sarabun-Regular.ttf")
     sarabun_bold_b64 = load_font_as_base64("Sarabun-Bold.ttf")
     sarabun_italic_b64 = load_font_as_base64("Sarabun-Italic.ttf")
@@ -138,11 +139,6 @@ def generate_html_report(data, for_printing=False):
         if not text:
             return ""
         return html.escape(text).replace('\n', '<br>')
-    
-    # --- UPDATED: Add auto-print script if for_printing is True ---
-    print_script = ""
-    if for_printing:
-        print_script = "<script>window.onload = function() { window.print(); }</script>"
 
     html_template = f"""
     <!DOCTYPE html>
@@ -150,7 +146,6 @@ def generate_html_report(data, for_printing=False):
     <head>
         <meta charset="UTF-8">
         <title>แผนและแนวการตรวจสอบ</title>
-        {print_script} 
         <style>
             {font_faces}
             body {{ font-family: 'Sarabun', sans-serif; font-size: 16px; margin: 1cm; }}
@@ -159,6 +154,8 @@ def generate_html_report(data, for_printing=False):
             th, td {{ border: 1px solid black; padding: 8px; text-align: left; vertical-align: top; }}
             .header-info p, .objective-info p {{ margin: 0; padding: 2px 0; }}
             .signature-table td {{ height: 120px; }}
+            .print-button-container {{ text-align: center; margin: 15px 0; }}
+            .print-button {{ padding: 10px 20px; font-size: 16px; cursor: pointer; border-radius: 5px; border: 1px solid #007bff; background-color: #007bff; color: white; font-family: 'Sarabun', sans-serif;}}
             
             /* --- UPDATED: CSS for sticky table headers --- */
             thead th {{
@@ -170,12 +167,17 @@ def generate_html_report(data, for_printing=False):
             }}
 
             @media print {{
+                .no-print {{ display: none; }}
                 @page {{ size: A4 landscape; margin: 1.5cm; }}
                 body {{ margin: 0; }}
             }}
         </style>
     </head>
     <body>
+        <div class="print-button-container no-print">
+            <button class="print-button" onclick="window.print()">🖨️ พิมพ์ / บันทึกเป็น PDF</button>
+        </div>
+
         <h2>แผนและแนวการตรวจสอบ</h2>
         <div class="header-info">
             <p><b>สำนักงานการตรวจเงินแผ่นดินภูมิภาคที่/สำนักตรวจเงินแผ่นดินจังหวัด:</b> {format_text(data['general_info'].get('office', '...........'))}
@@ -241,6 +243,7 @@ def generate_html_report(data, for_printing=False):
 
 # --- Function to generate DOCX (Unchanged) ---
 def generate_docx_report(data):
+    # This function remains unchanged
     doc = docx.Document()
     current_section = doc.sections[-1]
     new_width, new_height = current_section.page_height, current_section.page_width
@@ -263,18 +266,12 @@ def generate_docx_report(data):
                 table = doc.add_table(rows=1, cols=5)
                 table.style = 'Table Grid'
                 hdr_cells = table.rows[0].cells
-                hdr_cells[0].text = 'เกณฑ์การตรวจสอบ'
-                hdr_cells[1].text = 'ข้อมูลที่ต้องการ'
-                hdr_cells[2].text = 'แหล่งข้อมูล'
-                hdr_cells[3].text = 'วิธีการรวบรวมหลักฐาน'
-                hdr_cells[4].text = 'วิธีการวิเคราะห์หลักฐาน'
+                hdr_cells[0].text = 'เกณฑ์การตรวจสอบ'; hdr_cells[1].text = 'ข้อมูลที่ต้องการ'; hdr_cells[2].text = 'แหล่งข้อมูล'
+                hdr_cells[3].text = 'วิธีการรวบรวมหลักฐาน'; hdr_cells[4].text = 'วิธีการวิเคราะห์หลักฐาน'
                 row_cells = table.add_row().cells
-                row_cells[0].text = details.get('criteria', '')
-                row_cells[1].text = details.get('info_needed', '')
-                row_cells[2].text = details.get('source', '')
-                row_cells[3].text = details.get('collection_method', '')
-                row_cells[4].text = details.get('analysis_method', '')
-                doc.add_paragraph()
+                row_cells[0].text = details.get('criteria', ''); row_cells[1].text = details.get('info_needed', '')
+                row_cells[2].text = details.get('source', ''); row_cells[3].text = details.get('collection_method', '')
+                row_cells[4].text = details.get('analysis_method', ''); doc.add_paragraph()
     doc.add_heading('ประมาณการ', level=2)
     estimates = data["estimates"]
     doc.add_paragraph(f"ประมาณการค่าใช้จ่ายในการตรวจสอบ: {estimates.get('cost', '')}")
@@ -284,9 +281,7 @@ def generate_docx_report(data):
     sig_table = doc.add_table(rows=1, cols=3)
     sig_table.style = 'Table Grid'
     hdr_cells = sig_table.rows[0].cells
-    hdr_cells[0].text = 'ผู้จัดทำ'
-    hdr_cells[1].text = 'ผู้สอบทาน'
-    hdr_cells[2].text = 'ผู้อนุมัติ (รผต. / ผอ. สำนัก)'
+    hdr_cells[0].text = 'ผู้จัดทำ'; hdr_cells[1].text = 'ผู้สอบทาน'; hdr_cells[2].text = 'ผู้อนุมัติ (รผต. / ผอ. สำนัก)'
     data_row = sig_table.add_row().cells
     for idx, role in enumerate(["maker", "reviewer", "approver"]):
         sig = sigs.get(role, {})
@@ -298,9 +293,7 @@ def generate_docx_report(data):
     buffer.seek(0)
     return buffer
 
-
 # --- UI Rendering (Main part of the app) ---
-# ... (Sections 1, 2, 3 for data input are unchanged) ...
 if st.session_state.get("ui_feedback_message"):
     msg_type, msg_content = st.session_state.ui_feedback_message
     if msg_type == "success": st.success(msg_content)
@@ -381,23 +374,18 @@ with st.form("estimates_signatures_form"):
     st.form_submit_button("บันทึกข้อมูลผู้จัดทำ", use_container_width=True)
 
 
-# --- UPDATED: Section for HTML preview and DOCX download ---
+# --- UPDATED: Section for direct HTML preview with working Print and Sticky Headers ---
 st.divider()
 
 with st.container(border=True):
     st.subheader("4. แสดงผลและส่งออกเอกสาร")
-    
-    # --- UPDATED: New Print/PDF link that opens a new tab and auto-prints ---
-    html_for_printing = generate_html_report(st.session_state.plan_gen_data, for_printing=True)
-    b64_html = base64.b64encode(html_for_printing.encode()).decode()
-    print_link_html = f'<a href="data:text/html;base64,{b64_html}" target="_blank" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-align: center; text-decoration: none; border-radius: 5px;">🖨️ พิมพ์ / บันทึกเป็น PDF</a>'
-    st.markdown(print_link_html, unsafe_allow_html=True)
 
-    # Add a collapsible preview area for viewing within the app
-    with st.expander("แสดง/ซ่อนตัวอย่างรายงาน (เลื่อนดูในนี้ได้)"):
-        # Generate a version of the report WITHOUT the auto-print script for the preview
-        html_for_preview = generate_html_report(st.session_state.plan_gen_data, for_printing=False)
-        st.html(html_for_preview)
+    # Generate the report for in-app preview
+    html_for_preview = generate_html_report(st.session_state.plan_gen_data)
+    
+    # Use components.html to create a scrollable frame with a fixed height
+    # This makes the sticky header work and isolates the print command.
+    components.html(html_for_preview, height=800, scrolling=True)
     
     st.markdown("---")
     
