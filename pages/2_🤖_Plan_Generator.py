@@ -95,67 +95,44 @@ def add_issue(obj_index, parent_issue_path=None):
     st.session_state.ui_feedback_message = None
 
 # --- AI Function ---
-def format_ai_response(parsed_json):
-    """Formats the JSON response from AI for better display."""
-    formatted_json = {}
-    for key, value in parsed_json.items():
-        if isinstance(value, list):
-            formatted_json[key] = "\n".join([f"- {item}" for item in value])
-        elif isinstance(value, str) and value.startswith('[') and value.endswith(']'):
-            try:
-                list_value = eval(value)
-                if isinstance(list_value, list):
-                    formatted_json[key] = "\n".join([f"- {item}" for item in list_value])
+def call_typhoon_api(context_text):
+    try:
+        if "api_key" not in st.secrets:
+            return None, ("error", "ไม่พบ API Key ใน Streamlit Secrets")
+        
+        api_key = st.secrets["api_key"]
+        client = OpenAI(api_key=api_key, base_url="https://api.opentyphoon.ai/v1")
+
+        full_prompt = f"""คุณคือผู้เชี่ยวชาญด้านการตรวจสอบภาครัฐ (State Auditor)... จงสร้างเนื้อหาสำหรับ... context ต่อไปนี้:\n--- CONTEXT START ---\n{context_text}\n--- CONTEXT END ---\n**คำสั่ง:**\nตอบกลับเป็น JSON object **เท่านั้น**..."""
+        
+        messages = [{"role": "user", "content": full_prompt}]
+        response = client.chat.completions.create(
+            model="typhoon-v2.1-12b-instruct", messages=messages, temperature=0.5
+        )
+        generated_text = response.choices[0].message.content
+        
+        match = re.search(r'\{.*\}', generated_text, re.DOTALL)
+        if match:
+            parsed_json = json.loads(match.group(0))
+            formatted_json = {}
+            for key, value in parsed_json.items():
+                if isinstance(value, list):
+                    formatted_json[key] = "\n".join([f"- {item}" for item in value])
+                elif isinstance(value, str) and value.startswith('[') and value.endswith(']'):
+                    try:
+                        list_value = eval(value)
+                        formatted_json[key] = "\n".join([f"- {item}" for item in list_value]) if isinstance(list_value, list) else value
+                    except:
+                        cleaned_value = value.strip("[]'\" ")
+                        items = [item.strip() for item in cleaned_value.replace("'", "").replace('"', '').split(',')]
+                        formatted_json[key] = "\n".join([f"- {item}" for item in items])
                 else:
                     formatted_json[key] = value
-            except:
-                cleaned_value = value.strip("[]'\" ")
-                items = [item.strip() for item in cleaned_value.replace("'", "").replace('"', '').split(',')]
-                formatted_json[key] = "\n".join([f"- {item}" for item in items])
-        else:
-            formatted_json[key] = value
-    return formatted_json
+            return formatted_json, None
+        return None, ("error", f"AI ไม่ได้ส่งข้อมูลกลับมาในรูปแบบ JSON ที่คาดหวัง:\n{generated_text}")
 
-def run_ai_for_issue(obj_index, path, prefix):
-    """Callback function to run AI and update session state."""
-    with st.spinner("AI กำลังประมวลผล..."):
-        try:
-            if "api_key" not in st.secrets:
-                st.session_state.ui_feedback_message = ("error", "ไม่พบ API Key ใน Streamlit Secrets")
-                return
-
-            api_key = st.secrets["api_key"]
-            client = OpenAI(api_key=api_key, base_url="https://api.opentyphoon.ai/v1")
-
-            # Construct context
-            obj = st.session_state.plan_gen_data["objectives"][obj_index]
-            issue = obj
-            for index in path:
-                issue = issue["issues"][index]
-            
-            context = f"เรื่องที่ตรวจสอบ: {st.session_state.plan_gen_data['general_info']['topic']}\nวัตถุประสงค์: {obj.get('text', '')}\nประเด็นการตรวจสอบ: {issue.get('text', '')}"
-            
-            full_prompt = f"""คุณคือผู้เชี่ยวชาญด้านการตรวจสอบภาครัฐ (State Auditor)... จงสร้างเนื้อหาสำหรับ... context ต่อไปนี้:\n--- CONTEXT START ---\n{context}\n--- CONTEXT END ---\n**คำสั่ง:**\nตอบกลับเป็น JSON object **เท่านั้น**..."""
-            
-            messages = [{"role": "user", "content": full_prompt}]
-            response = client.chat.completions.create(
-                model="typhoon-v2.1-12b-instruct", messages=messages, temperature=0.5
-            )
-            generated_text = response.choices[0].message.content
-            
-            match = re.search(r'\{.*\}', generated_text, re.DOTALL)
-            if match:
-                parsed_json = json.loads(match.group(0))
-                formatted_result = format_ai_response(parsed_json)
-                
-                # Update session state
-                issue['details'].update(formatted_result)
-                st.session_state.ui_feedback_message = ("success", f"AI สร้างเนื้อหาสำหรับประเด็น {prefix} เรียบร้อยแล้ว")
-            else:
-                st.session_state.ui_feedback_message = ("error", f"AI ไม่ได้ส่งข้อมูลกลับมาในรูปแบบ JSON ที่คาดหวัง:\n{generated_text}")
-
-        except Exception as e:
-            st.session_state.ui_feedback_message = ("error", f"เกิดข้อผิดพลาดในการเรียก Typhoon AI: {e}")
+    except Exception as e:
+        return None, ("error", f"เกิดข้อผิดพลาดในการเรียก Typhoon AI: {e}")
 
 # --- HTML Generation Function ---
 def generate_html_report():
@@ -163,9 +140,7 @@ def generate_html_report():
 
     def escape(text):
         raw_text = str(text) if text is not None else ""
-        # This handles both literal '\n' and actual newlines
-        processed_text = raw_text.replace('\\n', '\n') 
-        return html.escape(processed_text).replace("\n", "<br>")
+        return html.escape(raw_text).replace("\n", "<br>")
 
     def render_issues_html(issues_list, prefix_num):
         if not issues_list: return ""
@@ -207,24 +182,27 @@ def generate_html_report():
     <!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><title>แผนและแนวการตรวจสอบ</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        body {{ font-family: 'Sarabun', sans-serif; background-color: #ffffff; margin: 0; padding: 0; -webkit-print-color-adjust: exact; }}
-        .page {{ background: white; width: 29.7cm; min-height: 21cm; padding: 2cm; margin: 1cm auto; border: 1px #D3D3D3 solid; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); box-sizing: border-box; }}
+        body {{ font-family: 'Sarabun', sans-serif; background-color: #f0f2f5; margin: 0; padding: 0; -webkit-print-color-adjust: exact; }}
+        .page {{ background: white; width: 29.7cm; min-height: 21cm; padding: 2cm; margin: 1cm auto; border: 1px #D3D3D3 solid; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); box-sizing: border-box; position: relative; }}
         h1, h3, h4 {{ margin-top: 0; font-weight: 700; }}
         .header-info p {{ margin: 4px 0; }}
         .details-table {{ width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 20px; table-layout: auto; }}
         .details-table th, .details-table td {{ border: 1px solid #999; padding: 8px; text-align: left; vertical-align: top; word-wrap: break-word; }}
         .details-table th {{ background-color: #f2f2f2; font-weight: bold; }}
-        .signature-table {{ width: 100%; border-collapse: collapse; margin-top: 25px; table-layout: auto; }}
-        .signature-table th, .signature-table td {{ border: 1px solid #000; padding: 8px; text-align: left; vertical-align: top; word-wrap: break-word; }}
+        .signature-table {{ width: 100%; border-collapse: collapse; margin-top: 25px; table-layout: fixed; }}
+        .signature-table th, .signature-table td {{ width: 33.33%; border: 1px solid #000; padding: 8px; text-align: left; vertical-align: top; word-wrap: break-word; }}
         .signature-table th {{ text-align: center; font-weight: bold; }} .signature-table td {{ height: 120px; }}
+        .print-button {{ position: absolute; top: 20px; right: 20px; padding: 10px 15px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-family: 'Sarabun', sans-serif; font-size: 16px; }}
         
         @media print {{
             body, .page {{ margin: 0; padding: 0; box-shadow: none; border: none; background: white; }}
-            #root > div:first-child {{ display: none !important; }} /* Hides Streamlit header */
+            .print-button {{ display: none !important; }}
+            #root > div:first-child, .stApp > header, .stApp .main > div:first-child, .stButton, .stDownloadButton, .stSpinner {{ display: none !important; }}
             .main .block-container {{ padding: 0 !important; margin: 0 !important; max-width: 100% !important; }}
             @page {{ size: A4 landscape; margin: 1.5cm; }}
         }}
     </style></head><body><div class="page">
+        <button class="print-button" onclick="window.print()">🖨️ พิมพ์เอกสาร</button>
         <h1 style="text-align: center; font-weight: 700;">แผนและแนวการตรวจสอบ</h1>
         <div class="header-info">
             <p><strong>เรื่องที่ตรวจสอบ:</strong> {escape(plan_data['general_info']['topic'])}</p>
@@ -232,8 +210,8 @@ def generate_html_report():
             <p><strong>สำนักงาน:</strong> {escape(plan_data['general_info']['office'])}</p>
         </div>
         {objectives_html}
-        <p><strong>ประมาณการค่าใช้จ่าย:</strong> {escape(plan_data['estimates']['cost'])}</p>
-        <p><strong>ประมาณการคน/วัน:</strong> {escape(plan_data['estimates']['effort'])}</p>
+        <p style="margin-top: 25px;"><strong>ประมาณการค่าใช้จ่ายในการตรวจสอบ:</strong> {escape(plan_data['estimates']['cost'])}</p>
+        <p><strong>ประมาณการคน/วันที่ใช้ในการตรวจสอบ:</strong> {escape(plan_data['estimates']['effort'])}</p>
         <table class="signature-table"><thead><tr><th>ผู้จัดทำ</th><th>ผู้สอบทาน</th><th>ผู้อนุมัติ (รผต. / ผอ. สำนัก)</th></tr></thead>
             <tbody><tr>
                 <td>{escape(maker_text)}</td>
@@ -277,7 +255,6 @@ for i, obj in enumerate(st.session_state.plan_gen_data["objectives"]):
                     st.markdown(f"<div style='margin-left: {len(current_path) * 20}px;'>", unsafe_allow_html=True)
                     
                     target_issue = issue
-                    
                     target_issue['text'] = st.text_area(f"ประเด็นการตรวจสอบที่ {prefix}", value=target_issue.get('text', ''), key=f"issue_text_{key_suffix}")
 
                     if not target_issue.get('issues'):
@@ -285,9 +262,15 @@ for i, obj in enumerate(st.session_state.plan_gen_data["objectives"]):
                         with st.expander("เพิ่มรายละเอียดแนวการตรวจสอบ (ให้ AI ช่วย)"):
                             st.markdown('<div class="ai-button-container">', unsafe_allow_html=True)
                             
-                            st.button(f"🤖 ให้ AI ช่วยร่าง (ประเด็น {prefix})", key=f"ai_btn_{key_suffix}", 
-                                      on_click=run_ai_for_issue, args=(obj_index, current_path, prefix))
-                            
+                            if st.button(f"🤖 ให้ AI ช่วยร่าง (ประเด็น {prefix})", key=f"ai_btn_{key_suffix}"):
+                                ai_result, error = call_typhoon_api(f"เรื่องที่ตรวจสอบ: {st.session_state.plan_gen_data['general_info']['topic']}\nวัตถุประสงค์: {obj.get('text', '')}\nประเด็นการตรวจสอบ: {target_issue.get('text', '')}")
+                                if error:
+                                    st.session_state.ui_feedback_message = error
+                                else:
+                                    target_issue['details'].update(ai_result)
+                                    st.session_state.ui_feedback_message = ("success", f"AI สร้างเนื้อหาสำหรับประเด็น {prefix} เรียบร้อยแล้ว")
+                                st.rerun()
+
                             st.markdown('</div>', unsafe_allow_html=True)
                             
                             details = target_issue.get('details', {})
@@ -346,7 +329,6 @@ if st.button("📄 แสดง/ซ่อนตัวอย่างเอกส
 if st.session_state.show_report:
     with st.spinner("กำลังสร้างตัวอย่างเอกสาร..."):
         report_html = generate_html_report()
-        with st.expander("แสดงตัวอย่างเอกสาร (คลิกขวาเพื่อ Print/Save as PDF)", expanded=True):
+        with st.expander("แสดงตัวอย่างเอกสาร (คลิกปุ่ม 'พิมพ์เอกสาร' ด้านในเพื่อ Print/Save as PDF)", expanded=True):
             st.components.v1.html(report_html, height=800, scrolling=True)
-            st.info("คุณสามารถคลิกขวาบนพื้นที่เอกสารด้านบน แล้วเลือก 'Print...' จากนั้นเลือก 'Save as PDF' เพื่อบันทึกไฟล์")
 
