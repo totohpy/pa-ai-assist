@@ -119,7 +119,8 @@ def generate_pdf():
 
     def write_multiline_thai(text, style='', font_size=10):
         pdf.set_font('Sarabun', style, font_size)
-        pdf.multi_cell(0, 7, str(text))
+        drawable_width = pdf.w - pdf.l_margin - pdf.r_margin
+        pdf.multi_cell(drawable_width, 7, str(text))
 
     pdf.set_font('Sarabun', 'B', 12)
     write_multiline_thai(f"เรื่องที่ตรวจสอบ: {plan_data['general_info']['topic']}", style='B', font_size=12)
@@ -165,10 +166,7 @@ def generate_pdf():
     
     pdf.set_font('Sarabun', 'B', 11)
     y_before_table = pdf.get_y()
-    pdf.cell(col_width, line_height, 'ผู้จัดทำ', border=1, align='C')
-    pdf.set_xy(pdf.get_x(), y_before_table) # Reset Y to draw cells on the same line
-    pdf.cell(col_width * 2, line_height, 'ผู้สอบทาน', border=1, align='C')
-    pdf.set_xy(pdf.get_x(), y_before_table)
+    
     pdf.multi_cell(col_width, line_height, 'ผู้จัดทำ', border=1, align='C')
     pdf.set_xy(pdf.get_x() + col_width, y_before_table)
     pdf.multi_cell(col_width, line_height, 'ผู้สอบทาน', border=1, align='C')
@@ -228,7 +226,6 @@ for i, obj in enumerate(st.session_state.plan_gen_data["objectives"]):
                 with st.container():
                     st.markdown(f"<div style='margin-left: {level * 20}px;'>", unsafe_allow_html=True)
                     
-                    # Get target issue from session state to modify it directly
                     target_container = st.session_state.plan_gen_data["objectives"][obj_index]
                     for index in path:
                         target_container = target_container["issues"][index]
