@@ -95,68 +95,67 @@ def add_issue(obj_index, parent_issue_path=None):
     st.session_state.ui_feedback_message = None
 
 # --- AI Function ---
-def call_typhoon_api(context_text):
-    try:
-        if "api_key" not in st.secrets:
-            st.session_state.ui_feedback_message = ("error", "ไม่พบ API Key ใน Streamlit Secrets")
-            return None
-        
-        api_key = st.secrets["api_key"]
-        client = OpenAI(api_key=api_key, base_url="https://api.opentyphoon.ai/v1")
-
-        full_prompt = f"""คุณคือผู้เชี่ยวชาญด้านการตรวจสอบภาครัฐ (State Auditor) 
-หน้าที่ของคุณคือช่วยร่างแผนและแนวการตรวจสอบตามข้อมูลที่ได้รับ 
-จงสร้างเนื้อหาสำหรับแนวการตรวจสอบโดยละเอียดสำหรับประเด็นสุดท้ายที่อยู่ใน context ต่อไปนี้:
---- CONTEXT START ---
-{context_text}
---- CONTEXT END ---
-**คำสั่ง:**
-ตอบกลับเป็น JSON object **เท่านั้น** ห้ามมีข้อความอื่นนำหน้าหรือตามหลัง JSON โดยเด็ดขาด 
-ใช้ key ต่อไปนี้: "criteria", "info_needed", "source", "collection_method", "analysis_method" 
-เนื้อหาต้องเป็นภาษาไทยที่กระชับและชัดเจน
-"""
-        messages = [{"role": "user", "content": full_prompt}]
-        
-        response = client.chat.completions.create(
-            model="typhoon-v2.1-12b-instruct", 
-            messages=messages, 
-            temperature=0.5
-        )
-        
-        generated_text = response.choices[0].message.content
-        
-        match = re.search(r'\{.*\}', generated_text, re.DOTALL)
-        if match:
+def format_ai_response(parsed_json):
+    """Formats the JSON response from AI for better display."""
+    formatted_json = {}
+    for key, value in parsed_json.items():
+        if isinstance(value, list):
+            formatted_json[key] = "\n".join([f"- {item}" for item in value])
+        elif isinstance(value, str) and value.startswith('[') and value.endswith(']'):
             try:
-                parsed_json = json.loads(match.group(0))
-                formatted_json = {}
-                for key, value in parsed_json.items():
-                    if isinstance(value, list):
-                        formatted_json[key] = "\n".join([f"- {item}" for item in value])
-                    elif isinstance(value, str) and value.startswith('[') and value.endswith(']'):
-                        try:
-                            list_value = eval(value)
-                            if isinstance(list_value, list):
-                                formatted_json[key] = "\n".join([f"- {item}" for item in list_value])
-                            else:
-                                formatted_json[key] = value
-                        except:
-                            cleaned_value = value.strip("[]'\" ")
-                            items = [item.strip() for item in cleaned_value.replace("'", "").replace('"', '').split(',')]
-                            formatted_json[key] = "\n".join([f"- {item}" for item in items])
-                    else:
-                        formatted_json[key] = value
-                return formatted_json
-            except json.JSONDecodeError:
-                st.session_state.ui_feedback_message = ("error", "AI ไม่ได้ส่งข้อมูลกลับมาในรูปแบบ JSON ที่ถูกต้อง")
-                return None
+                list_value = eval(value)
+                if isinstance(list_value, list):
+                    formatted_json[key] = "\n".join([f"- {item}" for item in list_value])
+                else:
+                    formatted_json[key] = value
+            except:
+                cleaned_value = value.strip("[]'\" ")
+                items = [item.strip() for item in cleaned_value.replace("'", "").replace('"', '').split(',')]
+                formatted_json[key] = "\n".join([f"- {item}" for item in items])
         else:
-            st.session_state.ui_feedback_message = ("error", f"AI ไม่ได้ส่งข้อมูลกลับมาในรูปแบบ JSON ที่คาดหวัง:\n{generated_text}")
-            return None
+            formatted_json[key] = value
+    return formatted_json
 
-    except Exception as e:
-        st.session_state.ui_feedback_message = ("error", f"เกิดข้อผิดพลาดในการเรียก Typhoon AI: {e}")
-        return None
+def run_ai_for_issue(obj_index, path, prefix):
+    """Callback function to run AI and update session state."""
+    with st.spinner("AI กำลังประมวลผล..."):
+        try:
+            if "api_key" not in st.secrets:
+                st.session_state.ui_feedback_message = ("error", "ไม่พบ API Key ใน Streamlit Secrets")
+                return
+
+            api_key = st.secrets["api_key"]
+            client = OpenAI(api_key=api_key, base_url="https://api.opentyphoon.ai/v1")
+
+            # Construct context
+            obj = st.session_state.plan_gen_data["objectives"][obj_index]
+            issue = obj
+            for index in path:
+                issue = issue["issues"][index]
+            
+            context = f"เรื่องที่ตรวจสอบ: {st.session_state.plan_gen_data['general_info']['topic']}\nวัตถุประสงค์: {obj.get('text', '')}\nประเด็นการตรวจสอบ: {issue.get('text', '')}"
+            
+            full_prompt = f"""คุณคือผู้เชี่ยวชาญด้านการตรวจสอบภาครัฐ (State Auditor)... จงสร้างเนื้อหาสำหรับ... context ต่อไปนี้:\n--- CONTEXT START ---\n{context}\n--- CONTEXT END ---\n**คำสั่ง:**\nตอบกลับเป็น JSON object **เท่านั้น**..."""
+            
+            messages = [{"role": "user", "content": full_prompt}]
+            response = client.chat.completions.create(
+                model="typhoon-v2.1-12b-instruct", messages=messages, temperature=0.5
+            )
+            generated_text = response.choices[0].message.content
+            
+            match = re.search(r'\{.*\}', generated_text, re.DOTALL)
+            if match:
+                parsed_json = json.loads(match.group(0))
+                formatted_result = format_ai_response(parsed_json)
+                
+                # Update session state
+                issue['details'].update(formatted_result)
+                st.session_state.ui_feedback_message = ("success", f"AI สร้างเนื้อหาสำหรับประเด็น {prefix} เรียบร้อยแล้ว")
+            else:
+                st.session_state.ui_feedback_message = ("error", f"AI ไม่ได้ส่งข้อมูลกลับมาในรูปแบบ JSON ที่คาดหวัง:\n{generated_text}")
+
+        except Exception as e:
+            st.session_state.ui_feedback_message = ("error", f"เกิดข้อผิดพลาดในการเรียก Typhoon AI: {e}")
 
 # --- HTML Generation Function ---
 def generate_html_report():
@@ -164,7 +163,8 @@ def generate_html_report():
 
     def escape(text):
         raw_text = str(text) if text is not None else ""
-        processed_text = raw_text.replace('\\n', '\n')
+        # This handles both literal '\n' and actual newlines
+        processed_text = raw_text.replace('\\n', '\n') 
         return html.escape(processed_text).replace("\n", "<br>")
 
     def render_issues_html(issues_list, prefix_num):
@@ -195,7 +195,14 @@ def generate_html_report():
         objectives_html += f"<div class='objective-block'><h3>วัตถุประสงค์การตรวจสอบที่ {i+1}: {escape(obj.get('text', ''))}</h3>"
         objectives_html += render_issues_html(obj.get('issues', []), str(i+1))
         objectives_html += "</div>"
+        
+    sig = plan_data['signatures']
+    date_format = lambda d: d.strftime('%d/%m/%Y') if d else ''
     
+    maker_text = f"ลงชื่อ: {sig['maker']['name']}\nตำแหน่ง: {sig['maker']['position']}\nวันที่: {date_format(sig['maker']['date'])}\nความเห็น: {sig['maker']['comment']}"
+    reviewer_text = f"ลงชื่อ: {sig['reviewer']['name']}\nตำแหน่ง: {sig['reviewer']['position']}\nวันที่: {date_format(sig['reviewer']['date'])}\nความเห็น: {sig['reviewer']['comment']}"
+    approver_text = f"ลงชื่อ: {sig['approver']['name']}\nตำแหน่ง: {sig['approver']['position']}\nวันที่: {date_format(sig['approver']['date'])}\nความเห็น: {sig['approver']['comment']}"
+
     report_html = f"""
     <!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><title>แผนและแนวการตรวจสอบ</title>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
@@ -207,10 +214,13 @@ def generate_html_report():
         .details-table {{ width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 20px; table-layout: auto; }}
         .details-table th, .details-table td {{ border: 1px solid #999; padding: 8px; text-align: left; vertical-align: top; word-wrap: break-word; }}
         .details-table th {{ background-color: #f2f2f2; font-weight: bold; }}
+        .signature-table {{ width: 100%; border-collapse: collapse; margin-top: 25px; table-layout: auto; }}
+        .signature-table th, .signature-table td {{ border: 1px solid #000; padding: 8px; text-align: left; vertical-align: top; word-wrap: break-word; }}
+        .signature-table th {{ text-align: center; font-weight: bold; }} .signature-table td {{ height: 120px; }}
         
         @media print {{
             body, .page {{ margin: 0; padding: 0; box-shadow: none; border: none; background: white; }}
-            .stApp > header, .stApp .main > div:first-child, .stButton, .stDownloadButton, .stSpinner {{ display: none !important; }}
+            #root > div:first-child {{ display: none !important; }} /* Hides Streamlit header */
             .main .block-container {{ padding: 0 !important; margin: 0 !important; max-width: 100% !important; }}
             @page {{ size: A4 landscape; margin: 1.5cm; }}
         }}
@@ -222,6 +232,14 @@ def generate_html_report():
             <p><strong>สำนักงาน:</strong> {escape(plan_data['general_info']['office'])}</p>
         </div>
         {objectives_html}
+        <p><strong>ประมาณการค่าใช้จ่าย:</strong> {escape(plan_data['estimates']['cost'])}</p>
+        <p><strong>ประมาณการคน/วัน:</strong> {escape(plan_data['estimates']['effort'])}</p>
+        <table class="signature-table"><thead><tr><th>ผู้จัดทำ</th><th>ผู้สอบทาน</th><th>ผู้อนุมัติ (รผต. / ผอ. สำนัก)</th></tr></thead>
+            <tbody><tr>
+                <td>{escape(maker_text)}</td>
+                <td>{escape(reviewer_text)}</td>
+                <td>{escape(approver_text)}</td>
+            </tr></tbody></table>
         </div></body></html>
     """
     return report_html
@@ -258,36 +276,31 @@ for i, obj in enumerate(st.session_state.plan_gen_data["objectives"]):
                 with st.container():
                     st.markdown(f"<div style='margin-left: {len(current_path) * 20}px;'>", unsafe_allow_html=True)
                     
-                    target_container = st.session_state.plan_gen_data["objectives"][obj_index]
-                    for index in path: target_container = target_container["issues"][index]
+                    target_issue = issue
                     
-                    target_container["issues"][j]['text'] = st.text_area(f"ประเด็นการตรวจสอบที่ {prefix}", value=issue.get('text', ''), key=f"issue_text_{key_suffix}")
+                    target_issue['text'] = st.text_area(f"ประเด็นการตรวจสอบที่ {prefix}", value=target_issue.get('text', ''), key=f"issue_text_{key_suffix}")
 
-                    if not issue.get('issues'):
+                    if not target_issue.get('issues'):
                         st.markdown('<div class="ai-expander">', unsafe_allow_html=True)
                         with st.expander("เพิ่มรายละเอียดแนวการตรวจสอบ (ให้ AI ช่วย)"):
                             st.markdown('<div class="ai-button-container">', unsafe_allow_html=True)
-                            if st.button(f"🤖 ให้ AI ช่วยร่าง (ประเด็น {prefix})", key=f"ai_btn_{key_suffix}"):
-                                with st.spinner("AI กำลังประมวลผล..."):
-                                    context = f"เรื่องที่ตรวจสอบ: {st.session_state.plan_gen_data['general_info']['topic']}\nวัตถุประสงค์: {obj.get('text', '')}\nประเด็นการตรวจสอบ: {issue.get('text', '')}"
-                                    ai_result = call_typhoon_api(context)
-                                    if ai_result:
-                                        target_container["issues"][j]['details'].update(ai_result)
-                                        st.session_state.ui_feedback_message = ("success", f"AI สร้างเนื้อหาสำหรับประเด็น {prefix} เรียบร้อยแล้ว")
-                                        st.rerun()
+                            
+                            st.button(f"🤖 ให้ AI ช่วยร่าง (ประเด็น {prefix})", key=f"ai_btn_{key_suffix}", 
+                                      on_click=run_ai_for_issue, args=(obj_index, current_path, prefix))
+                            
                             st.markdown('</div>', unsafe_allow_html=True)
                             
-                            details = issue.get('details', {})
-                            target_container["issues"][j]['details']['criteria'] = st.text_area("เกณฑ์การตรวจสอบ", value=details.get('criteria', ''), key=f"crit_{key_suffix}")
-                            target_container["issues"][j]['details']['info_needed'] = st.text_area("ข้อมูลที่ต้องการ", value=details.get('info_needed', ''), key=f"info_{key_suffix}")
-                            target_container["issues"][j]['details']['source'] = st.text_area("แหล่งข้อมูล", value=details.get('source', ''), key=f"src_{key_suffix}")
-                            target_container["issues"][j]['details']['collection_method'] = st.text_area("วิธีการรวบรวมหลักฐาน", value=details.get('collection_method', ''), key=f"coll_{key_suffix}")
-                            target_container["issues"][j]['details']['analysis_method'] = st.text_area("วิธีการวิเคราะห์หลักฐาน", value=details.get('analysis_method', ''), key=f"anal_{key_suffix}")
+                            details = target_issue.get('details', {})
+                            target_issue['details']['criteria'] = st.text_area("เกณฑ์การตรวจสอบ", value=details.get('criteria', ''), key=f"crit_{key_suffix}")
+                            target_issue['details']['info_needed'] = st.text_area("ข้อมูลที่ต้องการ", value=details.get('info_needed', ''), key=f"info_{key_suffix}")
+                            target_issue['details']['source'] = st.text_area("แหล่งข้อมูล", value=details.get('source', ''), key=f"src_{key_suffix}")
+                            target_issue['details']['collection_method'] = st.text_area("วิธีการรวบรวมหลักฐาน", value=details.get('collection_method', ''), key=f"coll_{key_suffix}")
+                            target_issue['details']['analysis_method'] = st.text_area("วิธีการวิเคราะห์หลักฐาน", value=details.get('analysis_method', ''), key=f"anal_{key_suffix}")
                         st.markdown('</div>', unsafe_allow_html=True)
 
                     st.button(f"➕ เพิ่มประเด็นย่อย (สำหรับ {prefix})", key=f"add_sub_issue_{key_suffix}", on_click=add_issue, args=(obj_index, current_path))
                     
-                    if issue.get('issues'): display_issues(issue['issues'], obj_index, current_path)
+                    if target_issue.get('issues'): display_issues(target_issue['issues'], obj_index, current_path)
                     st.markdown("</div>", unsafe_allow_html=True)
 
         if obj.get('issues'): display_issues(obj['issues'], i, [])
