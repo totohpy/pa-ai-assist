@@ -9,5 +9,6 @@ groq
 graphviz
 streamlit-mermaid
 streamlit_agraph
-google-generativeai==0.5.4
+#google-generativeai==0.5.4
 fpdf2
+requests
