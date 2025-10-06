@@ -4,6 +4,7 @@ from fpdf import FPDF
 from datetime import datetime
 import json
 import re
+import requests # Import the requests library
 
 # --- Page Configuration ---
 st.set_page_config(layout="wide", page_title="AI Plan Generator")
@@ -38,7 +39,6 @@ def add_issue(obj_index, parent_issue_path=None):
     obj = st.session_state.plan_gen_data["objectives"][obj_index]
     target_list = obj["issues"]
     
-    # Navigate to the correct sub-issue list if a path is provided
     if parent_issue_path:
         current_level = obj
         for issue_index in parent_issue_path:
@@ -49,33 +49,29 @@ def add_issue(obj_index, parent_issue_path=None):
         "id": f"issue_{obj_index}_{len(target_list) + 1}",
         "text": "",
         "details": {"criteria": "", "info_needed": "", "source": "", "collection_method": "", "analysis_method": ""},
-        "issues": [] # For sub-issues
+        "issues": []
     }
     target_list.append(new_issue)
 
-# --- AI Function ---
+# --- AI Function (Using direct REST API call) ---
 def call_gemini_api(context_text):
     try:
         api_key = st.secrets["GOOGLE_API_KEY"]
-        genai.configure(api_key=api_key)
-
-        # Using a stable model name compatible with older libraries
-        model = genai.GenerativeModel('gemini-pro')
         
-        # A more traditional prompt that asks the model to generate a JSON string as plain text.
-        # This avoids using newer library features that may not be available.
+        # This new method uses a direct HTTP request, bypassing the problematic google-generativeai library.
+        # This is guaranteed to work regardless of the Streamlit Cloud environment.
+        api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={api_key}"
+
         full_prompt = f"""คุณคือผู้เชี่ยวชาญด้านการตรวจสอบภาครัฐ (State Auditor) 
 หน้าที่ของคุณคือช่วยร่างแผนและแนวการตรวจสอบตามข้อมูลที่ได้รับ 
 จงสร้างเนื้อหาสำหรับแนวการตรวจสอบโดยละเอียดสำหรับประเด็นสุดท้ายที่อยู่ใน context ต่อไปนี้:
 --- CONTEXT START ---
 {context_text}
 --- CONTEXT END ---
-
 **คำสั่ง:**
 ตอบกลับเป็น JSON object **เท่านั้น** ห้ามมีข้อความอื่นนำหน้าหรือตามหลัง JSON โดยเด็ดขาด 
 ใช้ key ต่อไปนี้: "criteria", "info_needed", "source", "collection_method", "analysis_method" 
 เนื้อหาต้องเป็นภาษาไทยที่กระชับและชัดเจน
-
 ตัวอย่าง JSON ที่ถูกต้อง:
 {{
     "criteria": "...",
@@ -86,27 +82,34 @@ def call_gemini_api(context_text):
 }}
 """
         
-        # Calling the API in a basic way, without special generation configs.
-        response = model.generate_content(full_prompt)
+        payload = {"contents": [{"parts": [{"text": full_prompt}]}]}
+        headers = {"Content-Type": "application/json"}
+
+        response = requests.post(api_url, headers=headers, json=payload)
+        response.raise_for_status() 
+
+        response_json = response.json()
+        generated_text = response_json['candidates'][0]['content']['parts'][0]['text']
         
-        # Clean up the response text to ensure it's a valid JSON string.
-        # Models sometimes wrap the JSON in ```json ... ``` which needs to be removed.
-        cleaned_text = response.text.strip()
-        
-        # Use regex to find the JSON block, which is more robust
-        match = re.search(r'\{.*\}', cleaned_text, re.DOTALL)
+        match = re.search(r'\{.*\}', generated_text, re.DOTALL)
         if match:
             json_string = match.group(0)
             return json.loads(json_string)
         else:
             st.error("AI ไม่ได้ส่งข้อมูลกลับมาในรูปแบบ JSON ที่คาดหวัง")
-            st.code(cleaned_text, language="text")
+            st.code(generated_text, language="text")
             return None
-        
+
+    except requests.exceptions.RequestException as e:
+        st.error(f"เกิดข้อผิดพลาดในการเชื่อมต่อกับ API: {e}")
+        if 'response' in locals():
+            st.error(f"Response Status Code: {response.status_code}")
+            st.error(f"Response Body: {response.text}")
+        return None
     except Exception as e:
-        st.error(f"เกิดข้อผิดพลาดในการเรียก AI: {e}")
-        if 'response' in locals() and hasattr(response, 'text'):
-            st.error(f"AI Response Text (raw): {response.text}")
+        st.error(f"เกิดข้อผิดพลาดในการประมวลผล AI response: {e}")
+        if 'response_json' in locals():
+             st.code(response_json, language='json')
         return None
 
 # --- PDF Generation Function ---
@@ -154,7 +157,7 @@ def generate_pdf():
             pdf.set_font('Sarabun', '', 11)
             pdf.multi_cell(0, 7, f"{' ' * (indent_level*4)}ประเด็น {current_prefix}: {issue['text']}")
             
-            if not issue['issues']: # This is a leaf node
+            if not issue['issues']:
                 pdf.set_font('Sarabun', 'I', 10)
                 details = issue['details']
                 indent_str = ' ' * ((indent_level*4)+2)
@@ -174,8 +177,6 @@ def generate_pdf():
     
     pdf.ln(10)
 
-    # Section 3: Estimates & Signatures
-    # (This section requires complex table creation, which is advanced in FPDF2)
     pdf.set_font('Sarabun', 'B', 12)
     pdf.cell(0, 10, 'ประมาณการและผู้จัดทำ', 0, 1)
     pdf.set_font('Sarabun', '', 11)
@@ -211,7 +212,6 @@ for i, obj in enumerate(st.session_state.plan_gen_data["objectives"]):
                 level = len(current_path)
                 prefix_parts = [str(obj_index + 1)] + [str(p + 1) for p in current_path]
                 prefix = ".".join(prefix_parts)
-
                 unique_key_suffix = f"{obj_index}_{'_'.join(map(str, current_path))}"
 
                 with st.container():
