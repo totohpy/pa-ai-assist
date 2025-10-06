@@ -95,7 +95,7 @@ def add_issue(obj_index, parent_issue_path=None):
     target_container["issues"].append(new_issue)
     st.session_state.ui_feedback_message = None
 
-# --- AI Function ---
+# --- AI Function (Corrected Version) ---
 def run_ai_for_field(obj_index, path, field_name):
     """Callback function to run AI for a specific field."""
     st.session_state.ui_feedback_message = None
@@ -148,7 +148,17 @@ def run_ai_for_field(obj_index, path, field_name):
         generated_text = response.choices[0].message.content.strip()
 
         if generated_text:
+            # Update the main data structure
             target_issue['details'][field_name] = generated_text
+            
+            # --- This is the fix ---
+            # Construct the exact key of the widget that was clicked
+            key_suffix = f"{obj_index}_{'_'.join(map(str, path))}"
+            widget_key = f"{field_name}_{key_suffix}"
+            # Directly update the widget's state in session_state
+            st.session_state[widget_key] = generated_text
+            # ----------------------
+
             st.session_state.ui_feedback_message = ("success", f"AI สร้าง '{field_name}' เรียบร้อยแล้ว")
         else:
             st.session_state.ui_feedback_message = ("error", f"AI ไม่สามารถสร้างเนื้อหาสำหรับ '{field_name}' ได้")
@@ -214,7 +224,7 @@ for i, obj in enumerate(st.session_state.plan_gen_data["objectives"]):
                                     st.button(f"🤖 สร้าง", key=f"ai_btn_{field}_{key_suffix}", 
                                               on_click=run_ai_for_field, args=(i, current_path, field))
                                     st.markdown('</div>', unsafe_allow_html=True)
-                        
+                            
                         st.markdown('</div>', unsafe_allow_html=True)
 
                     st.button(f"➕ เพิ่มประเด็นย่อย (สำหรับ {prefix})", key=f"add_sub_issue_{key_suffix}", on_click=add_issue, args=(obj_index, current_path))
@@ -255,11 +265,3 @@ with st.form("estimates_signatures_form"):
         sig_data["approver"]["comment"] = st.text_area("ความเห็นเพิ่มเติม", value=sig_data["approver"].get("comment", ""), key="approver_comment")
         
     st.form_submit_button("บันทึกข้อมูลผู้จัดทำ", use_container_width=True)
-
-# --- Document Generation Section (Commented out for now) ---
-# st.divider()
-# st.subheader("สร้างเอกสาร")
-# if 'show_report' not in st.session_state:
-#     st.session_state.show_report = False
-# ... (rest of the code is commented out) ...
-
