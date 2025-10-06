@@ -3,6 +3,7 @@ import google.generativeai as genai
 from fpdf import FPDF
 from datetime import datetime
 import json
+import re
 
 # --- Page Configuration ---
 st.set_page_config(layout="wide", page_title="AI Plan Generator")
@@ -55,26 +56,57 @@ def add_issue(obj_index, parent_issue_path=None):
 # --- AI Function ---
 def call_gemini_api(context_text):
     try:
-        # Load API Key from Streamlit Secrets
         api_key = st.secrets["GOOGLE_API_KEY"]
         genai.configure(api_key=api_key)
 
-        # Using the modern 'gemini-1.5-flash' model which is supported by the specified library version
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        # Using a stable model name compatible with older libraries
+        model = genai.GenerativeModel('gemini-pro')
         
-        system_prompt = """คุณคือผู้เชี่ยวชาญด้านการตรวจสอบภาครัฐ (State Auditor) มีหน้าที่ในการช่วยร่างแผนและแนวการตรวจสอบตามข้อมูลที่ได้รับ จงสร้างเนื้อหาสำหรับแนวการตรวจสอบโดยละเอียดสำหรับประเด็นสุดท้ายเท่านั้น ตอบกลับเป็น JSON object ที่ถูกต้องสมบูรณ์ โดยใช้ key ต่อไปนี้: "criteria", "info_needed", "source", "collection_method", "analysis_method" เนื้อหาต้องเป็นภาษาไทยที่กระชับและชัดเจน"""
+        # A more traditional prompt that asks the model to generate a JSON string as plain text.
+        # This avoids using newer library features that may not be available.
+        full_prompt = f"""คุณคือผู้เชี่ยวชาญด้านการตรวจสอบภาครัฐ (State Auditor) 
+หน้าที่ของคุณคือช่วยร่างแผนและแนวการตรวจสอบตามข้อมูลที่ได้รับ 
+จงสร้างเนื้อหาสำหรับแนวการตรวจสอบโดยละเอียดสำหรับประเด็นสุดท้ายที่อยู่ใน context ต่อไปนี้:
+--- CONTEXT START ---
+{context_text}
+--- CONTEXT END ---
+
+**คำสั่ง:**
+ตอบกลับเป็น JSON object **เท่านั้น** ห้ามมีข้อความอื่นนำหน้าหรือตามหลัง JSON โดยเด็ดขาด 
+ใช้ key ต่อไปนี้: "criteria", "info_needed", "source", "collection_method", "analysis_method" 
+เนื้อหาต้องเป็นภาษาไทยที่กระชับและชัดเจน
+
+ตัวอย่าง JSON ที่ถูกต้อง:
+{{
+    "criteria": "...",
+    "info_needed": "...",
+    "source": "...",
+    "collection_method": "...",
+    "analysis_method": "..."
+}}
+"""
         
-        # Using the reliable JSON response feature from the new model and library
-        response = model.generate_content(
-            [system_prompt, context_text],
-            generation_config=genai.types.GenerationConfig(
-                response_mime_type="application/json"
-            )
-        )
-        return json.loads(response.text)
+        # Calling the API in a basic way, without special generation configs.
+        response = model.generate_content(full_prompt)
+        
+        # Clean up the response text to ensure it's a valid JSON string.
+        # Models sometimes wrap the JSON in ```json ... ``` which needs to be removed.
+        cleaned_text = response.text.strip()
+        
+        # Use regex to find the JSON block, which is more robust
+        match = re.search(r'\{.*\}', cleaned_text, re.DOTALL)
+        if match:
+            json_string = match.group(0)
+            return json.loads(json_string)
+        else:
+            st.error("AI ไม่ได้ส่งข้อมูลกลับมาในรูปแบบ JSON ที่คาดหวัง")
+            st.code(cleaned_text, language="text")
+            return None
         
     except Exception as e:
         st.error(f"เกิดข้อผิดพลาดในการเรียก AI: {e}")
+        if 'response' in locals() and hasattr(response, 'text'):
+            st.error(f"AI Response Text (raw): {response.text}")
         return None
 
 # --- PDF Generation Function ---
