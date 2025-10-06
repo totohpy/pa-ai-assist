@@ -18,17 +18,21 @@ st.markdown("เครื่องมือช่วยสร้างแผน�
 # --- Custom CSS for Styling App Interface ---
 st.markdown("""
 <style>
+/* ... CSS for general styling ... */
 div[data-testid="stExpander"] div[role="button"] p { font-size: 1.1rem; }
+
+/* CSS for the AI expander (Green color) */
 .ai-expander .st-emotion-cache-ff2938 { background-color: #e9f5e9; border: 1px solid #5cb85c; border-radius: 0.5rem; }
 .ai-expander .st-emotion-cache-ff2938:hover { background-color: #d9ead3; }
 .ai-expander .st-emotion-cache-ff2938 p { color: #155724; font-weight: bold; }
+
+/* ... CSS for AI button ... */
 .ai-button-container .stButton > button { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; font-weight: bold; border-radius: 0.5rem; width: 100%; }
 .ai-button-container .stButton > button:hover { background-color: #c3e6cb; color: #155724; border-color: #b1dfbb; }
 </style>
 """, unsafe_allow_html=True)
 
-
-# --- State Initialization and Helper Functions ---
+# --- State Initialization and Helper Functions (Unchanged) ---
 def init_plan_state():
     ss = st.session_state
     if "plan_gen_data" not in ss:
@@ -56,11 +60,11 @@ def add_issue(obj_index, parent_issue_path=None):
     target_container["issues"].append(new_issue)
     st.session_state.ui_feedback_message = None
 
-
 # --- AI Function ---
 def run_ai_for_field(obj_index, path, field_name):
     st.session_state.ui_feedback_message = None
     try:
+        # ... (API call setup is the same)
         if "api_key" not in st.secrets:
             st.session_state.ui_feedback_message = ("error", "ไม่พบ API Key ใน Streamlit Secrets")
             return
@@ -73,6 +77,7 @@ def run_ai_for_field(obj_index, path, field_name):
         context += f"วัตถุประสงค์: {obj.get('text', '')}\n"
         context += f"ประเด็นการตรวจสอบ: {target_issue.get('text', '')}\n"
         prompt_instruction = ""
+        # ... (Prompt instructions are the same)
         if field_name == "criteria": prompt_instruction = "จาก context ข้างต้น จงสร้างเฉพาะ 'เกณฑ์การตรวจสอบ' (Audit Criteria) ที่เหมาะสม"
         elif field_name == "info_needed":
             context += f"เกณฑ์การตรวจสอบ: {target_issue['details'].get('criteria', '')}\n"
@@ -92,12 +97,15 @@ def run_ai_for_field(obj_index, path, field_name):
             context += f"แหล่งข้อมูล: {target_issue['details'].get('source', '')}\n"
             context += f"วิธีการรวบรวมหลักฐาน: {target_issue['details'].get('collection_method', '')}\n"
             prompt_instruction = "จาก context ข้างต้น จงระบุ 'วิธีการวิเคราะห์หลักฐาน' ที่จะใช้ในการประมวลผล"
+        
         full_prompt = f"คุณคือผู้เชี่ยวชาญด้านการตรวจสอบภาครัฐ\n{context}\n**คำสั่ง:**\n{prompt_instruction}\nตอบกลับเป็นข้อความธรรมดาในรูปแบบรายการ (bullet points) เท่านั้น"
         messages = [{"role": "user", "content": full_prompt}]
         response = client.chat.completions.create(model="typhoon-v2.1-12b-instruct", messages=messages, temperature=0.5)
         generated_text = response.choices[0].message.content.strip()
-        cleaned_text = re.sub(r'^\s*[\*\-]\s*', '', generated_text, flags=re.MULTILINE)
-        cleaned_text = cleaned_text.replace("**", "")
+
+        # --- UPDATED: Keep bullet points, remove only bold markers ---
+        cleaned_text = generated_text.replace("**", "")
+        
         if cleaned_text:
             target_issue['details'][field_name] = cleaned_text
             key_suffix = f"{obj_index}_{'_'.join(map(str, path))}"
@@ -107,8 +115,7 @@ def run_ai_for_field(obj_index, path, field_name):
         else: st.session_state.ui_feedback_message = ("error", f"AI ไม่สามารถสร้างเนื้อหาสำหรับ '{field_name}' ได้")
     except Exception as e: st.session_state.ui_feedback_message = ("error", f"เกิดข้อผิดพลาดในการเรียก AI: {e}")
 
-
-# --- Function to load and encode fonts ---
+# --- Function to load and encode fonts (Unchanged) ---
 @st.cache_data
 def load_font_as_base64(font_path):
     try:
@@ -120,18 +127,22 @@ def load_font_as_base64(font_path):
 
 # --- Function to generate HTML report ---
 def generate_html_report(data):
+    # ... (Font loading is the same)
     sarabun_regular_b64 = load_font_as_base64("Sarabun-Regular.ttf")
     sarabun_bold_b64 = load_font_as_base64("Sarabun-Bold.ttf")
     sarabun_italic_b64 = load_font_as_base64("Sarabun-Italic.ttf")
-    
-    # Create font face rules only if fonts were loaded successfully
     font_faces = ""
-    if sarabun_regular_b64:
-        font_faces += f"@font-face {{ font-family: 'Sarabun'; src: url(data:font/truetype;charset=utf-8;base64,{sarabun_regular_b64}) format('truetype'); font-weight: normal; font-style: normal; }}\n"
-    if sarabun_bold_b64:
-        font_faces += f"@font-face {{ font-family: 'Sarabun'; src: url(data:font/truetype;charset=utf-8;base64,{sarabun_bold_b64}) format('truetype'); font-weight: bold; font-style: normal; }}\n"
-    if sarabun_italic_b64:
-        font_faces += f"@font-face {{ font-family: 'Sarabun'; src: url(data:font/truetype;charset=utf-8;base64,{sarabun_italic_b64}) format('truetype'); font-weight: normal; font-style: italic; }}\n"
+    if sarabun_regular_b64: font_faces += f"@font-face {{ font-family: 'Sarabun'; src: url(data:font/truetype;charset=utf-8;base64,{sarabun_regular_b64}) format('truetype'); font-weight: normal; font-style: normal; }}\n"
+    if sarabun_bold_b64: font_faces += f"@font-face {{ font-family: 'Sarabun'; src: url(data:font/truetype;charset=utf-8;base64,{sarabun_bold_b64}) format('truetype'); font-weight: bold; font-style: normal; }}\n"
+    if sarabun_italic_b64: font_faces += f"@font-face {{ font-family: 'Sarabun'; src: url(data:font/truetype;charset=utf-8;base64,{sarabun_italic_b64}) format('truetype'); font-weight: normal; font-style: italic; }}\n"
+
+    # --- UPDATED: Helper function for formatting text with line breaks ---
+    def format_text(text):
+        if not text:
+            return ""
+        # 1. Escape HTML special characters to prevent injection
+        # 2. Replace newline characters with <br> tags
+        return html.escape(text).replace('\n', '<br>')
 
     html_template = f"""
     <!DOCTYPE html>
@@ -147,39 +158,30 @@ def generate_html_report(data):
             th, td {{ border: 1px solid black; padding: 8px; text-align: left; vertical-align: top; }}
             .header-info p, .objective-info p {{ margin: 0; padding: 2px 0; }}
             .signature-table td {{ height: 120px; }}
-            .no-border {{ border: none; }}
-            .print-button-container {{ text-align: center; margin-bottom: 20px; }}
-            .print-button {{ padding: 10px 20px; font-size: 16px; cursor: pointer; border-radius: 5px; border: 1px solid #ccc; background-color: #f0f0f0; }}
-
             @media print {{
-                .no-print {{ display: none; }}
                 @page {{ size: A4 landscape; margin: 1.5cm; }}
                 body {{ margin: 0; }}
             }}
         </style>
     </head>
     <body>
-        <div class="print-button-container no-print">
-            <button class="print-button" onclick="window.print()">🖨️ พิมพ์ / บันทึกเป็น PDF</button>
-        </div>
-
         <h2>แผนและแนวการตรวจสอบ</h2>
         <div class="header-info">
-            <p><b>สำนักงานการตรวจเงินแผ่นดินภูมิภาคที่/สำนักตรวจเงินแผ่นดินจังหวัด:</b> {data['general_info'].get('office', '...........')}
-            <b>กลุ่มที่:</b> ........ <b>เรื่องที่ตรวจสอบ:</b> {data['general_info'].get('topic', '...........')}
+            <p><b>สำนักงานการตรวจเงินแผ่นดินภูมิภาคที่/สำนักตรวจเงินแผ่นดินจังหวัด:</b> {format_text(data['general_info'].get('office', '...........'))}
+            <b>กลุ่มที่:</b> ........ <b>เรื่องที่ตรวจสอบ:</b> {format_text(data['general_info'].get('topic', '...........'))}
             </p>
-            <p><b>หน่วยงาน:</b> {data['general_info'].get('agency', '...........')}
-            <b>กระทรวง:</b> {data['general_info'].get('ministry', '...........')}
+            <p><b>หน่วยงาน:</b> {format_text(data['general_info'].get('agency', '...........'))}
+            <b>กระทรวง:</b> {format_text(data['general_info'].get('ministry', '...........'))}
             </p>
         </div>
 
         {''.join([f'''
         <div class="objective-info">
-            <p><b>วัตถุประสงค์การตรวจสอบที่ {i+1}:</b> {html.escape(obj.get('text', ''))}</p>
+            <p><b>วัตถุประสงค์การตรวจสอบที่ {i+1}:</b> {format_text(obj.get('text', ''))}</p>
         </div>
         {''.join([f'''
             <table>
-                <tr><td colspan="5"><b>ประเด็นการตรวจสอบที่ {i+1}.{j+1}:</b> {html.escape(issue.get('text', ''))}</td></tr>
+                <tr><td colspan="5"><b>ประเด็นการตรวจสอบที่ {i+1}.{j+1}:</b> {format_text(issue.get('text', ''))}</td></tr>
                 <tr style="font-weight: bold;">
                     <td>เกณฑ์การตรวจสอบ</td>
                     <td>ข้อมูลที่ต้องการ</td>
@@ -188,18 +190,18 @@ def generate_html_report(data):
                     <td>วิธีการวิเคราะห์หลักฐาน</td>
                 </tr>
                 <tr>
-                    <td>{html.escape(issue['details'].get('criteria', ''))}</td>
-                    <td>{html.escape(issue['details'].get('info_needed', ''))}</td>
-                    <td>{html.escape(issue['details'].get('source', ''))}</td>
-                    <td>{html.escape(issue['details'].get('collection_method', ''))}</td>
-                    <td>{html.escape(issue['details'].get('analysis_method', ''))}</td>
+                    <td>{format_text(issue['details'].get('criteria', ''))}</td>
+                    <td>{format_text(issue['details'].get('info_needed', ''))}</td>
+                    <td>{format_text(issue['details'].get('source', ''))}</td>
+                    <td>{format_text(issue['details'].get('collection_method', ''))}</td>
+                    <td>{format_text(issue['details'].get('analysis_method', ''))}</td>
                 </tr>
             </table>
         ''' for j, issue in enumerate(obj.get('issues', [])) if not issue.get('issues')])}
         ''' for i, obj in enumerate(data['objectives'])])}
         
-        <p><b>ประมาณการค่าใช้จ่ายในการตรวจสอบ:</b><br>- {html.escape(data['estimates'].get('cost', '..................'))}</p>
-        <p><b>ประมาณการคน/วันที่ใช้ในการตรวจสอบ:</b><br>- {html.escape(data['estimates'].get('effort', '..................'))}</p>
+        <p><b>ประมาณการค่าใช้จ่ายในการตรวจสอบ:</b><br>- {format_text(data['estimates'].get('cost', '..................'))}</p>
+        <p><b>ประมาณการคน/วันที่ใช้ในการตรวจสอบ:</b><br>- {format_text(data['estimates'].get('effort', '..................'))}</p>
 
         <table class="signature-table">
             <tr style="font-weight: bold; text-align: center;">
@@ -208,9 +210,9 @@ def generate_html_report(data):
                 <td>ผู้อนุมัติ (รผต. / ผอ. สำนัก)</td>
             </tr>
             <tr>
-                <td><b>ลงชื่อ:</b> {html.escape(data['signatures']['maker'].get('name', ''))}<br><b>ตำแหน่ง:</b> {html.escape(data['signatures']['maker'].get('position', ''))}<br><b>วันที่:</b> {data['signatures']['maker'].get('date').strftime('%Y-%m-%d') if data['signatures']['maker'].get('date') else ''}<br><b>ความเห็นเพิ่มเติม:</b> {html.escape(data['signatures']['maker'].get('comment', ''))}</td>
-                <td><b>ลงชื่อ:</b> {html.escape(data['signatures']['reviewer'].get('name', ''))}<br><b>ตำแหน่ง:</b> {html.escape(data['signatures']['reviewer'].get('position', ''))}<br><b>วันที่:</b> {data['signatures']['reviewer'].get('date').strftime('%Y-%m-%d') if data['signatures']['reviewer'].get('date') else ''}<br><b>ความเห็นเพิ่มเติม:</b> {html.escape(data['signatures']['reviewer'].get('comment', ''))}</td>
-                <td><b>ลงชื่อ:</b> {html.escape(data['signatures']['approver'].get('name', ''))}<br><b>ตำแหน่ง:</b> {html.escape(data['signatures']['approver'].get('position', ''))}<br><b>วันที่:</b> {data['signatures']['approver'].get('date').strftime('%Y-%m-%d') if data['signatures']['approver'].get('date') else ''}<br><b>ความเห็นเพิ่มเติม:</b> {html.escape(data['signatures']['approver'].get('comment', ''))}</td>
+                <td><b>ลงชื่อ:</b> {format_text(data['signatures']['maker'].get('name', ''))}<br><b>ตำแหน่ง:</b> {format_text(data['signatures']['maker'].get('position', ''))}<br><b>วันที่:</b> {data['signatures']['maker'].get('date').strftime('%Y-%m-%d') if data['signatures']['maker'].get('date') else ''}<br><b>ความเห็นเพิ่มเติม:</b> {format_text(data['signatures']['maker'].get('comment', ''))}</td>
+                <td><b>ลงชื่อ:</b> {format_text(data['signatures']['reviewer'].get('name', ''))}<br><b>ตำแหน่ง:</b> {format_text(data['signatures']['reviewer'].get('position', ''))}<br><b>วันที่:</b> {data['signatures']['reviewer'].get('date').strftime('%Y-%m-%d') if data['signatures']['reviewer'].get('date') else ''}<br><b>ความเห็นเพิ่มเติม:</b> {format_text(data['signatures']['reviewer'].get('comment', ''))}</td>
+                <td><b>ลงชื่อ:</b> {format_text(data['signatures']['approver'].get('name', ''))}<br><b>ตำแหน่ง:</b> {format_text(data['signatures']['approver'].get('position', ''))}<br><b>วันที่:</b> {data['signatures']['approver'].get('date').strftime('%Y-%m-%d') if data['signatures']['approver'].get('date') else ''}<br><b>ความเห็นเพิ่มเติม:</b> {format_text(data['signatures']['approver'].get('comment', ''))}</td>
             </tr>
         </table>
     </body>
@@ -218,9 +220,11 @@ def generate_html_report(data):
     """
     return html_template
 
-# --- Function to generate DOCX (Kept as an option) ---
+# --- Function to generate DOCX (Unchanged, kept as an option) ---
 def generate_docx_report(data):
+    # This function remains unchanged
     doc = docx.Document()
+    # ... (rest of the function is the same)
     current_section = doc.sections[-1]
     new_width, new_height = current_section.page_height, current_section.page_width
     current_section.orientation = WD_ORIENT.LANDSCAPE
@@ -255,13 +259,14 @@ def generate_docx_report(data):
     for idx, role in enumerate(["maker", "reviewer", "approver"]):
         sig = sigs.get(role, {})
         date_str = sig.get('date').strftime('%Y-%m-%d') if sig.get('date') else ''
-        cell_text = f"ลงชื่อ: {sig.get('name', '')}\nตำแหน่ง: {sig.get('position', '')}\nวันที่: {date_str}\nความเห็นเพิ่มเติม: {sig.get('comment', '')}"
+        cell_text = f"ลงชื่อ: {sig.get('name', '')}\nตำแหน่ง: {sig.get('position', ''))}\nวันที่: {date_str}\nความเห็นเพิ่มเติม: {sig.get('comment', '')}"
         data_row[idx].text = cell_text
     buffer = io.BytesIO(); doc.save(buffer); buffer.seek(0)
     return buffer
 
 
 # --- UI Rendering (Main part of the app) ---
+# ... (Sections 1, 2, 3 for data input are unchanged) ...
 if st.session_state.get("ui_feedback_message"):
     msg_type, msg_content = st.session_state.ui_feedback_message
     if msg_type == "success": st.success(msg_content)
@@ -338,22 +343,25 @@ with st.form("estimates_signatures_form"):
 
 # --- UPDATED: Section for HTML preview and DOCX download ---
 st.divider()
-st.subheader("4. แสดงผลและส่งออกเอกสาร")
 
-# Generate and display the HTML report
-# The st.html component will render the interactive form with the print button
-html_report = generate_html_report(st.session_state.plan_gen_data)
-st.html(html_report)
+# UPDATED: Added border using st.container
+with st.container(border=True):
+    st.subheader("4. แสดงผลและส่งออกเอกสาร")
 
-st.divider()
+    # UPDATED: Changed to a link that opens the report in a new tab
+    html_report = generate_html_report(st.session_state.plan_gen_data)
+    b64_html = base64.b64encode(html_report.encode()).decode()
+    link_html = f'<a href="data:text/html;base64,{b64_html}" target="_blank" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-align: center; text-decoration: none; border-radius: 5px;">🖨️ เปิดตัวอย่างเพื่อพิมพ์ / บันทึกเป็น PDF</a>'
+    st.markdown(link_html, unsafe_allow_html=True)
+    
+    st.markdown("---") # Visual separator
 
-# Provide the DOCX download as a secondary option
-st.markdown("##### หรือดาวน์โหลดเป็นไฟล์ Word")
-docx_buffer = generate_docx_report(st.session_state.plan_gen_data)
-st.download_button(
-    label="📂 ดาวน์โหลดเป็นไฟล์ Word (.docx)",
-    data=docx_buffer,
-    file_name=f"audit_plan_{datetime.now().strftime('%Y-%m-%d')}.docx",
-    mime='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    use_container_width=True
-)
+    st.markdown("##### หรือดาวน์โหลดเป็นไฟล์ Word")
+    docx_buffer = generate_docx_report(st.session_state.plan_gen_data)
+    st.download_button(
+        label="📂 ดาวน์โหลดเป็นไฟล์ Word (.docx)",
+        data=docx_buffer,
+        file_name=f"audit_plan_{datetime.now().strftime('%Y-%m-%d')}.docx",
+        mime='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        use_container_width=True
+    )
