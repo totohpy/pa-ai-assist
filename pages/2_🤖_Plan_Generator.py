@@ -23,9 +23,9 @@ st.markdown("""
 /* General expander button text */
 div[data-testid="stExpander"] div[role="button"] p { font-size: 1.1rem; }
 
-/* --- UPDATED: CSS for the AI expander (Blue color) using a stable selector --- */
+/* CSS for the AI expander (Blue color) using a stable selector */
 .ai-expander [data-testid="stExpander"] > div:first-of-type { 
-    background-color: #D1E8FF; /* Light blue background */
+    background-color: #D1E8FF; !important /* Light blue background */
     border: 1px solid #007BFF; /* Blue border */
     border-radius: 0.5rem; 
 }
@@ -134,9 +134,8 @@ def load_font_as_base64(font_path):
         st.warning(f"ไม่พบไฟล์ฟอนต์ที่ {font_path} จะใช้ฟอนต์มาตรฐานของเบราว์เซอร์แทน")
         return None
 
-# --- Function to generate HTML report (Unchanged) ---
+# --- Function to generate HTML report ---
 def generate_html_report(data):
-    # This function is the same as the last working version
     sarabun_regular_b64 = load_font_as_base64("Sarabun-Regular.ttf")
     sarabun_bold_b64 = load_font_as_base64("Sarabun-Bold.ttf")
     sarabun_italic_b64 = load_font_as_base64("Sarabun-Italic.ttf")
@@ -147,6 +146,7 @@ def generate_html_report(data):
     def format_text(text):
         if not text: return ""
         return html.escape(text).replace('\n', '<br>')
+
     html_template = f"""
     <!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><title>แผนและแนวการตรวจสอบ</title>
     <style>
@@ -179,16 +179,15 @@ def generate_html_report(data):
     <p><b>ประมาณการคน/วันที่ใช้ในการตรวจสอบ:</b><br>- {format_text(data['estimates'].get('effort', '..................'))}</p>
     <table class="signature-table"><thead><tr style="font-weight: bold; text-align: center;"><th>ผู้จัดทำ</th><th>ผู้สอบทาน</th><th>ผู้อนุมัติ (รผต. / ผอ. สำนัก)</th></tr></thead>
     <tbody><tr>
-        <td><b>ลงชื่อ:</b> {format_text(data['signatures']['maker'].get('name', ''))}<br><b>ตำแหน่ง:</b> {format_text(data['signatures']['maker'].get('position', ''))}<br><b>วันที่:</b> {data['signatures']['maker'].get('date').strftime('%d-%m-%y') if data['signatures']['maker'].get('date') else ''}<br><b>ความเห็นเพิ่มเติม:</b> {format_text(data['signatures']['maker'].get('comment', ''))}</td>
-        <td><b>ลงชื่อ:</b> {format_text(data['signatures']['reviewer'].get('name', ''))}<br><b>ตำแหน่ง:</b> {format_text(data['signatures']['reviewer'].get('position', ''))}<br><b>วันที่:</b> {data['signatures']['reviewer'].get('date').strftime('%d-%m-%y') if data['signatures']['reviewer'].get('date') else ''}<br><b>ความเห็นเพิ่มเติม:</b> {format_text(data['signatures']['reviewer'].get('comment', ''))}</td>
-        <td><b>ลงชื่อ:</b> {format_text(data['signatures']['approver'].get('name', ''))}<br><b>ตำแหน่ง:</b> {format_text(data['signatures']['approver'].get('position', ''))}<br><b>วันที่:</b> {data['signatures']['approver'].get('date').strftime('%d-%m-%y') if data['signatures']['approver'].get('date') else ''}<br><b>ความเห็นเพิ่มเติม:</b> {format_text(data['signatures']['approver'].get('comment', ''))}</td>
+        <td><b>ลงชื่อ:</b> {format_text(data['signatures']['maker'].get('name', ''))}<br><b>ตำแหน่ง:</b> {format_text(data['signatures']['maker'].get('position', ''))}<br><b>วันที่:</b> {data['signatures']['maker'].get('date').strftime('%d/%m/%Y') if data['signatures']['maker'].get('date') else ''}<br><b>ความเห็นเพิ่มเติม:</b> {format_text(data['signatures']['maker'].get('comment', ''))}</td>
+        <td><b>ลงชื่อ:</b> {format_text(data['signatures']['reviewer'].get('name', ''))}<br><b>ตำแหน่ง:</b> {format_text(data['signatures']['reviewer'].get('position', ''))}<br><b>วันที่:</b> {data['signatures']['reviewer'].get('date').strftime('%d/%m/%Y') if data['signatures']['reviewer'].get('date') else ''}<br><b>ความเห็นเพิ่มเติม:</b> {format_text(data['signatures']['reviewer'].get('comment', ''))}</td>
+        <td><b>ลงชื่อ:</b> {format_text(data['signatures']['approver'].get('name', ''))}<br><b>ตำแหน่ง:</b> {format_text(data['signatures']['approver'].get('position', ''))}<br><b>วันที่:</b> {data['signatures']['approver'].get('date').strftime('%d/%m/%Y') if data['signatures']['approver'].get('date') else ''}<br><b>ความเห็นเพิ่มเติม:</b> {format_text(data['signatures']['approver'].get('comment', ''))}</td>
     </tr></tbody></table></body></html>
     """
     return html_template
 
-# --- Function to generate DOCX (Unchanged) ---
+# --- Function to generate DOCX ---
 def generate_docx_report(data):
-    # This function is unchanged
     doc = docx.Document()
     current_section = doc.sections[-1]
     new_width, new_height = current_section.page_height, current_section.page_width
@@ -209,7 +208,7 @@ def generate_docx_report(data):
     hdr_cells = sig_table.rows[0].cells; hdr_cells[0].text = 'ผู้จัดทำ'; hdr_cells[1].text = 'ผู้สอบทาน'; hdr_cells[2].text = 'ผู้อนุมัติ (รผต. / ผอ. สำนัก)'
     data_row = sig_table.add_row().cells
     for idx, role in enumerate(["maker", "reviewer", "approver"]):
-        sig = sigs.get(role, {}); date_str = sig.get('date').strftime('%Y-%m-%d') if sig.get('date') else ''
+        sig = sigs.get(role, {}); date_str = sig.get('date').strftime('%d/%m/%Y') if sig.get('date') else ''
         cell_text = f"ลงชื่อ: {sig.get('name', '')}\nตำแหน่ง: {sig.get('position', '')}\nวันที่: {date_str}\nความเห็นเพิ่มเติม: {sig.get('comment', '')}"; data_row[idx].text = cell_text
     buffer = io.BytesIO(); doc.save(buffer); buffer.seek(0)
     return buffer
@@ -317,7 +316,7 @@ with st.container(border=True):
     st.download_button(
         label="📂 ดาวน์โหลดเป็นไฟล์ Word (.docx)",
         data=docx_buffer,
-        file_name=f"audit_plan_{datetime.now().strftime('%Y-%m-%d')}.docx",
+        file_name=f"audit_plan_{datetime.now().strftime('%Y%m%d')}.docx",
         mime='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         use_container_width=True
     )
