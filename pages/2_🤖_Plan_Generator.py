@@ -141,15 +141,13 @@ def run_ai_for_issue(obj_index, path, prefix):
             
             # 2. If content is found, strip any inner XML tags to get clean text
             if content:
-                # Replace tags with a space to avoid words merging
-                cleaned_content = re.sub('<[^>]+>', ' ', content) 
-                # Collapse multiple spaces into one
-                cleaned_content = re.sub(' +', ' ', cleaned_content)
-                content = cleaned_content
-
-            # 3. Format as a bulleted list
-            items = [item.strip() for item in content.split('\n') if item.strip()]
-            return "\n".join([f"- {item.lstrip('- ')}" for item in items if item])
+                # Replace all inner tags with a newline to separate items
+                cleaned_content = re.sub('<[^>]+>', '\n', content)
+                # Split into lines and filter out empty ones
+                items = [item.strip() for item in cleaned_content.split('\n') if item.strip()]
+                # Format as a bulleted list
+                return "\n".join([f"- {item.lstrip('- ')}" for item in items if item])
+            return ""
 
         details = {
             "criteria": extract_tag_content("CRITERIA", generated_text),
