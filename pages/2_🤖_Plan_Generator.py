@@ -55,11 +55,17 @@ def add_issue(obj_index, parent_issue_path=None):
     target_container["issues"].append(new_issue)
     st.session_state.ui_feedback_message = None
 
-# --- AI Function ---
+# --- AI Function (Adopted from pa_assistant) ---
 def call_typhoon_api(context_text):
     try:
+        # Ensure the global API key is loaded from secrets
+        if "api_key" not in st.secrets:
+            st.session_state.ui_feedback_message = ("error", "ไม่พบ API Key ใน Streamlit Secrets")
+            return None
+        
         api_key = st.secrets["api_key"]
         client = OpenAI(api_key=api_key, base_url="https://api.opentyphoon.ai/v1")
+
         full_prompt = f"""คุณคือผู้เชี่ยวชาญด้านการตรวจสอบภาครัฐ (State Auditor) 
 หน้าที่ของคุณคือช่วยร่างแผนและแนวการตรวจสอบตามข้อมูลที่ได้รับ 
 จงสร้างเนื้อหาสำหรับแนวการตรวจสอบโดยละเอียดสำหรับประเด็นสุดท้ายที่อยู่ใน context ต่อไปนี้:
@@ -72,15 +78,27 @@ def call_typhoon_api(context_text):
 เนื้อหาต้องเป็นภาษาไทยที่กระชับและชัดเจน
 """
         messages = [{"role": "user", "content": full_prompt}]
+        
         response = client.chat.completions.create(
-            model="typhoon-v2.1-12b-instruct", messages=messages, temperature=0.5
+            model="typhoon-v2.1-12b-instruct", 
+            messages=messages, 
+            temperature=0.5
         )
+        
         generated_text = response.choices[0].message.content
+        
+        # More robust JSON parsing
         match = re.search(r'\{.*\}', generated_text, re.DOTALL)
         if match:
-            return json.loads(match.group(0))
-        st.session_state.ui_feedback_message = ("error", f"AI ไม่ได้ส่งข้อมูลกลับมาในรูปแบบ JSON ที่คาดหวัง:\n{generated_text}")
-        return None
+            try:
+                return json.loads(match.group(0))
+            except json.JSONDecodeError:
+                st.session_state.ui_feedback_message = ("error", f"AI ไม่ได้ส่งข้อมูลกลับมาในรูปแบบ JSON ที่ถูกต้อง")
+                return None
+        else:
+            st.session_state.ui_feedback_message = ("error", f"AI ไม่ได้ส่งข้อมูลกลับมาในรูปแบบ JSON ที่คาดหวัง:\n{generated_text}")
+            return None
+
     except Exception as e:
         st.session_state.ui_feedback_message = ("error", f"เกิดข้อผิดพลาดในการเรียก Typhoon AI: {e}")
         return None
@@ -92,14 +110,12 @@ def generate_html_report():
     def escape(text):
         return html.escape(str(text) if text is not None else "")
 
-    def render_issues_html(issues_list, prefix_num, indent_level=1):
-        if not issues_list:
-            return ""
+    def render_issues_html(issues_list, prefix_num):
+        if not issues_list: return ""
         html_out = "<ul>"
         for i, issue in enumerate(issues_list):
             current_prefix = f"{prefix_num}.{i+1}"
-            html_out += f"<li>"
-            html_out += f"<strong>ประเด็น {current_prefix}:</strong> {escape(issue.get('text', ''))}"
+            html_out += f"<li><strong>ประเด็น {current_prefix}:</strong> {escape(issue.get('text', ''))}"
             
             if not issue.get('issues'):
                 details = issue.get('details', {})
@@ -112,7 +128,7 @@ def generate_html_report():
                 html_out += "</div>"
             
             if issue.get('issues'):
-                html_out += render_issues_html(issue['issues'], current_prefix, indent_level + 1)
+                html_out += render_issues_html(issue['issues'], current_prefix)
             
             html_out += "</li>"
         html_out += "</ul>"
@@ -120,8 +136,7 @@ def generate_html_report():
 
     objectives_html = ""
     for i, obj in enumerate(plan_data['objectives']):
-        objectives_html += "<div class='objective-block'>"
-        objectives_html += f"<h3>วัตถุประสงค์ที่ {i+1}: {escape(obj.get('text', ''))}</h3>"
+        objectives_html += f"<div class='objective-block'><h3>วัตถุประสงค์ที่ {i+1}: {escape(obj.get('text', ''))}</h3>"
         objectives_html += render_issues_html(obj.get('issues', []), str(i+1))
         objectives_html += "</div>"
     
@@ -129,124 +144,44 @@ def generate_html_report():
     date_format = lambda d: d.strftime('%d/%m/%Y') if d else ''
 
     report_html = f"""
-    <!DOCTYPE html>
-    <html lang="th">
-    <head>
-        <meta charset="UTF-8">
-        <title>แผนและแนวการตรวจสอบ</title>
-        <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
-        <style>
-            body {{
-                font-family: 'Sarabun', sans-serif;
-                background-color: #f0f2f5;
-                margin: 0;
-                padding: 0;
-            }}
-            .page {{
-                background: white;
-                width: 29.7cm;
-                min-height: 21cm;
-                padding: 2cm;
-                margin: 2cm auto;
-                border: 1px #D3D3D3 solid;
-                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-                box-sizing: border-box;
-            }}
-            h1, h2, h3 {{
-                margin-top: 0;
-            }}
-            .header-info p {{ margin: 4px 0; }}
-            .section-title {{
-                font-weight: bold;
-                font-size: 1.1em;
-                border-bottom: 1px solid #999;
-                padding-bottom: 4px;
-                margin-top: 20px;
-                margin-bottom: 10px;
-            }}
-            ul {{ list-style-type: none; padding-left: 25px; }}
-            li {{ margin-bottom: 12px; }}
-            .issue-details {{ padding-left: 20px; font-size: 0.95em; color: #333; }}
-            .issue-details p {{ margin: 3px 0; }}
-            .signature-table {{ width: 100%; border-collapse: collapse; margin-top: 25px; table-layout: fixed; }}
-            .signature-table th, .signature-table td {{ border: 1px solid #000; padding: 8px; text-align: left; vertical-align: top; word-wrap: break-word; }}
-            .signature-table th {{ text-align: center; font-weight: bold; }}
-            .signature-table td {{ height: 120px; }}
-
-            @media print {{
-                body, .page {{
-                    margin: 0;
-                    box-shadow: none;
-                    border: none;
-                    background: white;
-                }}
-                @page {{
-                    size: A4 landscape;
-                    margin: 2cm;
-                }}
-            }}
-        </style>
-    </head>
-    <body>
-        <div class="page">
-            <h1 style="text-align: center;">แผนและแนวการตรวจสอบ</h1>
-            <div class="header-info">
-                <p><strong>เรื่องที่ตรวจสอบ:</strong> {escape(plan_data['general_info']['topic'])}</p>
-                <p><strong>หน่วยงาน:</strong> {escape(plan_data['general_info']['agency'])} &nbsp;&nbsp;<strong>กระทรวง:</strong> {escape(plan_data['general_info']['ministry'])}</p>
-                <p><strong>สำนักงาน:</strong> {escape(plan_data['general_info']['office'])}</p>
-            </div>
-
-            <div class="section-title">วัตถุประสงค์และประเด็นการตรวจสอบ</div>
-            {objectives_html}
-
-            <div class="section-title">ประมาณการและผู้จัดทำ</div>
-            <p><strong>ประมาณการค่าใช้จ่ายในการตรวจสอบ:</strong> {escape(plan_data['estimates']['cost'])}</p>
-            <p><strong>ประมาณการคน/วันที่ใช้ในการตรวจสอบ:</strong> {escape(plan_data['estimates']['effort'])}</p>
-
-            <table class="signature-table">
-                <thead>
-                    <tr>
-                        <th>ผู้จัดทำ</th>
-                        <th>ผู้สอบทาน</th>
-                        <th>ผู้อนุมัติ (รผต. / ผอ. สำนัก)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>
-                            <strong>ลงชื่อ:</strong> {escape(sig['maker']['name'])}<br>
-                            <strong>ตำแหน่ง:</strong> {escape(sig['maker']['position'])}<br>
-                            <strong>วันที่:</strong> {date_format(sig['maker']['date'])}<br>
-                            <strong>ความเห็น:</strong> {escape(sig['maker']['comment'])}
-                        </td>
-                        <td>
-                            <strong>ลงชื่อ:</strong> {escape(sig['reviewer']['name'])}<br>
-                            <strong>ตำแหน่ง:</strong> {escape(sig['reviewer']['position'])}<br>
-                            <strong>วันที่:</strong> {date_format(sig['reviewer']['date'])}<br>
-                            <strong>ความเห็น:</strong> {escape(sig['reviewer']['comment'])}
-                        </td>
-                        <td>
-                            <strong>ลงชื่อ:</strong> {escape(sig['approver']['name'])}<br>
-                            <strong>ตำแหน่ง:</strong> {escape(sig['approver']['position'])}<br>
-                            <strong>วันที่:</strong> {date_format(sig['approver']['date'])}<br>
-                            <strong>ความเห็น:</strong> {escape(sig['approver']['comment'])}
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+    <!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><title>แผนและแนวการตรวจสอบ</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {{ font-family: 'Sarabun', sans-serif; background-color: #ffffff; margin: 0; padding: 0; -webkit-print-color-adjust: exact; }}
+        .page {{ background: white; width: 29.7cm; min-height: 21cm; padding: 2cm; margin: 1cm auto; border: 1px #D3D3D3 solid; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); box-sizing: border-box; }}
+        h1, h3 {{ margin-top: 0; }} .header-info p {{ margin: 4px 0; }}
+        .section-title {{ font-weight: bold; border-bottom: 1px solid #999; padding-bottom: 4px; margin: 20px 0 10px 0; }}
+        ul {{ list-style-type: none; padding-left: 25px; }} li {{ margin-bottom: 12px; }}
+        .issue-details {{ padding-left: 20px; font-size: 0.95em; color: #333; }} .issue-details p {{ margin: 3px 0; }}
+        .signature-table {{ width: 100%; border-collapse: collapse; margin-top: 25px; table-layout: fixed; }}
+        .signature-table th, .signature-table td {{ border: 1px solid #000; padding: 8px; text-align: left; vertical-align: top; word-wrap: break-word; }}
+        .signature-table th {{ text-align: center; font-weight: bold; }} .signature-table td {{ height: 120px; }}
+        @media print {{ body, .page {{ margin: 0; box-shadow: none; border: none; }} @page {{ size: A4 landscape; margin: 2cm; }} }}
+    </style></head><body><div class="page">
+        <h1 style="text-align: center;">แผนและแนวการตรวจสอบ</h1>
+        <div class="header-info">
+            <p><strong>เรื่องที่ตรวจสอบ:</strong> {escape(plan_data['general_info']['topic'])}</p>
+            <p><strong>หน่วยงาน:</strong> {escape(plan_data['general_info']['agency'])} &nbsp;&nbsp;<strong>กระทรวง:</strong> {escape(plan_data['general_info']['ministry'])}</p>
+            <p><strong>สำนักงาน:</strong> {escape(plan_data['general_info']['office'])}</p>
         </div>
-    </body>
-    </html>
+        <div class="section-title">วัตถุประสงค์และประเด็นการตรวจสอบ</div>{objectives_html}
+        <div class="section-title">ประมาณการและผู้จัดทำ</div>
+        <p><strong>ประมาณการค่าใช้จ่าย:</strong> {escape(plan_data['estimates']['cost'])}</p>
+        <p><strong>ประมาณการคน/วัน:</strong> {escape(plan_data['estimates']['effort'])}</p>
+        <table class="signature-table"><thead><tr><th>ผู้จัดทำ</th><th>ผู้สอบทาน</th><th>ผู้อนุมัติ (รผต. / ผอ. สำนัก)</th></tr></thead>
+            <tbody><tr>
+                <td><strong>ลงชื่อ:</strong> {escape(sig['maker']['name'])}<br><strong>ตำแหน่ง:</strong> {escape(sig['maker']['position'])}<br><strong>วันที่:</strong> {date_format(sig['maker']['date'])}<br><strong>ความเห็น:</strong> {escape(sig['maker']['comment'])}</td>
+                <td><strong>ลงชื่อ:</strong> {escape(sig['reviewer']['name'])}<br><strong>ตำแหน่ง:</strong> {escape(sig['reviewer']['position'])}<br><strong>วันที่:</strong> {date_format(sig['reviewer']['date'])}<br><strong>ความเห็น:</strong> {escape(sig['reviewer']['comment'])}</td>
+                <td><strong>ลงชื่อ:</strong> {escape(sig['approver']['name'])}<br><strong>ตำแหน่ง:</strong> {escape(sig['approver']['position'])}<br><strong>วันที่:</strong> {date_format(sig['approver']['date'])}<br><strong>ความเห็น:</strong> {escape(sig['approver']['comment'])}</td>
+            </tr></tbody></table></div></body></html>
     """
     return report_html
 
 # --- UI Rendering ---
 if st.session_state.get("ui_feedback_message"):
-    msg_type, msg_content = st.session_state.get("ui_feedback_message")
-    if msg_type == "success":
-        st.success(msg_content)
-    else:
-        st.error(msg_content)
+    msg_type, msg_content = st.session_state.ui_feedback_message
+    if msg_type == "success": st.success(msg_content)
+    else: st.error(msg_content)
     st.session_state.ui_feedback_message = None
 
 with st.form("general_info_form"):
@@ -268,31 +203,22 @@ for i, obj in enumerate(st.session_state.plan_gen_data["objectives"]):
         def display_issues(issues_list, obj_index, path):
             for j, issue in enumerate(issues_list):
                 current_path = path + [j]
-                level = len(current_path)
-                prefix_parts = [str(obj_index + 1)] + [str(p + 1) for p in current_path]
-                prefix = ".".join(prefix_parts)
-                unique_key_suffix = f"{obj_index}_{'_'.join(map(str, current_path))}"
+                prefix = ".".join([str(obj_index + 1)] + [str(p + 1) for p in current_path])
+                key_suffix = f"{obj_index}_{'_'.join(map(str, current_path))}"
 
                 with st.container():
-                    st.markdown(f"<div style='margin-left: {level * 20}px;'>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='margin-left: {len(current_path) * 20}px;'>", unsafe_allow_html=True)
                     
                     target_container = st.session_state.plan_gen_data["objectives"][obj_index]
-                    for index in path:
-                        target_container = target_container["issues"][index]
+                    for index in path: target_container = target_container["issues"][index]
                     
-                    target_container["issues"][j]['text'] = st.text_area(
-                        f"ประเด็นการตรวจสอบที่ {prefix}", 
-                        value=issue.get('text', ''), 
-                        key=f"issue_text_{unique_key_suffix}"
-                    )
+                    target_container["issues"][j]['text'] = st.text_area(f"ประเด็นการตรวจสอบที่ {prefix}", value=issue.get('text', ''), key=f"issue_text_{key_suffix}")
 
                     if not issue.get('issues'):
                         with st.expander("รายละเอียดแนวการตรวจสอบ (AI)"):
-                            if st.button(f"🤖 ให้ AI ช่วยร่าง (ประเด็น {prefix})", key=f"ai_btn_{unique_key_suffix}"):
+                            if st.button(f"🤖 ให้ AI ช่วยร่าง (ประเด็น {prefix})", key=f"ai_btn_{key_suffix}"):
                                 with st.spinner("AI กำลังประมวลผล..."):
-                                    context = f"เรื่องที่ตรวจสอบ: {st.session_state.plan_gen_data['general_info']['topic']}\n"
-                                    context += f"วัตถุประสงค์: {obj.get('text', '')}\n"
-                                    context += f"ประเด็นการตรวจสอบ: {issue.get('text', '')}"
+                                    context = f"เรื่องที่ตรวจสอบ: {st.session_state.plan_gen_data['general_info']['topic']}\nวัตถุประสงค์: {obj.get('text', '')}\nประเด็นการตรวจสอบ: {issue.get('text', '')}"
                                     ai_result = call_typhoon_api(context)
                                     if ai_result:
                                         target_container["issues"][j]['details'] = ai_result
@@ -300,21 +226,18 @@ for i, obj in enumerate(st.session_state.plan_gen_data["objectives"]):
                                         st.rerun()
                             
                             details = issue.get('details', {})
-                            target_container["issues"][j]['details']['criteria'] = st.text_area("เกณฑ์การตรวจสอบ", value=details.get('criteria', ''), key=f"crit_{unique_key_suffix}")
-                            target_container["issues"][j]['details']['info_needed'] = st.text_area("ข้อมูลที่ต้องการ", value=details.get('info_needed', ''), key=f"info_{unique_key_suffix}")
-                            target_container["issues"][j]['details']['source'] = st.text_area("แหล่งข้อมูล", value=details.get('source', ''), key=f"src_{unique_key_suffix}")
-                            target_container["issues"][j]['details']['collection_method'] = st.text_area("วิธีการรวบรวมหลักฐาน", value=details.get('collection_method', ''), key=f"coll_{unique_key_suffix}")
-                            target_container["issues"][j]['details']['analysis_method'] = st.text_area("วิธีการวิเคราะห์หลักฐาน", value=details.get('analysis_method', ''), key=f"anal_{unique_key_suffix}")
+                            target_container["issues"][j]['details']['criteria'] = st.text_area("เกณฑ์การตรวจสอบ", value=details.get('criteria', ''), key=f"crit_{key_suffix}")
+                            target_container["issues"][j]['details']['info_needed'] = st.text_area("ข้อมูลที่ต้องการ", value=details.get('info_needed', ''), key=f"info_{key_suffix}")
+                            target_container["issues"][j]['details']['source'] = st.text_area("แหล่งข้อมูล", value=details.get('source', ''), key=f"src_{key_suffix}")
+                            target_container["issues"][j]['details']['collection_method'] = st.text_area("วิธีการรวบรวมหลักฐาน", value=details.get('collection_method', ''), key=f"coll_{key_suffix}")
+                            target_container["issues"][j]['details']['analysis_method'] = st.text_area("วิธีการวิเคราะห์หลักฐาน", value=details.get('analysis_method', ''), key=f"anal_{key_suffix}")
                     
-                    st.button(f"➕ เพิ่มประเด็นย่อย (สำหรับ {prefix})", key=f"add_sub_issue_{unique_key_suffix}", on_click=add_issue, args=(obj_index, current_path))
+                    st.button(f"➕ เพิ่มประเด็นย่อย (สำหรับ {prefix})", key=f"add_sub_issue_{key_suffix}", on_click=add_issue, args=(obj_index, current_path))
                     
-                    if issue.get('issues'):
-                        display_issues(issue['issues'], obj_index, current_path)
-
+                    if issue.get('issues'): display_issues(issue['issues'], obj_index, current_path)
                     st.markdown("</div>", unsafe_allow_html=True)
 
-        if obj.get('issues'):
-            display_issues(obj['issues'], i, [])
+        if obj.get('issues'): display_issues(obj['issues'], i, [])
         st.button("➕ เพิ่มประเด็นการตรวจสอบหลัก", key=f"add_issue_{i}", on_click=add_issue, args=(i, None))
 
 st.button("➕ เพิ่มวัตถุประสงค์", on_click=add_objective, type="primary")
@@ -358,6 +281,6 @@ if st.session_state.show_report:
     with st.spinner("กำลังสร้างตัวอย่างเอกสาร..."):
         report_html = generate_html_report()
         with st.expander("แสดงตัวอย่างเอกสาร (คลิกขวาเพื่อ Print/Save as PDF)", expanded=True):
-            st.markdown(report_html, unsafe_allow_html=True)
+            st.components.v1.html(report_html, height=800, scrolling=True)
             st.info("คุณสามารถคลิกขวาบนพื้นที่เอกสารด้านบน แล้วเลือก 'Print...' จากนั้นเลือก 'Save as PDF' เพื่อบันทึกไฟล์")
 
