@@ -1,5 +1,4 @@
 import streamlit as st
-import google.generativeai as genai
 from fpdf import FPDF
 from datetime import datetime
 import json
@@ -58,9 +57,9 @@ def call_gemini_api(context_text):
     try:
         api_key = st.secrets["GOOGLE_API_KEY"]
         
-        # This new method uses a direct HTTP request, bypassing the problematic google-generativeai library.
-        # This is guaranteed to work regardless of the Streamlit Cloud environment.
-        api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={api_key}"
+        # DEFINITIVE FIX: Changed the API endpoint from v1beta to v1.
+        # This is the correct, stable endpoint for the 'gemini-pro' model.
+        api_url = f"https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key={api_key}"
 
         full_prompt = f"""คุณคือผู้เชี่ยวชาญด้านการตรวจสอบภาครัฐ (State Auditor) 
 หน้าที่ของคุณคือช่วยร่างแผนและแนวการตรวจสอบตามข้อมูลที่ได้รับ 
@@ -140,14 +139,12 @@ def generate_pdf():
     
     plan_data = st.session_state.plan_gen_data
     
-    # Section 1: General Info
     pdf.set_font('Sarabun', 'B', 12)
     pdf.write_thai(f"เรื่องที่ตรวจสอบ: {plan_data['general_info']['topic']}")
     pdf.write_thai(f"หน่วยงาน: {plan_data['general_info']['agency']} กระทรวง: {plan_data['general_info']['ministry']}")
     pdf.write_thai(f"สำนักงาน: {plan_data['general_info']['office']}")
     pdf.ln(5)
 
-    # Section 2: Objectives & Issues
     pdf.set_font('Sarabun', 'B', 12)
     pdf.cell(0, 10, 'วัตถุประสงค์และประเด็นการตรวจสอบ', 0, 1)
     
@@ -187,8 +184,6 @@ def generate_pdf():
     return pdf_bytes
 
 # --- UI Rendering ---
-
-# 1. General Info
 with st.form("general_info_form"):
     st.subheader("1. ข้อมูลทั่วไป")
     c1, c2 = st.columns(2)
@@ -198,7 +193,6 @@ with st.form("general_info_form"):
     st.session_state.plan_gen_data["general_info"]["ministry"] = c2.text_input("กระทรวง", st.session_state.plan_gen_data["general_info"]["ministry"])
     st.form_submit_button("บันทึกข้อมูลทั่วไป", use_container_width=True)
 
-# 2. Objectives and Issues
 st.subheader("2. วัตถุประสงค์และประเด็นการตรวจสอบ")
 for i, obj in enumerate(st.session_state.plan_gen_data["objectives"]):
     with st.container(border=True):
@@ -248,7 +242,6 @@ for i, obj in enumerate(st.session_state.plan_gen_data["objectives"]):
 
 st.button("➕ เพิ่มวัตถุประสงค์", on_click=add_objective, type="primary")
 
-# 3. Estimates and Signatures
 with st.form("estimates_signatures_form"):
     st.subheader("3. ประมาณการและผู้จัดทำ")
     sig_data = st.session_state.plan_gen_data["signatures"]
@@ -278,7 +271,6 @@ with st.form("estimates_signatures_form"):
 
     st.form_submit_button("บันทึกข้อมูลผู้จัดทำ", use_container_width=True)
 
-# 4. Generate PDF
 st.divider()
 st.subheader("สร้างเอกสาร")
 if st.button("📄 สร้างเอกสาร PDF (แนวนอน)", type="primary", use_container_width=True):
