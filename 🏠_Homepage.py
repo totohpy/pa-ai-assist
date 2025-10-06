@@ -14,7 +14,8 @@ with st.sidebar:
         '<span style="color: grey;">By PAO1 </span><br>'
         '<span style="font-size: 16px; letter-spacing: 0.5px;">'
         '<span style="color: red; font-weight: bold;">A</span>udit '
-        '<span style="color: red; font-weight: bold;">I</span>ntelligence Team'
+        '<span style="color: red; font-weight: bold;">I</span>ntelligence '
+        '<span style="color: red; font-weight: bold;">T</span>eam'
         '</span>'
         '</p>',
         unsafe_allow_html=True
