@@ -126,7 +126,6 @@ def call_typhoon_api(context_text):
         def extract_tag_content(tag, text):
             match = re.search(f'<{tag}>(.*?)</{tag}>', text, re.DOTALL)
             content = match.group(1).strip() if match else ""
-            # Format content into bullet points
             items = [item.strip() for item in content.split('\n') if item.strip()]
             return "\n".join([f"- {item.lstrip('- ')}" for item in items])
 
@@ -138,7 +137,6 @@ def call_typhoon_api(context_text):
             "analysis_method": extract_tag_content("ANALYSIS_METHOD", generated_text),
         }
 
-        # Check if any content was extracted
         if any(details.values()):
             return details, None
         else:
@@ -185,8 +183,7 @@ def generate_html_report():
         objectives_html += "</div>"
         
     sig = plan_data['signatures']
-    # Corrected date_format lambda to handle datetime.date objects
-    date_format = lambda d: d.strftime('%d/%m/%Y') if d else ''
+    date_format = lambda d: d.strftime('%d/%m/%Y') if d and isinstance(d, datetime.date) else ''
     
     maker_text = f"ลงชื่อ: {sig['maker']['name']}\nตำแหน่ง: {sig['maker']['position']}\nวันที่: {date_format(sig['maker']['date'])}\nความเห็น: {sig['maker']['comment']}"
     reviewer_text = f"ลงชื่อ: {sig['reviewer']['name']}\nตำแหน่ง: {sig['reviewer']['position']}\nวันที่: {date_format(sig['reviewer']['date'])}\nความเห็น: {sig['reviewer']['comment']}"
