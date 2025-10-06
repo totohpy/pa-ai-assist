@@ -122,7 +122,7 @@ def generate_pdf():
     # --- Add all font styles to FPDF ---
     try:
         pdf.add_font('Sarabun', '', FONT_REGULAR, uni=True)
-        pdf.add_font('Srabun', 'B', FONT_BOLD, uni=True)
+        pdf.add_font('Sarabun', 'B', FONT_BOLD, uni=True)
         pdf.add_font('Sarabun', 'I', FONT_ITALIC, uni=True)
     except Exception as e:
         st.error(f"เกิดข้อผิดพลาดร้ายแรงในการโหลดฟอนต์: {e}")
@@ -202,8 +202,8 @@ def generate_pdf():
 
 # --- UI Rendering ---
 # Display feedback message if it exists
-if st.session_state.ui_feedback_message:
-    msg_type, msg_content = st.session_state.ui_feedback_message
+if st.session_state.get("ui_feedback_message"):
+    msg_type, msg_content = st.session_state.get("ui_feedback_message")
     if msg_type == "success":
         st.success(msg_content)
     else:
