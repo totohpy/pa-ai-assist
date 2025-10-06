@@ -103,7 +103,19 @@ def call_typhoon_api(context_text):
         api_key = st.secrets["api_key"]
         client = OpenAI(api_key=api_key, base_url="https://api.opentyphoon.ai/v1")
 
-        full_prompt = f"""คุณคือผู้เชี่ยวชาญด้านการตรวจสอบภาครัฐ (State Auditor)... จงสร้างเนื้อหาสำหรับ... context ต่อไปนี้:\n--- CONTEXT START ---\n{context_text}\n--- CONTEXT END ---\n**คำสั่ง:**\nตอบกลับเป็น JSON object **เท่านั้น**..."""
+        full_prompt = f"""คุณคือผู้เชี่ยวชาญด้านการตรวจสอบภาครัฐ (State Auditor) 
+วิเคราะห์ context ต่อไปนี้:
+--- CONTEXT START ---
+{context_text}
+--- CONTEXT END ---
+**คำสั่ง:**
+สร้างเนื้อหาสำหรับแนวการตรวจสอบโดยละเอียด แล้วตอบกลับโดยใช้ XML tags ต่อไปนี้เท่านั้น:
+<CRITERIA>...</CRITERIA>
+<INFO_NEEDED>...</INFO_NEEDED>
+<SOURCE>...</SOURCE>
+<COLLECTION_METHOD>...</COLLECTION_METHOD>
+<ANALYSIS_METHOD>...</ANALYSIS_METHOD>
+"""
         
         messages = [{"role": "user", "content": full_prompt}]
         response = client.chat.completions.create(
@@ -111,25 +123,26 @@ def call_typhoon_api(context_text):
         )
         generated_text = response.choices[0].message.content
         
-        match = re.search(r'\{.*\}', generated_text, re.DOTALL)
-        if match:
-            parsed_json = json.loads(match.group(0))
-            formatted_json = {}
-            for key, value in parsed_json.items():
-                if isinstance(value, list):
-                    formatted_json[key] = "\n".join([f"- {item}" for item in value])
-                elif isinstance(value, str) and value.startswith('[') and value.endswith(']'):
-                    try:
-                        list_value = eval(value)
-                        formatted_json[key] = "\n".join([f"- {item}" for item in list_value]) if isinstance(list_value, list) else value
-                    except:
-                        cleaned_value = value.strip("[]'\" ")
-                        items = [item.strip() for item in cleaned_value.replace("'", "").replace('"', '').split(',')]
-                        formatted_json[key] = "\n".join([f"- {item}" for item in items])
-                else:
-                    formatted_json[key] = value
-            return formatted_json, None
-        return None, ("error", f"AI ไม่ได้ส่งข้อมูลกลับมาในรูปแบบ JSON ที่คาดหวัง:\n{generated_text}")
+        def extract_tag_content(tag, text):
+            match = re.search(f'<{tag}>(.*?)</{tag}>', text, re.DOTALL)
+            content = match.group(1).strip() if match else ""
+            # Format content into bullet points
+            items = [item.strip() for item in content.split('\n') if item.strip()]
+            return "\n".join([f"- {item.lstrip('- ')}" for item in items])
+
+        details = {
+            "criteria": extract_tag_content("CRITERIA", generated_text),
+            "info_needed": extract_tag_content("INFO_NEEDED", generated_text),
+            "source": extract_tag_content("SOURCE", generated_text),
+            "collection_method": extract_tag_content("COLLECTION_METHOD", generated_text),
+            "analysis_method": extract_tag_content("ANALYSIS_METHOD", generated_text),
+        }
+
+        # Check if any content was extracted
+        if any(details.values()):
+            return details, None
+        else:
+            return None, ("error", f"AI ไม่สามารถแยกแยะข้อมูลจากข้อความที่สร้างขึ้นได้:\n{generated_text}")
 
     except Exception as e:
         return None, ("error", f"เกิดข้อผิดพลาดในการเรียก Typhoon AI: {e}")
@@ -172,7 +185,7 @@ def generate_html_report():
         objectives_html += "</div>"
         
     sig = plan_data['signatures']
-    date_format = lambda d: d.strftime('%d/%m/%Y') if d else ''
+    date_format = lambda d: d.strftime('%d/%m/%Y') if d and isinstance(d, datetime) else ''
     
     maker_text = f"ลงชื่อ: {sig['maker']['name']}\nตำแหน่ง: {sig['maker']['position']}\nวันที่: {date_format(sig['maker']['date'])}\nความเห็น: {sig['maker']['comment']}"
     reviewer_text = f"ลงชื่อ: {sig['reviewer']['name']}\nตำแหน่ง: {sig['reviewer']['position']}\nวันที่: {date_format(sig['reviewer']['date'])}\nความเห็น: {sig['reviewer']['comment']}"
@@ -197,17 +210,20 @@ def generate_html_report():
         @media print {{
             body, .page {{ margin: 0; padding: 0; box-shadow: none; border: none; background: white; }}
             .print-button {{ display: none !important; }}
-            #root > div:first-child, .stApp > header, .stApp .main > div:first-child, .stButton, .stDownloadButton, .stSpinner {{ display: none !important; }}
+            #root > div:first-child, .stApp > header, .stApp .main > div:first-child, .stButton, .stDownloadButton, .stSpinner, .ai-expander {{ display: none !important; }}
             .main .block-container {{ padding: 0 !important; margin: 0 !important; max-width: 100% !important; }}
             @page {{
                 size: A4 landscape;
                 margin: 1.5cm;
-                @bottom-right {{
-                    content: "Page " counter(page);
-                    font-family: 'Sarabun', sans-serif;
-                    font-size: 10pt;
-                    color: #888;
-                }}
+            }}
+             body::after {{
+                position: fixed;
+                bottom: 1cm;
+                right: 1.5cm;
+                content: "Page " counter(page);
+                font-family: 'Sarabun', sans-serif;
+                font-size: 10pt;
+                color: #888;
             }}
         }}
     </style></head><body><div class="page">
@@ -309,24 +325,26 @@ with st.form("estimates_signatures_form"):
     
     c1, c2, c3 = st.columns(3)
     sig_data = st.session_state.plan_gen_data["signatures"]
+    
     with c1:
         st.markdown("**ผู้จัดทำ**")
-        sig_data["maker"]["name"] = st.text_input("ลงชื่อ", key="maker_name")
-        sig_data["maker"]["position"] = st.text_input("ตำแหน่ง", key="maker_pos")
-        sig_data["maker"]["date"] = st.date_input("วันที่", value=None, key="maker_date")
-        sig_data["maker"]["comment"] = st.text_area("ความเห็นเพิ่มเติม", key="maker_comment")
+        sig_data["maker"]["name"] = st.text_input("ลงชื่อ", value=sig_data["maker"].get("name", ""), key="maker_name")
+        sig_data["maker"]["position"] = st.text_input("ตำแหน่ง", value=sig_data["maker"].get("position", ""), key="maker_pos")
+        sig_data["maker"]["date"] = st.date_input("วันที่", value=sig_data["maker"].get("date"), key="maker_date")
+        sig_data["maker"]["comment"] = st.text_area("ความเห็นเพิ่มเติม", value=sig_data["maker"].get("comment", ""), key="maker_comment")
     with c2:
         st.markdown("**ผู้สอบทาน**")
-        sig_data["reviewer"]["name"] = st.text_input("ลงชื่อ", key="reviewer_name")
-        sig_data["reviewer"]["position"] = st.text_input("ตำแหน่ง", key="reviewer_pos")
-        sig_data["reviewer"]["date"] = st.date_input("วันที่", value=None, key="reviewer_date")
-        sig_data["reviewer"]["comment"] = st.text_area("ความเห็นเพิ่มเติม", key="reviewer_comment")
+        sig_data["reviewer"]["name"] = st.text_input("ลงชื่อ", value=sig_data["reviewer"].get("name", ""), key="reviewer_name")
+        sig_data["reviewer"]["position"] = st.text_input("ตำแหน่ง", value=sig_data["reviewer"].get("position", ""), key="reviewer_pos")
+        sig_data["reviewer"]["date"] = st.date_input("วันที่", value=sig_data["reviewer"].get("date"), key="reviewer_date")
+        sig_data["reviewer"]["comment"] = st.text_area("ความเห็นเพิ่มเติม", value=sig_data["reviewer"].get("comment", ""), key="reviewer_comment")
     with c3:
         st.markdown("**ผู้อนุมัติ (รผต. / ผอ. สำนัก)**")
-        sig_data["approver"]["name"] = st.text_input("ลงชื่อ", key="approver_name")
-        sig_data["approver"]["position"] = st.text_input("ตำแหน่ง", key="approver_pos")
-        sig_data["approver"]["date"] = st.date_input("วันที่", value=None, key="approver_date")
-        sig_data["approver"]["comment"] = st.text_area("ความเห็นเพิ่มเติม", key="approver_comment")
+        sig_data["approver"]["name"] = st.text_input("ลงชื่อ", value=sig_data["approver"].get("name", ""), key="approver_name")
+        sig_data["approver"]["position"] = st.text_input("ตำแหน่ง", value=sig_data["approver"].get("position", ""), key="approver_pos")
+        sig_data["approver"]["date"] = st.date_input("วันที่", value=sig_data["approver"].get("date"), key="approver_date")
+        sig_data["approver"]["comment"] = st.text_area("ความเห็นเพิ่มเติม", value=sig_data["approver"].get("comment", ""), key="approver_comment")
+        
     st.form_submit_button("บันทึกข้อมูลผู้จัดทำ", use_container_width=True)
 
 st.divider()
