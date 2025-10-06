@@ -151,9 +151,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_assist = st.tabs([
-    "2.1) &nbsp;ระบุ แผน & 6W2H", "2.2) &nbsp;ระบุ Logic Model", "2.3) &nbsp;ระบุ Methods", 
-    "2.4) &nbsp;ระบุ KPIs", "2.5) &nbsp;ระบุ Risks", "2.6) 🔍 ค้นหาข้อตรวจพบที่ผ่านมา", 
-    "2.7) 📋 สรุปข้อมูล (Preview)", "2.8) ✨ PA Assistant แนะนำประเด็น"
+    "1.&nbsp;ระบุ แผน & 6W2H", "2.&nbsp;ระบุ Logic Model", "3.&nbsp;ระบุ Methods", 
+    "4.&nbsp;ระบุ KPIs", "5.&nbsp;ระบุ Risks", "6.🔍 ค้นหาข้อตรวจพบที่ผ่านมา", 
+    "7.📋 สรุปข้อมูล (Preview)", "8.✨ PA Assistant แนะนำประเด็น"
 ]) 
 
 with tab_plan:
