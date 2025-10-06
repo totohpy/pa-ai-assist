@@ -9,24 +9,20 @@ import docx
 from docx.enum.section import WD_ORIENT
 from docx.shared import Pt
 import base64
+import json
 
 # --- Page Configuration ---
 st.set_page_config(layout="wide", page_title="AI Plan Generator")
 st.title("🤖 AI Plan Generator")
 st.markdown("เครื่องมือช่วยสร้างแผนและแนวการตรวจสอบ พร้อมระบบ AI ช่วยร่างเนื้อหา")
 
-# --- Custom CSS for Styling App Interface ---
+# --- Custom CSS for Styling App Interface (Unchanged) ---
 st.markdown("""
 <style>
-/* General expander button text */
 div[data-testid="stExpander"] div[role="button"] p { font-size: 1.1rem; }
-
-/* CSS for the AI expander (Green color) */
 .ai-expander .st-emotion-cache-ff2938 { background-color: #e9f5e9; border: 1px solid #5cb85c; border-radius: 0.5rem; }
 .ai-expander .st-emotion-cache-ff2938:hover { background-color: #d9ead3; }
 .ai-expander .st-emotion-cache-ff2938 p { color: #155724; font-weight: bold; }
-
-/* CSS for AI button */
 .ai-button-container .stButton > button { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; font-weight: bold; border-radius: 0.5rem; width: 100%; }
 .ai-button-container .stButton > button:hover { background-color: #c3e6cb; color: #155724; border-color: #b1dfbb; }
 </style>
@@ -62,7 +58,7 @@ def add_issue(obj_index, parent_issue_path=None):
     st.session_state.ui_feedback_message = None
 
 
-# --- AI Function (Unchanged from previous working version) ---
+# --- AI Function (Unchanged) ---
 def run_ai_for_field(obj_index, path, field_name):
     st.session_state.ui_feedback_message = None
     try:
@@ -115,7 +111,6 @@ def run_ai_for_field(obj_index, path, field_name):
     except Exception as e:
         st.session_state.ui_feedback_message = ("error", f"เกิดข้อผิดพลาดในการเรียก AI: {e}")
 
-
 # --- Function to load and encode fonts (Unchanged) ---
 @st.cache_data
 def load_font_as_base64(font_path):
@@ -126,7 +121,7 @@ def load_font_as_base64(font_path):
         st.warning(f"ไม่พบไฟล์ฟอนต์ที่ {font_path} จะใช้ฟอนต์มาตรฐานของเบราว์เซอร์แทน")
         return None
 
-# --- Function to generate HTML report (Unchanged) ---
+# --- Function to generate HTML report ---
 def generate_html_report(data):
     sarabun_regular_b64 = load_font_as_base64("Sarabun-Regular.ttf")
     sarabun_bold_b64 = load_font_as_base64("Sarabun-Bold.ttf")
@@ -158,6 +153,16 @@ def generate_html_report(data):
             th, td {{ border: 1px solid black; padding: 8px; text-align: left; vertical-align: top; }}
             .header-info p, .objective-info p {{ margin: 0; padding: 2px 0; }}
             .signature-table td {{ height: 120px; }}
+            
+            /* --- UPDATED: CSS for sticky table headers --- */
+            .sticky-header th {{
+                position: -webkit-sticky; /* For Safari */
+                position: sticky;
+                top: -1px; /* Adjust slightly for border visibility */
+                background-color: #f2f2f2; /* Light grey background */
+                z-index: 2;
+            }}
+
             @media print {{
                 @page {{ size: A4 landscape; margin: 1.5cm; }}
                 body {{ margin: 0; }}
@@ -181,21 +186,25 @@ def generate_html_report(data):
         </div>
         {''.join([f'''
             <table>
-                <tr><td colspan="5"><b>ประเด็นการตรวจสอบที่ {i+1}.{j+1}:</b> {format_text(issue.get('text', ''))}</td></tr>
-                <tr style="font-weight: bold;">
-                    <td>เกณฑ์การตรวจสอบ</td>
-                    <td>ข้อมูลที่ต้องการ</td>
-                    <td>แหล่งข้อมูล</td>
-                    <td>วิธีการรวบรวมหลักฐาน</td>
-                    <td>วิธีการวิเคราะห์หลักฐาน</td>
-                </tr>
-                <tr>
-                    <td>{format_text(issue['details'].get('criteria', ''))}</td>
-                    <td>{format_text(issue['details'].get('info_needed', ''))}</td>
-                    <td>{format_text(issue['details'].get('source', ''))}</td>
-                    <td>{format_text(issue['details'].get('collection_method', ''))}</td>
-                    <td>{format_text(issue['details'].get('analysis_method', ''))}</td>
-                </tr>
+                <thead>
+                    <tr class="sticky-header">
+                        <th>เกณฑ์การตรวจสอบ</th>
+                        <th>ข้อมูลที่ต้องการ</th>
+                        <th>แหล่งข้อมูล</th>
+                        <th>วิธีการรวบรวมหลักฐาน</th>
+                        <th>วิธีการวิเคราะห์หลักฐาน</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td colspan="5"><b>ประเด็นการตรวจสอบที่ {i+1}.{j+1}:</b> {format_text(issue.get('text', ''))}</td></tr>
+                    <tr>
+                        <td>{format_text(issue['details'].get('criteria', ''))}</td>
+                        <td>{format_text(issue['details'].get('info_needed', ''))}</td>
+                        <td>{format_text(issue['details'].get('source', ''))}</td>
+                        <td>{format_text(issue['details'].get('collection_method', ''))}</td>
+                        <td>{format_text(issue['details'].get('analysis_method', ''))}</td>
+                    </tr>
+                </tbody>
             </table>
         ''' for j, issue in enumerate(obj.get('issues', [])) if not issue.get('issues')])}
         ''' for i, obj in enumerate(data['objectives'])])}
@@ -204,16 +213,20 @@ def generate_html_report(data):
         <p><b>ประมาณการคน/วันที่ใช้ในการตรวจสอบ:</b><br>- {format_text(data['estimates'].get('effort', '..................'))}</p>
 
         <table class="signature-table">
-            <tr style="font-weight: bold; text-align: center;">
-                <td>ผู้จัดทำ</td>
-                <td>ผู้สอบทาน</td>
-                <td>ผู้อนุมัติ (รผต. / ผอ. สำนัก)</td>
-            </tr>
-            <tr>
-                <td><b>ลงชื่อ:</b> {format_text(data['signatures']['maker'].get('name', ''))}<br><b>ตำแหน่ง:</b> {format_text(data['signatures']['maker'].get('position', ''))}<br><b>วันที่:</b> {data['signatures']['maker'].get('date').strftime('%Y-%m-%d') if data['signatures']['maker'].get('date') else ''}<br><b>ความเห็นเพิ่มเติม:</b> {format_text(data['signatures']['maker'].get('comment', ''))}</td>
-                <td><b>ลงชื่อ:</b> {format_text(data['signatures']['reviewer'].get('name', ''))}<br><b>ตำแหน่ง:</b> {format_text(data['signatures']['reviewer'].get('position', ''))}<br><b>วันที่:</b> {data['signatures']['reviewer'].get('date').strftime('%Y-%m-%d') if data['signatures']['reviewer'].get('date') else ''}<br><b>ความเห็นเพิ่มเติม:</b> {format_text(data['signatures']['reviewer'].get('comment', ''))}</td>
-                <td><b>ลงชื่อ:</b> {format_text(data['signatures']['approver'].get('name', ''))}<br><b>ตำแหน่ง:</b> {format_text(data['signatures']['approver'].get('position', ''))}<br><b>วันที่:</b> {data['signatures']['approver'].get('date').strftime('%Y-%m-%d') if data['signatures']['approver'].get('date') else ''}<br><b>ความเห็นเพิ่มเติม:</b> {format_text(data['signatures']['approver'].get('comment', ''))}</td>
-            </tr>
+            <thead>
+                <tr style="font-weight: bold; text-align: center;">
+                    <th>ผู้จัดทำ</th>
+                    <th>ผู้สอบทาน</th>
+                    <th>ผู้อนุมัติ (รผต. / ผอ. สำนัก)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><b>ลงชื่อ:</b> {format_text(data['signatures']['maker'].get('name', ''))}<br><b>ตำแหน่ง:</b> {format_text(data['signatures']['maker'].get('position', ''))}<br><b>วันที่:</b> {data['signatures']['maker'].get('date').strftime('%Y-%m-%d') if data['signatures']['maker'].get('date') else ''}<br><b>ความเห็นเพิ่มเติม:</b> {format_text(data['signatures']['maker'].get('comment', ''))}</td>
+                    <td><b>ลงชื่อ:</b> {format_text(data['signatures']['reviewer'].get('name', ''))}<br><b>ตำแหน่ง:</b> {format_text(data['signatures']['reviewer'].get('position', ''))}<br><b>วันที่:</b> {data['signatures']['reviewer'].get('date').strftime('%Y-%m-%d') if data['signatures']['reviewer'].get('date') else ''}<br><b>ความเห็นเพิ่มเติม:</b> {format_text(data['signatures']['reviewer'].get('comment', ''))}</td>
+                    <td><b>ลงชื่อ:</b> {format_text(data['signatures']['approver'].get('name', ''))}<br><b>ตำแหน่ง:</b> {format_text(data['signatures']['approver'].get('position', ''))}<br><b>วันที่:</b> {data['signatures']['approver'].get('date').strftime('%Y-%m-%d') if data['signatures']['approver'].get('date') else ''}<br><b>ความเห็นเพิ่มเติม:</b> {format_text(data['signatures']['approver'].get('comment', ''))}</td>
+                </tr>
+            </tbody>
         </table>
     </body>
     </html>
@@ -222,6 +235,7 @@ def generate_html_report(data):
 
 # --- Function to generate DOCX (Unchanged) ---
 def generate_docx_report(data):
+    # This function remains unchanged
     doc = docx.Document()
     current_section = doc.sections[-1]
     new_width, new_height = current_section.page_height, current_section.page_width
@@ -281,12 +295,11 @@ def generate_docx_report(data):
 
 
 # --- UI Rendering (Main part of the app) ---
+# ... (Sections 1, 2, 3 for data input are unchanged) ...
 if st.session_state.get("ui_feedback_message"):
     msg_type, msg_content = st.session_state.ui_feedback_message
-    if msg_type == "success":
-        st.success(msg_content)
-    else:
-        st.error(msg_content)
+    if msg_type == "success": st.success(msg_content)
+    else: st.error(msg_content)
     st.session_state.ui_feedback_message = None
 
 with st.form("general_info_form"):
@@ -346,41 +359,60 @@ with st.form("estimates_signatures_form"):
     c1, c2, c3 = st.columns(3)
     sig_data = st.session_state.plan_gen_data["signatures"]
     with c1:
-        st.markdown("**ผู้จัดทำ**")
-        sig_data["maker"]["name"] = st.text_input("ลงชื่อ", value=sig_data["maker"].get("name", ""), key="maker_name")
+        st.markdown("**ผู้จัดทำ**"); sig_data["maker"]["name"] = st.text_input("ลงชื่อ", value=sig_data["maker"].get("name", ""), key="maker_name")
         sig_data["maker"]["position"] = st.text_input("ตำแหน่ง", value=sig_data["maker"].get("position", ""), key="maker_pos")
         sig_data["maker"]["date"] = st.date_input("วันที่", value=sig_data["maker"].get("date"), key="maker_date")
         sig_data["maker"]["comment"] = st.text_area("ความเห็นเพิ่มเติม", value=sig_data["maker"].get("comment", ""), key="maker_comment")
     with c2:
-        st.markdown("**ผู้สอบทาน**")
-        sig_data["reviewer"]["name"] = st.text_input("ลงชื่อ", value=sig_data["reviewer"].get("name", ""), key="reviewer_name")
+        st.markdown("**ผู้สอบทาน**"); sig_data["reviewer"]["name"] = st.text_input("ลงชื่อ", value=sig_data["reviewer"].get("name", ""), key="reviewer_name")
         sig_data["reviewer"]["position"] = st.text_input("ตำแหน่ง", value=sig_data["reviewer"].get("position", ""), key="reviewer_pos")
         sig_data["reviewer"]["date"] = st.date_input("วันที่", value=sig_data["reviewer"].get("date"), key="reviewer_date")
         sig_data["reviewer"]["comment"] = st.text_area("ความเห็นเพิ่มเติม", value=sig_data["reviewer"].get("comment", ""), key="reviewer_comment")
     with c3:
-        st.markdown("**ผู้อนุมัติ (รผต. / ผอ. สำนัก)**")
-        sig_data["approver"]["name"] = st.text_input("ลงชื่อ", value=sig_data["approver"].get("name", ""), key="approver_name")
+        st.markdown("**ผู้อนุมัติ (รผต. / ผอ. สำนัก)**"); sig_data["approver"]["name"] = st.text_input("ลงชื่อ", value=sig_data["approver"].get("name", ""), key="approver_name")
         sig_data["approver"]["position"] = st.text_input("ตำแหน่ง", value=sig_data["approver"].get("position", ""), key="approver_pos")
         sig_data["approver"]["date"] = st.date_input("วันที่", value=sig_data["approver"].get("date"), key="approver_date")
         sig_data["approver"]["comment"] = st.text_area("ความเห็นเพิ่มเติม", value=sig_data["approver"].get("comment", ""), key="approver_comment")
     st.form_submit_button("บันทึกข้อมูลผู้จัดทำ", use_container_width=True)
 
 
-# --- UPDATED: Section for direct HTML preview ---
+# --- UPDATED: Section for HTML preview and DOCX download ---
 st.divider()
 
-# Added border using st.container
 with st.container(border=True):
     st.subheader("4. แสดงผลและส่งออกเอกสาร")
-
-    # Add instructions for printing
-    st.info("💡 **วิธีพิมพ์หรือบันทึกเป็น PDF:** คลิกขวาที่รายงานด้านล่างแล้วเลือก 'Print...' หรือใช้คีย์บอร์ด `Ctrl+P` (Windows) / `Cmd+P` (Mac)")
-
-    # Generate and display the HTML report directly
-    html_report = generate_html_report(st.session_state.plan_gen_data)
-    st.html(html_report)
     
-    st.markdown("---") # Visual separator
+    # Generate the HTML content once
+    html_report = generate_html_report(st.session_state.plan_gen_data)
+    
+    # --- UPDATED: Create a separate, working Print button using JavaScript ---
+    js_escaped_html = json.dumps(html_report)
+    print_button_html = f"""
+    <script>
+    function printReport() {{
+        const reportHtml = {js_escaped_html};
+        const printWindow = window.open('', '_blank', 'height=800,width=1200');
+        printWindow.document.write(reportHtml);
+        printWindow.document.close();
+        printWindow.document.title = "แผนและแนวการตรวจสอบ";
+        printWindow.focus();
+        setTimeout(() => {{
+            printWindow.print();
+            printWindow.close();
+        }}, 500);
+    }}
+    </script>
+    <button onclick="printReport()" style="padding: 10px 20px; font-size: 16px; cursor: pointer; border-radius: 5px; border: 1px solid #007bff; background-color: #007bff; color: white;">
+        🖨️ พิมพ์ / บันทึกเป็น PDF
+    </button>
+    """
+    st.html(print_button_html) # This renders the button and its logic
+    
+    # Add a collapsible preview area
+    with st.expander("แสดง/ซ่อนตัวอย่างรายงาน"):
+        st.html(html_report)
+    
+    st.markdown("---")
     
     st.markdown("##### หรือดาวน์โหลดเป็นไฟล์ Word")
     docx_buffer = generate_docx_report(st.session_state.plan_gen_data)
