@@ -152,8 +152,8 @@ st.markdown("""
 
 tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_assist = st.tabs([
     "1.&nbsp;ระบุ แผน & 6W2H", "2.&nbsp;ระบุ Logic Model", "3.&nbsp;ระบุ Methods", 
-    "4.&nbsp;ระบุ KPIs", "5.&nbsp;ระบุ Risks", "6.🔍 ค้นหาข้อตรวจพบที่ผ่านมา", 
-    "7.📋 สรุปข้อมูล (Preview)", "8.✨ PA Assistant แนะนำประเด็น"
+    "4.&nbsp;ระบุ KPIs", "5.&nbsp;ระบุ Risks", "🔍 ค้นหาข้อตรวจพบที่ผ่านมา", 
+    "📋 สรุปข้อมูล (Preview)", "✨ PA Assistant แนะนำประเด็น"
 ]) 
 
 with tab_plan:
