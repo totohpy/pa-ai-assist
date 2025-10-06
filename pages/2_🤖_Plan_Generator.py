@@ -11,6 +11,31 @@ st.set_page_config(layout="wide", page_title="AI Plan Generator")
 st.title("🤖 AI Plan Generator")
 st.markdown("เครื่องมือช่วยสร้างแผนและแนวการตรวจสอบ พร้อมระบบ AI ช่วยร่างเนื้อหา")
 
+# --- Custom CSS for Styling ---
+st.markdown("""
+<style>
+/* Style for the AI expander */
+div[data-testid="stExpander"] div[role="button"] p {
+    font-size: 1.1rem;
+}
+/* Targeting the expander by its label text is tricky, so we'll apply a general style.
+   To be more specific, we would need to wrap it in a custom component or use JS,
+   which is overly complex for this. A general style is a good compromise. */
+
+/* Custom style for AI section expander */
+.ai-expander .st-emotion-cache-ff2938 {
+    background-color: #e6f3ff; /* Light blue background */
+    border: 1px solid #007bff; /* Blue border */
+    border-radius: 0.5rem;
+}
+.ai-expander .st-emotion-cache-ff2938 p {
+    color: #004085; /* Darker blue text */
+    font-weight: bold;
+}
+</style>
+""", unsafe_allow_html=True)
+
+
 # --- Initialize Session State ---
 def init_plan_state():
     ss = st.session_state
@@ -55,10 +80,9 @@ def add_issue(obj_index, parent_issue_path=None):
     target_container["issues"].append(new_issue)
     st.session_state.ui_feedback_message = None
 
-# --- AI Function (Adopted from pa_assistant) ---
+# --- AI Function ---
 def call_typhoon_api(context_text):
     try:
-        # Ensure the global API key is loaded from secrets
         if "api_key" not in st.secrets:
             st.session_state.ui_feedback_message = ("error", "ไม่พบ API Key ใน Streamlit Secrets")
             return None
@@ -87,13 +111,30 @@ def call_typhoon_api(context_text):
         
         generated_text = response.choices[0].message.content
         
-        # More robust JSON parsing
         match = re.search(r'\{.*\}', generated_text, re.DOTALL)
         if match:
             try:
-                return json.loads(match.group(0))
+                parsed_json = json.loads(match.group(0))
+                formatted_json = {}
+                for key, value in parsed_json.items():
+                    if isinstance(value, list):
+                        formatted_json[key] = "\n".join([f"- {item}" for item in value])
+                    elif isinstance(value, str) and value.startswith('[') and value.endswith(']'):
+                        try:
+                            list_value = eval(value)
+                            if isinstance(list_value, list):
+                                formatted_json[key] = "\n".join([f"- {item}" for item in list_value])
+                            else:
+                                formatted_json[key] = value
+                        except:
+                            cleaned_value = value.strip("[]'\" ")
+                            items = [item.strip() for item in cleaned_value.replace("'", "").replace('"', '').split(',')]
+                            formatted_json[key] = "\n".join([f"- {item}" for item in items])
+                    else:
+                        formatted_json[key] = value
+                return formatted_json
             except json.JSONDecodeError:
-                st.session_state.ui_feedback_message = ("error", f"AI ไม่ได้ส่งข้อมูลกลับมาในรูปแบบ JSON ที่ถูกต้อง")
+                st.session_state.ui_feedback_message = ("error", "AI ไม่ได้ส่งข้อมูลกลับมาในรูปแบบ JSON ที่ถูกต้อง")
                 return None
         else:
             st.session_state.ui_feedback_message = ("error", f"AI ไม่ได้ส่งข้อมูลกลับมาในรูปแบบ JSON ที่คาดหวัง:\n{generated_text}")
@@ -108,35 +149,35 @@ def generate_html_report():
     plan_data = st.session_state.plan_gen_data
 
     def escape(text):
-        return html.escape(str(text) if text is not None else "")
+        raw_text = str(text) if text is not None else ""
+        return html.escape(raw_text).replace("\n", "<br>")
 
     def render_issues_html(issues_list, prefix_num):
         if not issues_list: return ""
-        html_out = "<ul>"
+        html_out = ""
         for i, issue in enumerate(issues_list):
             current_prefix = f"{prefix_num}.{i+1}"
-            html_out += f"<li><strong>ประเด็น {current_prefix}:</strong> {escape(issue.get('text', ''))}"
+            html_out += f"<h4>ประเด็นการตรวจสอบที่ {current_prefix}: {escape(issue.get('text', ''))}</h4>"
             
             if not issue.get('issues'):
                 details = issue.get('details', {})
-                html_out += "<div class='issue-details'>"
-                html_out += f"<p><strong>เกณฑ์:</strong> {escape(details.get('criteria', ''))}</p>"
-                html_out += f"<p><strong>ข้อมูลที่ต้องการ:</strong> {escape(details.get('info_needed', ''))}</p>"
-                html_out += f"<p><strong>แหล่งข้อมูล:</strong> {escape(details.get('source', ''))}</p>"
-                html_out += f"<p><strong>วิธีรวบรวม:</strong> {escape(details.get('collection_method', ''))}</p>"
-                html_out += f"<p><strong>วิธีวิเคราะห์:</strong> {escape(details.get('analysis_method', ''))}</p>"
-                html_out += "</div>"
+                html_out += "<table class='details-table'>"
+                html_out += "<thead><tr><th>เกณฑ์การตรวจสอบ</th><th>ข้อมูลที่ต้องการ</th><th>แหล่งข้อมูล</th><th>วิธีการรวบรวมหลักฐาน</th><th>วิธีการวิเคราะห์หลักฐาน</th></tr></thead>"
+                html_out += "<tbody><tr>"
+                html_out += f"<td>{escape(details.get('criteria', ''))}</td>"
+                html_out += f"<td>{escape(details.get('info_needed', ''))}</td>"
+                html_out += f"<td>{escape(details.get('source', ''))}</td>"
+                html_out += f"<td>{escape(details.get('collection_method', ''))}</td>"
+                html_out += f"<td>{escape(details.get('analysis_method', ''))}</td>"
+                html_out += "</tr></tbody></table>"
             
             if issue.get('issues'):
                 html_out += render_issues_html(issue['issues'], current_prefix)
-            
-            html_out += "</li>"
-        html_out += "</ul>"
         return html_out
 
     objectives_html = ""
     for i, obj in enumerate(plan_data['objectives']):
-        objectives_html += f"<div class='objective-block'><h3>วัตถุประสงค์ที่ {i+1}: {escape(obj.get('text', ''))}</h3>"
+        objectives_html += f"<div class='objective-block'><h3>วัตถุประสงค์การตรวจสอบที่ {i+1}: {escape(obj.get('text', ''))}</h3>"
         objectives_html += render_issues_html(obj.get('issues', []), str(i+1))
         objectives_html += "</div>"
     
@@ -149,30 +190,32 @@ def generate_html_report():
     <style>
         body {{ font-family: 'Sarabun', sans-serif; background-color: #ffffff; margin: 0; padding: 0; -webkit-print-color-adjust: exact; }}
         .page {{ background: white; width: 29.7cm; min-height: 21cm; padding: 2cm; margin: 1cm auto; border: 1px #D3D3D3 solid; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); box-sizing: border-box; }}
-        h1, h3 {{ margin-top: 0; }} .header-info p {{ margin: 4px 0; }}
+        h1, h3, h4 {{ margin-top: 0; font-weight: 700; }}
+        .header-info p {{ margin: 4px 0; }}
         .section-title {{ font-weight: bold; border-bottom: 1px solid #999; padding-bottom: 4px; margin: 20px 0 10px 0; }}
-        ul {{ list-style-type: none; padding-left: 25px; }} li {{ margin-bottom: 12px; }}
-        .issue-details {{ padding-left: 20px; font-size: 0.95em; color: #333; }} .issue-details p {{ margin: 3px 0; }}
+        .details-table {{ width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 20px; table-layout: fixed; }}
+        .details-table th, .details-table td {{ border: 1px solid #999; padding: 8px; text-align: left; vertical-align: top; word-wrap: break-word; }}
+        .details-table th {{ background-color: #f2f2f2; font-weight: bold; }}
         .signature-table {{ width: 100%; border-collapse: collapse; margin-top: 25px; table-layout: fixed; }}
         .signature-table th, .signature-table td {{ border: 1px solid #000; padding: 8px; text-align: left; vertical-align: top; word-wrap: break-word; }}
         .signature-table th {{ text-align: center; font-weight: bold; }} .signature-table td {{ height: 120px; }}
         @media print {{ body, .page {{ margin: 0; box-shadow: none; border: none; }} @page {{ size: A4 landscape; margin: 2cm; }} }}
     </style></head><body><div class="page">
-        <h1 style="text-align: center;">แผนและแนวการตรวจสอบ</h1>
+        <h1 style="text-align: center; font-weight: 700;">แผนและแนวการตรวจสอบ</h1>
         <div class="header-info">
             <p><strong>เรื่องที่ตรวจสอบ:</strong> {escape(plan_data['general_info']['topic'])}</p>
             <p><strong>หน่วยงาน:</strong> {escape(plan_data['general_info']['agency'])} &nbsp;&nbsp;<strong>กระทรวง:</strong> {escape(plan_data['general_info']['ministry'])}</p>
             <p><strong>สำนักงาน:</strong> {escape(plan_data['general_info']['office'])}</p>
         </div>
-        <div class="section-title">วัตถุประสงค์และประเด็นการตรวจสอบ</div>{objectives_html}
+        {objectives_html}
         <div class="section-title">ประมาณการและผู้จัดทำ</div>
         <p><strong>ประมาณการค่าใช้จ่าย:</strong> {escape(plan_data['estimates']['cost'])}</p>
         <p><strong>ประมาณการคน/วัน:</strong> {escape(plan_data['estimates']['effort'])}</p>
         <table class="signature-table"><thead><tr><th>ผู้จัดทำ</th><th>ผู้สอบทาน</th><th>ผู้อนุมัติ (รผต. / ผอ. สำนัก)</th></tr></thead>
             <tbody><tr>
-                <td><strong>ลงชื่อ:</strong> {escape(sig['maker']['name'])}<br><strong>ตำแหน่ง:</strong> {escape(sig['maker']['position'])}<br><strong>วันที่:</strong> {date_format(sig['maker']['date'])}<br><strong>ความเห็น:</strong> {escape(sig['maker']['comment'])}</td>
-                <td><strong>ลงชื่อ:</strong> {escape(sig['reviewer']['name'])}<br><strong>ตำแหน่ง:</strong> {escape(sig['reviewer']['position'])}<br><strong>วันที่:</strong> {date_format(sig['reviewer']['date'])}<br><strong>ความเห็น:</strong> {escape(sig['reviewer']['comment'])}</td>
-                <td><strong>ลงชื่อ:</strong> {escape(sig['approver']['name'])}<br><strong>ตำแหน่ง:</strong> {escape(sig['approver']['position'])}<br><strong>วันที่:</strong> {date_format(sig['approver']['date'])}<br><strong>ความเห็น:</strong> {escape(sig['approver']['comment'])}</td>
+                <td>{escape(f"ลงชื่อ: {sig['maker']['name']}\\nตำแหน่ง: {sig['maker']['position']}\\nวันที่: {date_format(sig['maker']['date'])}\\nความเห็น: {sig['maker']['comment']}")}</td>
+                <td>{escape(f"ลงชื่อ: {sig['reviewer']['name']}\\nตำแหน่ง: {sig['reviewer']['position']}\\nวันที่: {date_format(sig['reviewer']['date'])}\\nความเห็น: {sig['reviewer']['comment']}")}</td>
+                <td>{escape(f"ลงชื่อ: {sig['approver']['name']}\\nตำแหน่ง: {sig['approver']['position']}\\nวันที่: {date_format(sig['approver']['date'])}\\nความเห็น: {sig['approver']['comment']}")}</td>
             </tr></tbody></table></div></body></html>
     """
     return report_html
@@ -215,7 +258,8 @@ for i, obj in enumerate(st.session_state.plan_gen_data["objectives"]):
                     target_container["issues"][j]['text'] = st.text_area(f"ประเด็นการตรวจสอบที่ {prefix}", value=issue.get('text', ''), key=f"issue_text_{key_suffix}")
 
                     if not issue.get('issues'):
-                        with st.expander("รายละเอียดแนวการตรวจสอบ (AI)"):
+                        st.markdown('<div class="ai-expander">', unsafe_allow_html=True)
+                        with st.expander("เพิ่มรายละเอียดแนวการตรวจสอบ (ให้ AI ช่วย)"):
                             if st.button(f"🤖 ให้ AI ช่วยร่าง (ประเด็น {prefix})", key=f"ai_btn_{key_suffix}"):
                                 with st.spinner("AI กำลังประมวลผล..."):
                                     context = f"เรื่องที่ตรวจสอบ: {st.session_state.plan_gen_data['general_info']['topic']}\nวัตถุประสงค์: {obj.get('text', '')}\nประเด็นการตรวจสอบ: {issue.get('text', '')}"
@@ -231,7 +275,8 @@ for i, obj in enumerate(st.session_state.plan_gen_data["objectives"]):
                             target_container["issues"][j]['details']['source'] = st.text_area("แหล่งข้อมูล", value=details.get('source', ''), key=f"src_{key_suffix}")
                             target_container["issues"][j]['details']['collection_method'] = st.text_area("วิธีการรวบรวมหลักฐาน", value=details.get('collection_method', ''), key=f"coll_{key_suffix}")
                             target_container["issues"][j]['details']['analysis_method'] = st.text_area("วิธีการวิเคราะห์หลักฐาน", value=details.get('analysis_method', ''), key=f"anal_{key_suffix}")
-                    
+                        st.markdown('</div>', unsafe_allow_html=True)
+
                     st.button(f"➕ เพิ่มประเด็นย่อย (สำหรับ {prefix})", key=f"add_sub_issue_{key_suffix}", on_click=add_issue, args=(obj_index, current_path))
                     
                     if issue.get('issues'): display_issues(issue['issues'], obj_index, current_path)
