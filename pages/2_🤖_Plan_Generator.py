@@ -135,10 +135,21 @@ def run_ai_for_issue(obj_index, path, prefix):
         generated_text = response.choices[0].message.content
         
         def extract_tag_content(tag, text):
+            # 1. Extract content from the main tag
             match = re.search(f'<{tag}>(.*?)</{tag}>', text, re.DOTALL)
             content = match.group(1).strip() if match else ""
+            
+            # 2. If content is found, strip any inner XML tags to get clean text
+            if content:
+                # Replace tags with a space to avoid words merging
+                cleaned_content = re.sub('<[^>]+>', ' ', content) 
+                # Collapse multiple spaces into one
+                cleaned_content = re.sub(' +', ' ', cleaned_content)
+                content = cleaned_content
+
+            # 3. Format as a bulleted list
             items = [item.strip() for item in content.split('\n') if item.strip()]
-            return "\n".join([f"- {item.lstrip('- ')}" for item in items])
+            return "\n".join([f"- {item.lstrip('- ')}" for item in items if item])
 
         details = {
             "criteria": extract_tag_content("CRITERIA", generated_text),
