@@ -3,7 +3,8 @@ from fpdf import FPDF
 from datetime import datetime
 import json
 import re
-from openai import OpenAI # Import the OpenAI library
+from openai import OpenAI
+import os
 
 # --- Page Configuration ---
 st.set_page_config(layout="wide", page_title="AI Plan Generator")
@@ -22,7 +23,8 @@ def init_plan_state():
                 "maker": {"name": "", "position": "", "date": None, "comment": ""},
                 "reviewer": {"name": "", "position": "", "date": None, "comment": ""},
                 "approver": {"name": "", "position": "", "date": None, "comment": ""},
-            }
+            },
+            "ui_feedback_message": None # For showing success/error messages reliably
         }
 init_plan_state()
 
@@ -30,9 +32,11 @@ init_plan_state()
 def add_objective():
     new_obj = {"id": f"obj_{len(st.session_state.plan_gen_data['objectives']) + 1}", "text": "", "issues": []}
     st.session_state.plan_gen_data["objectives"].append(new_obj)
+    st.session_state.ui_feedback_message = None # Clear message on action
 
 def remove_objective(obj_index):
     st.session_state.plan_gen_data["objectives"].pop(obj_index)
+    st.session_state.ui_feedback_message = None
 
 def add_issue(obj_index, parent_issue_path=None):
     obj = st.session_state.plan_gen_data["objectives"][obj_index]
@@ -51,18 +55,13 @@ def add_issue(obj_index, parent_issue_path=None):
         "issues": []
     }
     target_list.append(new_issue)
+    st.session_state.ui_feedback_message = None
 
-# --- AI Function (Using OpenAI/Typhoon AI for reliability) ---
+# --- AI Function ---
 def call_typhoon_api(context_text):
     try:
-        # Using the same secret key as your main app for consistency
         api_key = st.secrets["api_key"]
-        
-        client = OpenAI(
-            api_key=api_key,
-            base_url="https://api.opentyphoon.ai/v1"
-        )
-
+        client = OpenAI(api_key=api_key, base_url="https://api.opentyphoon.ai/v1")
         full_prompt = f"""คุณคือผู้เชี่ยวชาญด้านการตรวจสอบภาครัฐ (State Auditor) 
 หน้าที่ของคุณคือช่วยร่างแผนและแนวการตรวจสอบตามข้อมูลที่ได้รับ 
 จงสร้างเนื้อหาสำหรับแนวการตรวจสอบโดยละเอียดสำหรับประเด็นสุดท้ายที่อยู่ใน context ต่อไปนี้:
@@ -73,157 +72,142 @@ def call_typhoon_api(context_text):
 ตอบกลับเป็น JSON object **เท่านั้น** ห้ามมีข้อความอื่นนำหน้าหรือตามหลัง JSON โดยเด็ดขาด 
 ใช้ key ต่อไปนี้: "criteria", "info_needed", "source", "collection_method", "analysis_method" 
 เนื้อหาต้องเป็นภาษาไทยที่กระชับและชัดเจน
-ตัวอย่าง JSON ที่ถูกต้อง:
-{{
-    "criteria": "...",
-    "info_needed": "...",
-    "source": "...",
-    "collection_method": "...",
-    "analysis_method": "..."
-}}
 """
-        
         messages = [{"role": "user", "content": full_prompt}]
-        
         response = client.chat.completions.create(
-            model="typhoon-v2.1-12b-instruct",
-            messages=messages,
-            temperature=0.5
+            model="typhoon-v2.1-12b-instruct", messages=messages, temperature=0.5
         )
-        
         generated_text = response.choices[0].message.content
-        
         match = re.search(r'\{.*\}', generated_text, re.DOTALL)
         if match:
-            json_string = match.group(0)
-            return json.loads(json_string)
-        else:
-            st.error("AI ไม่ได้ส่งข้อมูลกลับมาในรูปแบบ JSON ที่คาดหวัง")
-            st.code(generated_text, language="text")
-            return None
-
+            return json.loads(match.group(0))
+        st.session_state.ui_feedback_message = ("error", f"AI ไม่ได้ส่งข้อมูลกลับมาในรูปแบบ JSON ที่คาดหวัง:\n{generated_text}")
+        return None
     except Exception as e:
-        st.error(f"เกิดข้อผิดพลาดในการเรียก Typhoon AI: {e}")
+        st.session_state.ui_feedback_message = ("error", f"เกิดข้อผิดพลาดในการเรียก Typhoon AI: {e}")
         return None
 
 # --- PDF Generation Function ---
 class PDF(FPDF):
     def header(self):
-        try:
-            self.add_font('Sarabun', '', 'Sarabun-Regular.ttf', uni=True)
-            self.set_font('Sarabun', '', 14) # Changed from 'B' to ''
-            self.cell(0, 10, 'แผนและแนวการตรวจสอบ', 0, 1, 'C')
-            self.ln(5)
-        except RuntimeError:
-            st.error("ไม่พบไฟล์ฟอนต์ Sarabun-Regular.ttf กรุณาอัปโหลดไฟล์ฟอนต์ก่อนสร้าง PDF")
-            self.set_font('Arial', 'B', 14)
-            self.cell(0, 10, 'Error: Font file not found.', 0, 1, 'C')
+        self.set_font('Sarabun', 'B', 14)
+        self.cell(0, 10, 'แผนและแนวการตรวจสอบ', 0, 1, 'C')
+        self.ln(5)
 
     def footer(self):
         self.set_y(-15)
-        self.set_font('Sarabun', '', 8) # Changed from 'I' to ''
+        self.set_font('Sarabun', 'I', 8)
         self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
 
-    def write_thai(self, text):
-        self.multi_cell(0, 7, text)
+    def write_thai(self, text, style=''):
+        self.set_font('Sarabun', style, self.font_size)
+        self.multi_cell(0, 7, str(text))
 
 def generate_pdf():
-    pdf = PDF(orientation='L', unit='mm', format='A4')
-    pdf.add_page()
-    pdf.set_font('Sarabun', '', 12)
+    # --- Font File Paths ---
+    FONT_REGULAR = 'Sarabun-Regular.ttf'
+    FONT_BOLD = 'Sarabun-Bold.ttf'
+    FONT_ITALIC = 'Sarabun-Italic.ttf'
     
+    # --- Check if all font files exist ---
+    for font_file in [FONT_REGULAR, FONT_BOLD, FONT_ITALIC]:
+        if not os.path.exists(font_file):
+            st.error(f"ไม่พบไฟล์ฟอนต์ที่จำเป็น: '{font_file}'! กรุณาตรวจสอบให้แน่ใจว่าไฟล์อยู่ในตำแหน่งบนสุดของโปรเจกต์")
+            return None
+            
+    pdf = PDF(orientation='L', unit='mm', format='A4')
+    
+    # --- Add all font styles to FPDF ---
+    try:
+        pdf.add_font('Sarabun', '', FONT_REGULAR, uni=True)
+        pdf.add_font('Sarabun', 'B', FONT_BOLD, uni=True)
+        pdf.add_font('Sarabun', 'I', FONT_ITALIC, uni=True)
+    except Exception as e:
+        st.error(f"เกิดข้อผิดพลาดร้ายแรงในการโหลดฟอนต์: {e}")
+        return None
+
+    pdf.add_page()
     plan_data = st.session_state.plan_gen_data
     
-    pdf.set_font('Sarabun', '', 12) # Changed from 'B' to ''
-    pdf.write_thai(f"เรื่องที่ตรวจสอบ: {plan_data['general_info']['topic']}")
-    pdf.write_thai(f"หน่วยงาน: {plan_data['general_info']['agency']} กระทรวง: {plan_data['general_info']['ministry']}")
-    pdf.write_thai(f"สำนักงาน: {plan_data['general_info']['office']}")
+    pdf.set_font('Sarabun', 'B', 12)
+    pdf.write_thai(f"เรื่องที่ตรวจสอบ: {plan_data['general_info']['topic']}", style='')
+    pdf.write_thai(f"หน่วยงาน: {plan_data['general_info']['agency']} กระทรวง: {plan_data['general_info']['ministry']}", style='')
+    pdf.write_thai(f"สำนักงาน: {plan_data['general_info']['office']}", style='')
     pdf.ln(5)
 
-    pdf.set_font('Sarabun', '', 12) # Changed from 'B' to ''
-    pdf.cell(0, 10, 'วัตถุประสงค์และประเด็นการตรวจสอบ', 0, 1)
+    pdf.write_thai('วัตถุประสงค์และประเด็นการตรวจสอบ', style='B')
     
     def write_issues_to_pdf(issues_list, prefix_num, indent_level=1):
         for i, issue in enumerate(issues_list):
             current_prefix = f"{prefix_num}.{i+1}"
-            pdf.set_font('Sarabun', '', 11)
-            pdf.multi_cell(0, 7, f"{' ' * (indent_level*4)}ประเด็น {current_prefix}: {issue['text']}")
+            pdf.set_font_size(11)
+            pdf.write_thai(f"{' ' * (indent_level*4)}ประเด็น {current_prefix}: {issue['text']}", style='B')
             
             if not issue['issues']:
-                pdf.set_font('Sarabun', '', 10) # Changed from 'I' to ''
+                pdf.set_font_size(10)
                 details = issue['details']
-                indent_str = ' ' * ((indent_level*4)+2)
-                pdf.write_thai(f"{indent_str}เกณฑ์: {details['criteria']}")
-                pdf.write_thai(f"{indent_str}ข้อมูลที่ต้องการ: {details['info_needed']}")
-                pdf.write_thai(f"{indent_str}แหล่งข้อมูล: {details['source']}")
-                pdf.write_thai(f"{indent_str}วิธีรวบรวม: {details['collection_method']}")
-                pdf.write_thai(f"{indent_str}วิธีวิเคราะห์: {details['analysis_method']}")
+                indent_str = ' ' * ((indent_level*4)+4)
+                pdf.write_thai(f"{indent_str}เกณฑ์: {details.get('criteria', '')}")
+                pdf.write_thai(f"{indent_str}ข้อมูลที่ต้องการ: {details.get('info_needed', '')}")
+                pdf.write_thai(f"{indent_str}แหล่งข้อมูล: {details.get('source', '')}")
+                pdf.write_thai(f"{indent_str}วิธีรวบรวม: {details.get('collection_method', '')}")
+                pdf.write_thai(f"{indent_str}วิธีวิเคราะห์: {details.get('analysis_method', '')}")
             
             if issue['issues']:
                 write_issues_to_pdf(issue['issues'], current_prefix, indent_level + 1)
 
     for i, obj in enumerate(plan_data['objectives']):
-        pdf.set_font('Sarabun', '', 11) # Changed from 'B' to ''
-        pdf.multi_cell(0, 8, f"\nวัตถุประสงค์ที่ {i+1}: {obj['text']}")
+        pdf.set_font_size(11)
+        pdf.write_thai(f"\nวัตถุประสงค์ที่ {i+1}: {obj['text']}", style='B')
         write_issues_to_pdf(obj['issues'], str(i+1))
     
     pdf.ln(10)
-
-    pdf.set_font('Sarabun', '', 12) # Changed from 'B' to ''
-    pdf.cell(0, 10, 'ประมาณการและผู้จัดทำ', 0, 1)
-    pdf.set_font('Sarabun', '', 11)
+    pdf.write_thai('ประมาณการและผู้จัดทำ', style='B')
     pdf.write_thai(f"ประมาณการค่าใช้จ่าย: {plan_data['estimates']['cost']}")
     pdf.write_thai(f"ประมาณการคน/วัน: {plan_data['estimates']['effort']}")
     
-    # Add signature section to PDF
     pdf.ln(10)
     sig_data = plan_data['signatures']
-    
     col_width = pdf.w / 3.2 
     line_height = 7
     
-    # Headers
-    pdf.set_font('Sarabun', '', 11) # Changed from 'B' to ''
+    pdf.set_font('Sarabun', 'B', 11)
     pdf.cell(col_width, line_height, 'ผู้จัดทำ', border=1, align='C')
     pdf.cell(col_width, line_height, 'ผู้สอบทาน', border=1, align='C')
     pdf.cell(col_width, line_height, 'ผู้อนุมัติ (รผต. / ผอ. สำนัก)', border=1, align='C')
     pdf.ln(line_height)
     
-    # Body
     pdf.set_font('Sarabun', '', 10)
-    
-    # Get max rows needed
-    maker_comment_lines = pdf.get_string_width(sig_data['maker']['comment']) / (col_width -2)
-    reviewer_comment_lines = pdf.get_string_width(sig_data['reviewer']['comment']) / (col_width-2)
-    approver_comment_lines = pdf.get_string_width(sig_data['approver']['comment']) / (col_width-2)
-    
-    max_lines = max(maker_comment_lines, reviewer_comment_lines, approver_comment_lines)
-    
     y_before = pdf.get_y()
-
-    # Column 1: Maker
-    pdf.multi_cell(col_width, line_height, f"ลงชื่อ: {sig_data['maker']['name']}\nตำแหน่ง: {sig_data['maker']['position']}\nวันที่: {sig_data['maker']['date'] or ''}\nความเห็น: {sig_data['maker']['comment']}", border=1)
+    date_format = lambda d: d.strftime('%d/%m/%Y') if d else ''
     
+    content1 = f"ลงชื่อ: {sig_data['maker']['name']}\nตำแหน่ง: {sig_data['maker']['position']}\nวันที่: {date_format(sig_data['maker']['date'])}\nความเห็น: {sig_data['maker']['comment']}"
+    content2 = f"ลงชื่อ: {sig_data['reviewer']['name']}\nตำแหน่ง: {sig_data['reviewer']['position']}\nวันที่: {date_format(sig_data['reviewer']['date'])}\nความเห็น: {sig_data['reviewer']['comment']}"
+    content3 = f"ลงชื่อ: {sig_data['approver']['name']}\nตำแหน่ง: {sig_data['approver']['position']}\nวันที่: {date_format(sig_data['approver']['date'])}\nความเห็น: {sig_data['approver']['comment']}"
+
+    pdf.multi_cell(col_width, line_height, content1, border=1)
     y1 = pdf.get_y()
-    pdf.set_y(y_before)
-    pdf.set_x(pdf.get_x() + col_width)
-
-    # Column 2: Reviewer
-    pdf.multi_cell(col_width, line_height, f"ลงชื่อ: {sig_data['reviewer']['name']}\nตำแหน่ง: {sig_data['reviewer']['position']}\nวันที่: {sig_data['reviewer']['date'] or ''}\nความเห็น: {sig_data['reviewer']['comment']}", border=1)
-
-    y2 = pdf.get_y()
-    pdf.set_y(y_before)
-    pdf.set_x(pdf.get_x() + col_width * 2)
-
-    # Column 3: Approver
-    pdf.multi_cell(col_width, line_height, f"ลงชื่อ: {sig_data['approver']['name']}\nตำแหน่ง: {sig_data['approver']['position']}\nวันที่: {sig_data['approver']['date'] or ''}\nความเห็น: {sig_data['approver']['comment']}", border=1)
+    pdf.set_xy(pdf.get_x() + col_width, y_before)
     
+    pdf.multi_cell(col_width, line_height, content2, border=1)
+    y2 = pdf.get_y()
+    pdf.set_xy(pdf.get_x() + col_width * 2, y_before)
+
+    pdf.multi_cell(col_width, line_height, content3, border=1)
     pdf.set_y(max(y1, y2, pdf.get_y()))
 
-    pdf_bytes = pdf.output(dest='S').encode('latin-1')
-    return pdf_bytes
+    return pdf.output(dest='S').encode('latin-1')
 
 # --- UI Rendering ---
+# Display feedback message if it exists
+if st.session_state.ui_feedback_message:
+    msg_type, msg_content = st.session_state.ui_feedback_message
+    if msg_type == "success":
+        st.success(msg_content)
+    else:
+        st.error(msg_content)
+    st.session_state.ui_feedback_message = None # Clear after displaying
+
 with st.form("general_info_form"):
     st.subheader("1. ข้อมูลทั่วไป")
     c1, c2 = st.columns(2)
@@ -259,20 +243,17 @@ for i, obj in enumerate(st.session_state.plan_gen_data["objectives"]):
                                     context = f"เรื่องที่ตรวจสอบ: {st.session_state.plan_gen_data['general_info']['topic']}\n"
                                     context += f"วัตถุประสงค์: {obj['text']}\n"
                                     context += f"ประเด็นการตรวจสอบ: {issue['text']}"
-                                    ai_result = call_typhoon_api(context) # Changed to the new function
-                                    if ai_result:
-                                        if all(k in ai_result for k in issue['details'].keys()):
-                                            issue['details'] = ai_result
-                                            st.success("AI สร้างเนื้อหาเรียบร้อยแล้ว")
-                                            # Removed st.rerun() to prevent message from disappearing
-                                        else:
-                                            st.warning("AI ไม่ได้ส่งข้อมูลกลับมาในรูปแบบที่ถูกต้องครบถ้วน")
-
-                            issue['details']['criteria'] = st.text_area("เกณฑ์การตรวจสอบ", issue['details']['criteria'], key=f"crit_{unique_key_suffix}")
-                            issue['details']['info_needed'] = st.text_area("ข้อมูลที่ต้องการ", issue['details']['info_needed'], key=f"info_{unique_key_suffix}")
-                            issue['details']['source'] = st.text_area("แหล่งข้อมูล", issue['details']['source'], key=f"src_{unique_key_suffix}")
-                            issue['details']['collection_method'] = st.text_area("วิธีการรวบรวมหลักฐาน", issue['details']['collection_method'], key=f"coll_{unique_key_suffix}")
-                            issue['details']['analysis_method'] = st.text_area("วิธีการวิเคราะห์หลักฐาน", issue['details']['analysis_method'], key=f"anal_{unique_key_suffix}")
+                                    ai_result = call_typhoon_api(context)
+                                    if ai_result and all(k in ai_result for k in issue['details'].keys()):
+                                        issue['details'] = ai_result
+                                        st.session_state.ui_feedback_message = ("success", f"AI สร้างเนื้อหาสำหรับประเด็น {prefix} เรียบร้อยแล้ว")
+                                        st.rerun() # Rerun to show new data and success message
+                                    
+                            issue['details']['criteria'] = st.text_area("เกณฑ์การตรวจสอบ", issue['details'].get('criteria', ''), key=f"crit_{unique_key_suffix}")
+                            issue['details']['info_needed'] = st.text_area("ข้อมูลที่ต้องการ", issue['details'].get('info_needed', ''), key=f"info_{unique_key_suffix}")
+                            issue['details']['source'] = st.text_area("แหล่งข้อมูล", issue['details'].get('source', ''), key=f"src_{unique_key_suffix}")
+                            issue['details']['collection_method'] = st.text_area("วิธีการรวบรวมหลักฐาน", issue['details'].get('collection_method', ''), key=f"coll_{unique_key_suffix}")
+                            issue['details']['analysis_method'] = st.text_area("วิธีการวิเคราะห์หลักฐาน", issue['details'].get('analysis_method', ''), key=f"anal_{unique_key_suffix}")
                     
                     st.button(f"➕ เพิ่มประเด็นย่อย (สำหรับ {prefix})", key=f"add_sub_issue_{unique_key_suffix}", on_click=add_issue, args=(obj_index, current_path))
                     display_issues(issue['issues'], obj_index, current_path)
@@ -286,7 +267,6 @@ st.button("➕ เพิ่มวัตถุประสงค์", on_click=ad
 with st.form("estimates_signatures_form"):
     st.subheader("3. ประมาณการและผู้จัดทำ")
     sig_data = st.session_state.plan_gen_data["signatures"]
-
     st.session_state.plan_gen_data["estimates"]["cost"] = st.text_area("ประมาณการค่าใช้จ่ายในการตรวจสอบ", st.session_state.plan_gen_data["estimates"]["cost"], key="cost_estimate")
     st.session_state.plan_gen_data["estimates"]["effort"] = st.text_area("ประมาณการคน/วันที่ใช้ในการตรวจสอบ", st.session_state.plan_gen_data["estimates"]["effort"], key="effort_estimate")
 
@@ -309,7 +289,6 @@ with st.form("estimates_signatures_form"):
         sig_data["approver"]["position"] = st.text_input("ตำแหน่ง", key="approver_pos")
         sig_data["approver"]["date"] = st.date_input("วันที่", value=None, key="approver_date")
         sig_data["approver"]["comment"] = st.text_area("ความเห็นเพิ่มเติม", key="approver_comment")
-
     st.form_submit_button("บันทึกข้อมูลผู้จัดทำ", use_container_width=True)
 
 st.divider()
