@@ -122,7 +122,7 @@ def load_font_as_base64(font_path):
         return None
 
 # --- Function to generate HTML report ---
-def generate_html_report(data):
+def generate_html_report(data, for_printing=False):
     sarabun_regular_b64 = load_font_as_base64("Sarabun-Regular.ttf")
     sarabun_bold_b64 = load_font_as_base64("Sarabun-Bold.ttf")
     sarabun_italic_b64 = load_font_as_base64("Sarabun-Italic.ttf")
@@ -138,6 +138,11 @@ def generate_html_report(data):
         if not text:
             return ""
         return html.escape(text).replace('\n', '<br>')
+    
+    # --- UPDATED: Add auto-print script if for_printing is True ---
+    print_script = ""
+    if for_printing:
+        print_script = "<script>window.onload = function() { window.print(); }</script>"
 
     html_template = f"""
     <!DOCTYPE html>
@@ -145,6 +150,7 @@ def generate_html_report(data):
     <head>
         <meta charset="UTF-8">
         <title>แผนและแนวการตรวจสอบ</title>
+        {print_script} 
         <style>
             {font_faces}
             body {{ font-family: 'Sarabun', sans-serif; font-size: 16px; margin: 1cm; }}
@@ -155,11 +161,11 @@ def generate_html_report(data):
             .signature-table td {{ height: 120px; }}
             
             /* --- UPDATED: CSS for sticky table headers --- */
-            .sticky-header th {{
+            thead th {{
                 position: -webkit-sticky; /* For Safari */
                 position: sticky;
-                top: -1px; /* Adjust slightly for border visibility */
-                background-color: #f2f2f2; /* Light grey background */
+                top: -1px; 
+                background-color: #f2f2f2;
                 z-index: 2;
             }}
 
@@ -187,7 +193,7 @@ def generate_html_report(data):
         {''.join([f'''
             <table>
                 <thead>
-                    <tr class="sticky-header">
+                    <tr>
                         <th>เกณฑ์การตรวจสอบ</th>
                         <th>ข้อมูลที่ต้องการ</th>
                         <th>แหล่งข้อมูล</th>
@@ -213,7 +219,7 @@ def generate_html_report(data):
         <p><b>ประมาณการคน/วันที่ใช้ในการตรวจสอบ:</b><br>- {format_text(data['estimates'].get('effort', '..................'))}</p>
 
         <table class="signature-table">
-            <thead>
+             <thead>
                 <tr style="font-weight: bold; text-align: center;">
                     <th>ผู้จัดทำ</th>
                     <th>ผู้สอบทาน</th>
@@ -235,7 +241,6 @@ def generate_html_report(data):
 
 # --- Function to generate DOCX (Unchanged) ---
 def generate_docx_report(data):
-    # This function remains unchanged
     doc = docx.Document()
     current_section = doc.sections[-1]
     new_width, new_height = current_section.page_height, current_section.page_width
@@ -382,35 +387,17 @@ st.divider()
 with st.container(border=True):
     st.subheader("4. แสดงผลและส่งออกเอกสาร")
     
-    # Generate the HTML content once
-    html_report = generate_html_report(st.session_state.plan_gen_data)
-    
-    # --- UPDATED: Create a separate, working Print button using JavaScript ---
-    js_escaped_html = json.dumps(html_report)
-    print_button_html = f"""
-    <script>
-    function printReport() {{
-        const reportHtml = {js_escaped_html};
-        const printWindow = window.open('', '_blank', 'height=800,width=1200');
-        printWindow.document.write(reportHtml);
-        printWindow.document.close();
-        printWindow.document.title = "แผนและแนวการตรวจสอบ";
-        printWindow.focus();
-        setTimeout(() => {{
-            printWindow.print();
-            printWindow.close();
-        }}, 500);
-    }}
-    </script>
-    <button onclick="printReport()" style="padding: 10px 20px; font-size: 16px; cursor: pointer; border-radius: 5px; border: 1px solid #007bff; background-color: #007bff; color: white;">
-        🖨️ พิมพ์ / บันทึกเป็น PDF
-    </button>
-    """
-    st.html(print_button_html) # This renders the button and its logic
-    
-    # Add a collapsible preview area
-    with st.expander("แสดง/ซ่อนตัวอย่างรายงาน"):
-        st.html(html_report)
+    # --- UPDATED: New Print/PDF link that opens a new tab and auto-prints ---
+    html_for_printing = generate_html_report(st.session_state.plan_gen_data, for_printing=True)
+    b64_html = base64.b64encode(html_for_printing.encode()).decode()
+    print_link_html = f'<a href="data:text/html;base64,{b64_html}" target="_blank" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-align: center; text-decoration: none; border-radius: 5px;">🖨️ พิมพ์ / บันทึกเป็น PDF</a>'
+    st.markdown(print_link_html, unsafe_allow_html=True)
+
+    # Add a collapsible preview area for viewing within the app
+    with st.expander("แสดง/ซ่อนตัวอย่างรายงาน (เลื่อนดูในนี้ได้)"):
+        # Generate a version of the report WITHOUT the auto-print script for the preview
+        html_for_preview = generate_html_report(st.session_state.plan_gen_data, for_printing=False)
+        st.html(html_for_preview)
     
     st.markdown("---")
     
