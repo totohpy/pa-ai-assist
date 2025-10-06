@@ -6,7 +6,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- Add the credit to the sidebar on the homepage ---
+# --- Add credit to the sidebar on the homepage ---
 with st.sidebar:
     st.markdown("---")
     st.markdown(
@@ -14,14 +14,13 @@ with st.sidebar:
         '<span style="color: grey;">By PAO1 </span><br>'
         '<span style="font-size: 16px; letter-spacing: 0.5px;">'
         '<span style="color: red; font-weight: bold;">A</span>udit '
-        '<span style="color: red; font-weight: bold;">I</span>ntelligence '
-        '<span style="color: red; font-weight: bold;">T</span>eam'
+        '<span style="color: red; font-weight: bold;">I</span>ntelligence Team'
         '</span>'
         '</p>',
         unsafe_allow_html=True
     )
 
-# --- Homepage CSS ---
+# --- Enhanced CSS for homepage and sidebar ---
 st.markdown(
     """
     <style>
@@ -30,14 +29,14 @@ st.markdown(
         padding-top: 2rem;
     }
 
-    /* Styling for the link to remove underline and inherit color */
+    /* --- UPDATED: Styling for the link to remove underline --- */
     .feature-link {
-        text-decoration: none;
-        color: inherit;
+        text-decoration: none !important; /* <--- ลบขีดเส้นใต้ */
+        color: inherit !important;
     }
     .feature-link:hover {
-        text-decoration: none;
-        color: inherit;
+        text-decoration: none !important;
+        color: inherit !important;
     }
 
     /* Clickable Feature Box Styling */
@@ -76,6 +75,13 @@ st.markdown(
     .box-1 h3 { color: #A93C2D; } /* Red */
     .box-2 h3 { color: #2E8B57; } /* Green */
     .box-3 h3 { color: #4A6A8A; } /* Blue */
+
+    /* --- NEW: Style the active page link in the sidebar --- */
+    div[data-testid="stSidebarNav"] a[aria-current="page"] {
+        background-color: #D1E8FF; /* สีพื้นหลังของหน้าที่เลือก */
+        color: #004085; /* สีตัวอักษรของหน้าที่เลือก */
+        border-radius: 5px;
+    }
     </style>
     """,
     unsafe_allow_html=True
@@ -91,6 +97,7 @@ with st.container():
     col1, col2, col3 = st.columns(3, gap="large")
 
     with col1:
+        # Use st.markdown with an <a> tag to make the box clickable
         st.markdown(
             """
             <a href="Design_Assistant" target="_self" class="feature-link">
