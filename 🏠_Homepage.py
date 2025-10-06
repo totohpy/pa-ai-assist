@@ -75,3 +75,17 @@ with col3:
 
 st.markdown("---")
 st.info("💡 กรุณาเลือกเมนูจากแถบด้านข้าง (Sidebar) เพื่อเริ่มต้นใช้งาน")
+
+# --- vvv โค้ดส่วนที่ย้ายมาใหม่ vvv ---
+st.markdown("---")
+st.info("ระบบมีฟีเจอร์ AI อาจทำผิดพลาดได้ ดังนั้น โปรดตรวจสอบคำตอบอีกครั้ง")
+st.markdown(
+    '<p style="font-family: \'Kanit\', sans-serif;">'
+    '<span style="color: grey;">By PAO1 </span><br>'
+    '<span style="font-size: 16px; letter-spacing: 0.5px;">'
+    '<span style="color: red; font-weight: bold;">A</span>udit '
+    '<span style="color: red; font-weight: bold;">I</span>ntelligence Team'
+    '</span>'
+    '</p>',
+    unsafe_allow_html=True
+)
