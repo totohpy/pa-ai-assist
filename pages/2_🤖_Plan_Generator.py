@@ -15,22 +15,29 @@ st.set_page_config(layout="wide", page_title="AI Plan Generator")
 st.title("🤖 AI Plan Generator")
 st.markdown("เครื่องมือช่วยสร้างแผนและแนวการตรวจสอบ พร้อมระบบ AI ช่วยร่างเนื้อหา")
 
-# --- Custom CSS for Styling (same as before) ---
+# --- Custom CSS for Styling ---
 st.markdown("""
 <style>
 /* General expander button text */
 div[data-testid="stExpander"] div[role="button"] p {
     font-size: 1.1rem;
 }
+
+/* --- UPDATED: Expander color changed to green --- */
 .ai-expander .st-emotion-cache-ff2938 {
-    background-color: #e7f3ff; border: 1px solid #007bff; border-radius: 0.5rem;
+    background-color: #e9f5e9; /* Light green background */
+    border: 1px solid #5cb85c; /* Green border */
+    border-radius: 0.5rem;
 }
 .ai-expander .st-emotion-cache-ff2938:hover {
-    background-color: #d0e8ff;
+    background-color: #d9ead3; /* Darker green on hover */
 }
 .ai-expander .st-emotion-cache-ff2938 p {
-    color: #004085; font-weight: bold;
+    color: #155724; /* Dark green text */
+    font-weight: bold;
 }
+
+/* Custom style for the AI action button */
 .ai-button-container .stButton > button {
     background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb;
     font-weight: bold; border-radius: 0.5rem; width: 100%;
@@ -83,7 +90,6 @@ def add_issue(obj_index, parent_issue_path=None):
 
 # --- AI Function (same as before) ---
 def run_ai_for_field(obj_index, path, field_name):
-    # ... This function remains unchanged from the previous version
     st.session_state.ui_feedback_message = None
     try:
         api_key = st.secrets["api_key"]
@@ -135,25 +141,68 @@ def run_ai_for_field(obj_index, path, field_name):
     except Exception as e:
         st.session_state.ui_feedback_message = ("error", f"เกิดข้อผิดพลาดในการเรียก AI: {e}")
 
-# --- NEW: Function to generate DOCX report ---
+# --- NEW: Function to generate text for PREVIEW ---
+def generate_report_text(data):
+    report_lines = []
+    def line(text=""): report_lines.append(text)
+    def header(text, level=1): report_lines.append(f"{'#' * level} {text}")
+    header("แผนการตรวจสอบ", 1)
+    info = data["general_info"]
+    line(f"**เรื่องที่ตรวจสอบ:** {info.get('topic', 'N/A')}")
+    line(f"**หน่วยงาน:** {info.get('agency', 'N/A')} **กระทรวง:** {info.get('ministry', 'N/A')}")
+    line(f"**สำนักงาน/จังหวัด/กลุ่ม:** {info.get('office', 'N/A')}")
+    line()
+    header("วัตถุประสงค์และประเด็นการตรวจสอบ", 2)
+    def process_issues(issues_list, prefix, indent_level):
+        indent = "    " * indent_level
+        for i, issue in enumerate(issues_list):
+            issue_prefix = f"{prefix}.{i+1}"
+            line(f"{indent}**ประเด็น {issue_prefix}:** {issue.get('text', '')}")
+            if not issue.get('issues'):
+                details = issue.get('details', {})
+                line(f"{indent}    - **เกณฑ์การตรวจสอบ:** {details.get('criteria', '')}")
+                line(f"{indent}    - **ข้อมูลที่ต้องการ:** {details.get('info_needed', '')}")
+                line(f"{indent}    - **แหล่งข้อมูล:** {details.get('source', '')}")
+                line(f"{indent}    - **วิธีการรวบรวม:** {details.get('collection_method', '')}")
+                line(f"{indent}    - **วิธีการวิเคราะห์:** {details.get('analysis_method', '')}")
+            if issue.get('issues'):
+                process_issues(issue['issues'], issue_prefix, indent_level + 1)
+            line()
+    for i, obj in enumerate(data["objectives"]):
+        obj_prefix = str(i + 1)
+        line(f"**วัตถุประสงค์ที่ {obj_prefix}:** {obj.get('text', '')}")
+        line()
+        if obj.get('issues'):
+            process_issues(obj['issues'], obj_prefix, 1)
+    header("ประมาณการ", 2)
+    estimates = data["estimates"]
+    line(f"**ประมาณการค่าใช้จ่าย:** {estimates.get('cost', '')}")
+    line(f"**ประมาณการคน/วัน:** {estimates.get('effort', '')}")
+    line()
+    header("ผู้จัดทำและลงนาม", 2)
+    sigs = data["signatures"]
+    for role, title in [("maker", "ผู้จัดทำ"), ("reviewer", "ผู้สอบทาน"), ("approver", "ผู้อนุมัติ")]:
+        sig = sigs.get(role, {})
+        line(f"**{title}**")
+        line(f"- **ลงชื่อ:** {sig.get('name', '')}")
+        line(f"- **ตำแหน่ง:** {sig.get('position', '')}")
+        line(f"- **วันที่:** {sig.get('date', '')}")
+        line(f"- **ความเห็น:** {sig.get('comment', '')}")
+        line()
+    return "\n".join(report_lines)
+
+# --- Function to generate DOCX report (same as before) ---
 def generate_docx_report(data):
-    """Formats the plan data into a .docx file in memory."""
     doc = docx.Document()
-    
-    # Change orientation to landscape
     current_section = doc.sections[-1]
     new_width, new_height = current_section.page_height, current_section.page_width
     current_section.orientation = WD_ORIENT.LANDSCAPE
     current_section.page_width = new_width
     current_section.page_height = new_height
-    
-    # Set font
     font = doc.styles['Normal'].font
     font.name = 'TH SarabunPSK'
     font.size = Pt(14)
-    
     doc.add_heading('แผนและแนวการตรวจสอบ', level=1)
-    
     info = data["general_info"]
     doc.add_paragraph(
         f"เรื่องที่ตรวจสอบ: {info.get('topic', 'N/A')}    "
@@ -161,14 +210,11 @@ def generate_docx_report(data):
         f"กระทรวง: {info.get('ministry', 'N/A')}"
     )
     doc.add_paragraph(f"สำนักงาน/จังหวัด/กลุ่ม: {info.get('office', 'N/A')}")
-    
     for i, obj in enumerate(data["objectives"]):
         doc.add_paragraph().add_run(f"วัตถุประสงค์การตรวจสอบที่ {i+1}: {obj.get('text', '')}").bold = True
-        
         for j, issue in enumerate(obj.get('issues', [])):
             doc.add_paragraph(f"ประเด็นการตรวจสอบที่ {i+1}.{j+1}: {issue.get('text', '')}")
-            
-            if not issue.get('issues'): # It's a leaf node with details
+            if not issue.get('issues'):
                 details = issue.get('details', {})
                 table = doc.add_table(rows=1, cols=5)
                 table.style = 'Table Grid'
@@ -178,20 +224,17 @@ def generate_docx_report(data):
                 hdr_cells[2].text = 'แหล่งข้อมูล'
                 hdr_cells[3].text = 'วิธีการรวบรวมหลักฐาน'
                 hdr_cells[4].text = 'วิธีการวิเคราะห์หลักฐาน'
-                
                 row_cells = table.add_row().cells
                 row_cells[0].text = details.get('criteria', '')
                 row_cells[1].text = details.get('info_needed', '')
                 row_cells[2].text = details.get('source', '')
                 row_cells[3].text = details.get('collection_method', '')
                 row_cells[4].text = details.get('analysis_method', '')
-                doc.add_paragraph() # Add space after table
-
+                doc.add_paragraph()
     doc.add_heading('ประมาณการ', level=2)
     estimates = data["estimates"]
     doc.add_paragraph(f"ประมาณการค่าใช้จ่ายในการตรวจสอบ: {estimates.get('cost', '')}")
     doc.add_paragraph(f"ประมาณการคน/วันที่ใช้ในการตรวจสอบ: {estimates.get('effort', '')}")
-    
     doc.add_heading('ผู้จัดทำและลงนาม', level=2)
     sigs = data["signatures"]
     sig_table = doc.add_table(rows=1, cols=3)
@@ -200,7 +243,6 @@ def generate_docx_report(data):
     hdr_cells[0].text = 'ผู้จัดทำ'
     hdr_cells[1].text = 'ผู้สอบทาน'
     hdr_cells[2].text = 'ผู้อนุมัติ (รผต. / ผอ. สำนัก)'
-
     data_row = sig_table.add_row().cells
     for idx, role in enumerate(["maker", "reviewer", "approver"]):
         sig = sigs.get(role, {})
@@ -212,8 +254,6 @@ def generate_docx_report(data):
             f"ความเห็นเพิ่มเติม: {sig.get('comment', '')}"
         )
         data_row[idx].text = cell_text
-
-    # Save to a memory buffer
     buffer = io.BytesIO()
     doc.save(buffer)
     buffer.seek(0)
@@ -221,8 +261,6 @@ def generate_docx_report(data):
 
 
 # --- UI Rendering (Main part of the app) ---
-# ... (The UI rendering code for sections 1, 2, 3 is the same as before) ...
-
 if st.session_state.get("ui_feedback_message"):
     msg_type, msg_content = st.session_state.ui_feedback_message
     if msg_type == "success": st.success(msg_content)
@@ -239,6 +277,7 @@ with st.form("general_info_form"):
     st.form_submit_button("บันทึกข้อมูลทั่วไป", use_container_width=True)
 
 st.subheader("2. วัตถุประสงค์และประเด็นการตรวจสอบ")
+# ... (The rest of the UI rendering code is the same as before) ...
 for i, obj in enumerate(st.session_state.plan_gen_data["objectives"]):
     with st.container(border=True):
         c1, c2 = st.columns([5, 1])
@@ -304,9 +343,14 @@ with st.form("estimates_signatures_form"):
         sig_data["approver"]["comment"] = st.text_area("ความเห็นเพิ่มเติม", value=sig_data["approver"].get("comment", ""), key="approver_comment")
     st.form_submit_button("บันทึกข้อมูลผู้จัดทำ", use_container_width=True)
 
-# --- UPDATED: Section for saving and downloading the DOCX report ---
+# --- UPDATED: Section for saving and downloading with PREVIEW ---
 st.divider()
 st.subheader("4. บันทึกและสร้างเอกสาร")
+
+# NEW: Show a preview in an expander
+with st.expander("📄 ดูตัวอย่างเอกสารก่อนดาวน์โหลด"):
+    report_preview_content = generate_report_text(st.session_state.plan_gen_data)
+    st.markdown(report_preview_content)
 
 # Generate the docx file in memory
 docx_buffer = generate_docx_report(st.session_state.plan_gen_data)
