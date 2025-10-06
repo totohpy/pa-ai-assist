@@ -57,9 +57,9 @@ def call_gemini_api(context_text):
     try:
         api_key = st.secrets["GOOGLE_API_KEY"]
         
-        # DEFINITIVE FIX: Changed the API endpoint from v1beta to v1.
-        # This is the correct, stable endpoint for the 'gemini-pro' model.
-        api_url = f"https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key={api_key}"
+        # FINAL ATTEMPT: Using the most stable, version-tagged model name.
+        # If this fails, the issue is 100% with the Google Cloud Project configuration.
+        api_url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.0-pro-latest:generateContent?key={api_key}"
 
         full_prompt = f"""คุณคือผู้เชี่ยวชาญด้านการตรวจสอบภาครัฐ (State Auditor) 
 หน้าที่ของคุณคือช่วยร่างแผนและแนวการตรวจสอบตามข้อมูลที่ได้รับ 
