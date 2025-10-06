@@ -1,10 +1,10 @@
 import streamlit as st
-from fpdf import FPDF
 from datetime import datetime
 import json
 import re
 from openai import OpenAI
 import os
+import html
 
 # --- Page Configuration ---
 st.set_page_config(layout="wide", page_title="AI Plan Generator")
@@ -85,110 +85,160 @@ def call_typhoon_api(context_text):
         st.session_state.ui_feedback_message = ("error", f"เกิดข้อผิดพลาดในการเรียก Typhoon AI: {e}")
         return None
 
-# --- PDF Generation Function ---
-class PDF(FPDF):
-    def header(self):
-        self.add_font('Sarabun', 'B', 'Sarabun-Bold.ttf', uni=True)
-        self.set_font('Sarabun', 'B', 14)
-        self.cell(0, 10, 'แผนและแนวการตรวจสอบ', 0, 1, 'C')
-        self.ln(5)
-
-    def footer(self):
-        self.set_y(-15)
-        self.add_font('Sarabun', 'I', 'Sarabun-Italic.ttf', uni=True)
-        self.set_font('Sarabun', 'I', 8)
-        self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
-
-def generate_pdf():
-    FONT_REGULAR = 'Sarabun-Regular.ttf'
-    FONT_BOLD = 'Sarabun-Bold.ttf'
-    FONT_ITALIC = 'Sarabun-Italic.ttf'
-    
-    for font_file in [FONT_REGULAR, FONT_BOLD, FONT_ITALIC]:
-        if not os.path.exists(font_file):
-            st.error(f"ไม่พบไฟล์ฟอนต์ที่จำเป็น: '{font_file}'!")
-            return None
-            
-    pdf = PDF(orientation='L', unit='mm', format='A4')
-    pdf.add_font('Sarabun', '', FONT_REGULAR, uni=True)
-    pdf.add_font('Sarabun', 'B', FONT_BOLD, uni=True)
-    pdf.add_font('Sarabun', 'I', FONT_ITALIC, uni=True)
-    pdf.add_page()
-    
+# --- HTML Generation Function ---
+def generate_html_report():
     plan_data = st.session_state.plan_gen_data
 
-    def write_multiline_thai(text, style='', font_size=10):
-        pdf.set_font('Sarabun', style, font_size)
-        drawable_width = pdf.w - pdf.l_margin - pdf.r_margin
-        pdf.multi_cell(drawable_width, 7, str(text))
+    def escape(text):
+        return html.escape(str(text) if text is not None else "")
 
-    pdf.set_font('Sarabun', 'B', 12)
-    write_multiline_thai(f"เรื่องที่ตรวจสอบ: {plan_data['general_info']['topic']}", style='B', font_size=12)
-    write_multiline_thai(f"หน่วยงาน: {plan_data['general_info']['agency']} กระทรวง: {plan_data['general_info']['ministry']}", style='B', font_size=12)
-    write_multiline_thai(f"สำนักงาน: {plan_data['general_info']['office']}", style='B', font_size=12)
-    pdf.ln(5)
-
-    write_multiline_thai('วัตถุประสงค์และประเด็นการตรวจสอบ', style='B', font_size=12)
-    
-    def write_issues_to_pdf(issues_list, prefix_num, indent_level=1):
+    def render_issues_html(issues_list, prefix_num, indent_level=1):
+        if not issues_list:
+            return ""
+        html_out = "<ul>"
         for i, issue in enumerate(issues_list):
             current_prefix = f"{prefix_num}.{i+1}"
-            pdf.ln(2)
-            write_multiline_thai(f"{' ' * (indent_level*4)}ประเด็น {current_prefix}: {issue.get('text', '')}", style='B', font_size=11)
+            html_out += f"<li>"
+            html_out += f"<strong>ประเด็น {current_prefix}:</strong> {escape(issue.get('text', ''))}"
             
             if not issue.get('issues'):
                 details = issue.get('details', {})
-                indent_str = ' ' * ((indent_level*4)+4)
-                write_multiline_thai(f"{indent_str}เกณฑ์: {details.get('criteria', '')}", font_size=10)
-                write_multiline_thai(f"{indent_str}ข้อมูลที่ต้องการ: {details.get('info_needed', '')}", font_size=10)
-                write_multiline_thai(f"{indent_str}แหล่งข้อมูล: {details.get('source', '')}", font_size=10)
-                write_multiline_thai(f"{indent_str}วิธีรวบรวม: {details.get('collection_method', '')}", font_size=10)
-                write_multiline_thai(f"{indent_str}วิธีวิเคราะห์: {details.get('analysis_method', '')}", font_size=10)
+                html_out += "<div class='issue-details'>"
+                html_out += f"<p><strong>เกณฑ์:</strong> {escape(details.get('criteria', ''))}</p>"
+                html_out += f"<p><strong>ข้อมูลที่ต้องการ:</strong> {escape(details.get('info_needed', ''))}</p>"
+                html_out += f"<p><strong>แหล่งข้อมูล:</strong> {escape(details.get('source', ''))}</p>"
+                html_out += f"<p><strong>วิธีรวบรวม:</strong> {escape(details.get('collection_method', ''))}</p>"
+                html_out += f"<p><strong>วิธีวิเคราะห์:</strong> {escape(details.get('analysis_method', ''))}</p>"
+                html_out += "</div>"
             
             if issue.get('issues'):
-                write_issues_to_pdf(issue['issues'], current_prefix, indent_level + 1)
+                html_out += render_issues_html(issue['issues'], current_prefix, indent_level + 1)
+            
+            html_out += "</li>"
+        html_out += "</ul>"
+        return html_out
 
+    objectives_html = ""
     for i, obj in enumerate(plan_data['objectives']):
-        pdf.ln(3)
-        write_multiline_thai(f"วัตถุประสงค์ที่ {i+1}: {obj.get('text', '')}", style='B', font_size=11)
-        if obj.get('issues'):
-            write_issues_to_pdf(obj['issues'], str(i+1))
+        objectives_html += "<div class='objective-block'>"
+        objectives_html += f"<h3>วัตถุประสงค์ที่ {i+1}: {escape(obj.get('text', ''))}</h3>"
+        objectives_html += render_issues_html(obj.get('issues', []), str(i+1))
+        objectives_html += "</div>"
     
-    pdf.ln(10)
-    write_multiline_thai('ประมาณการและผู้จัดทำ', style='B', font_size=12)
-    write_multiline_thai(f"ประมาณการค่าใช้จ่าย: {plan_data['estimates']['cost']}", font_size=10)
-    write_multiline_thai(f"ประมาณการคน/วัน: {plan_data['estimates']['effort']}", font_size=10)
-    
-    pdf.ln(10)
-    sig_data = plan_data['signatures']
-    col_width = pdf.w / 3.2 
-    line_height = 7
-    
-    pdf.set_font('Sarabun', 'B', 11)
-    y_before_table = pdf.get_y()
-    
-    pdf.multi_cell(col_width, line_height, 'ผู้จัดทำ', border=1, align='C')
-    pdf.set_xy(pdf.get_x() + col_width, y_before_table)
-    pdf.multi_cell(col_width, line_height, 'ผู้สอบทาน', border=1, align='C')
-    pdf.set_xy(pdf.get_x() + col_width * 2, y_before_table)
-    pdf.multi_cell(col_width, line_height, 'ผู้อนุมัติ (รผต. / ผอ. สำนัก)', border=1, align='C')
-    
+    sig = plan_data['signatures']
     date_format = lambda d: d.strftime('%d/%m/%Y') if d else ''
-    content1 = f"ลงชื่อ: {sig_data['maker']['name']}\nตำแหน่ง: {sig_data['maker']['position']}\nวันที่: {date_format(sig_data['maker']['date'])}\nความเห็น: {sig_data['maker']['comment']}"
-    content2 = f"ลงชื่อ: {sig_data['reviewer']['name']}\nตำแหน่ง: {sig_data['reviewer']['position']}\nวันที่: {date_format(sig_data['reviewer']['date'])}\nความเห็น: {sig_data['reviewer']['comment']}"
-    content3 = f"ลงชื่อ: {sig_data['approver']['name']}\nตำแหน่ง: {sig_data['approver']['position']}\nวันที่: {date_format(sig_data['approver']['date'])}\nความเห็น: {sig_data['approver']['comment']}"
 
-    y_before_content = pdf.get_y()
-    pdf.multi_cell(col_width, line_height, content1, border=1)
-    y1 = pdf.get_y()
-    pdf.set_xy(pdf.get_x() + col_width, y_before_content)
-    pdf.multi_cell(col_width, line_height, content2, border=1)
-    y2 = pdf.get_y()
-    pdf.set_xy(pdf.get_x() + col_width * 2, y_before_content)
-    pdf.multi_cell(col_width, line_height, content3, border=1)
-    pdf.set_y(max(y1, y2, pdf.get_y()))
+    report_html = f"""
+    <!DOCTYPE html>
+    <html lang="th">
+    <head>
+        <meta charset="UTF-8">
+        <title>แผนและแนวการตรวจสอบ</title>
+        <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
+        <style>
+            body {{
+                font-family: 'Sarabun', sans-serif;
+                background-color: #f0f2f5;
+                margin: 0;
+                padding: 0;
+            }}
+            .page {{
+                background: white;
+                width: 29.7cm;
+                min-height: 21cm;
+                padding: 2cm;
+                margin: 2cm auto;
+                border: 1px #D3D3D3 solid;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+                box-sizing: border-box;
+            }}
+            h1, h2, h3 {{
+                margin-top: 0;
+            }}
+            .header-info p {{ margin: 4px 0; }}
+            .section-title {{
+                font-weight: bold;
+                font-size: 1.1em;
+                border-bottom: 1px solid #999;
+                padding-bottom: 4px;
+                margin-top: 20px;
+                margin-bottom: 10px;
+            }}
+            ul {{ list-style-type: none; padding-left: 25px; }}
+            li {{ margin-bottom: 12px; }}
+            .issue-details {{ padding-left: 20px; font-size: 0.95em; color: #333; }}
+            .issue-details p {{ margin: 3px 0; }}
+            .signature-table {{ width: 100%; border-collapse: collapse; margin-top: 25px; table-layout: fixed; }}
+            .signature-table th, .signature-table td {{ border: 1px solid #000; padding: 8px; text-align: left; vertical-align: top; word-wrap: break-word; }}
+            .signature-table th {{ text-align: center; font-weight: bold; }}
+            .signature-table td {{ height: 120px; }}
 
-    return pdf.output(dest='S').encode('latin-1')
+            @media print {{
+                body, .page {{
+                    margin: 0;
+                    box-shadow: none;
+                    border: none;
+                    background: white;
+                }}
+                @page {{
+                    size: A4 landscape;
+                    margin: 2cm;
+                }}
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="page">
+            <h1 style="text-align: center;">แผนและแนวการตรวจสอบ</h1>
+            <div class="header-info">
+                <p><strong>เรื่องที่ตรวจสอบ:</strong> {escape(plan_data['general_info']['topic'])}</p>
+                <p><strong>หน่วยงาน:</strong> {escape(plan_data['general_info']['agency'])} &nbsp;&nbsp;<strong>กระทรวง:</strong> {escape(plan_data['general_info']['ministry'])}</p>
+                <p><strong>สำนักงาน:</strong> {escape(plan_data['general_info']['office'])}</p>
+            </div>
+
+            <div class="section-title">วัตถุประสงค์และประเด็นการตรวจสอบ</div>
+            {objectives_html}
+
+            <div class="section-title">ประมาณการและผู้จัดทำ</div>
+            <p><strong>ประมาณการค่าใช้จ่ายในการตรวจสอบ:</strong> {escape(plan_data['estimates']['cost'])}</p>
+            <p><strong>ประมาณการคน/วันที่ใช้ในการตรวจสอบ:</strong> {escape(plan_data['estimates']['effort'])}</p>
+
+            <table class="signature-table">
+                <thead>
+                    <tr>
+                        <th>ผู้จัดทำ</th>
+                        <th>ผู้สอบทาน</th>
+                        <th>ผู้อนุมัติ (รผต. / ผอ. สำนัก)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>
+                            <strong>ลงชื่อ:</strong> {escape(sig['maker']['name'])}<br>
+                            <strong>ตำแหน่ง:</strong> {escape(sig['maker']['position'])}<br>
+                            <strong>วันที่:</strong> {date_format(sig['maker']['date'])}<br>
+                            <strong>ความเห็น:</strong> {escape(sig['maker']['comment'])}
+                        </td>
+                        <td>
+                            <strong>ลงชื่อ:</strong> {escape(sig['reviewer']['name'])}<br>
+                            <strong>ตำแหน่ง:</strong> {escape(sig['reviewer']['position'])}<br>
+                            <strong>วันที่:</strong> {date_format(sig['reviewer']['date'])}<br>
+                            <strong>ความเห็น:</strong> {escape(sig['reviewer']['comment'])}
+                        </td>
+                        <td>
+                            <strong>ลงชื่อ:</strong> {escape(sig['approver']['name'])}<br>
+                            <strong>ตำแหน่ง:</strong> {escape(sig['approver']['position'])}<br>
+                            <strong>วันที่:</strong> {date_format(sig['approver']['date'])}<br>
+                            <strong>ความเห็น:</strong> {escape(sig['approver']['comment'])}
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </body>
+    </html>
+    """
+    return report_html
 
 # --- UI Rendering ---
 if st.session_state.get("ui_feedback_message"):
@@ -298,15 +348,16 @@ with st.form("estimates_signatures_form"):
 
 st.divider()
 st.subheader("สร้างเอกสาร")
-if st.button("📄 สร้างเอกสาร PDF (แนวนอน)", type="primary", use_container_width=True):
-    with st.spinner("กำลังสร้างไฟล์ PDF..."):
-        pdf_bytes = generate_pdf()
-        if pdf_bytes:
-            st.download_button(
-                label="✅ ดาวน์โหลด PDF สำเร็จ!",
-                data=pdf_bytes,
-                file_name=f"แผนการตรวจสอบ_{datetime.now().strftime('%Y%m%d')}.pdf",
-                mime="application/pdf",
-                use_container_width=True
-            )
+if 'show_report' not in st.session_state:
+    st.session_state.show_report = False
+
+if st.button("📄 แสดง/ซ่อนตัวอย่างเอกสาร (HTML)", type="primary", use_container_width=True):
+    st.session_state.show_report = not st.session_state.show_report
+
+if st.session_state.show_report:
+    with st.spinner("กำลังสร้างตัวอย่างเอกสาร..."):
+        report_html = generate_html_report()
+        with st.expander("แสดงตัวอย่างเอกสาร (คลิกขวาเพื่อ Print/Save as PDF)", expanded=True):
+            st.markdown(report_html, unsafe_allow_html=True)
+            st.info("คุณสามารถคลิกขวาบนพื้นที่เอกสารด้านบน แล้วเลือก 'Print...' จากนั้นเลือก 'Save as PDF' เพื่อบันทึกไฟล์")
 
