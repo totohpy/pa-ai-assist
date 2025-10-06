@@ -25,7 +25,7 @@ div[data-testid="stExpander"] div[role="button"] p { font-size: 1.1rem; }
 
 /* --- UPDATED: CSS for the AI expander (Blue color) --- */
 .ai-expander .st-emotion-cache-ff2938 { 
-    background-color: #D1E8FF; /* <-- เปลี่ยนเป็นสีฟ้าที่เข้มขึ้น */
+    background-color: #D1E8FF !importance; /* <-- เปลี่ยนเป็นสีฟ้าที่เข้มขึ้น */
     border: 1px solid #007BFF; /* <-- เปลี่ยนเส้นขอบเป็นสีน้ำเงิน */
     border-radius: 0.5rem; 
 }
