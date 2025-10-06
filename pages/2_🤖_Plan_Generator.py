@@ -59,17 +59,21 @@ def call_gemini_api(context_text):
         api_key = st.secrets["GOOGLE_API_KEY"]
         genai.configure(api_key=api_key)
 
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        # Changed model to a stable and compatible version
+        model = genai.GenerativeModel('gemini-pro')
         
         system_prompt = """คุณคือผู้เชี่ยวชาญด้านการตรวจสอบภาครัฐ (State Auditor) มีหน้าที่ในการช่วยร่างแผนและแนวการตรวจสอบตามข้อมูลที่ได้รับ จงสร้างเนื้อหาสำหรับแนวการตรวจสอบโดยละเอียดสำหรับประเด็นสุดท้ายเท่านั้น ตอบกลับเป็น JSON object ที่ถูกต้องสมบูรณ์ โดยใช้ key ต่อไปนี้: "criteria", "info_needed", "source", "collection_method", "analysis_method" เนื้อหาต้องเป็นภาษาไทยที่กระชับและชัดเจน"""
         
-        response = model.generate_content(
-            [system_prompt, context_text],
-            generation_config=genai.types.GenerationConfig(
-                response_mime_type="application/json"
-            )
-        )
-        return json.loads(response.text)
+        # gemini-pro does not support JSON response type directly, so we will parse its text output.
+        # The prompt is already asking for a JSON-like structure.
+        full_prompt = system_prompt + "\n\n---\n\n" + context_text
+
+        response = model.generate_content(full_prompt)
+        
+        # Clean up the response to extract the JSON part
+        cleaned_text = response.text.strip().replace("```json", "").replace("```", "")
+        return json.loads(cleaned_text)
+        
     except Exception as e:
         st.error(f"เกิดข้อผิดพลาดในการเรียก AI: {e}")
         return None
@@ -175,8 +179,9 @@ with st.form("estimates_signatures_form"):
     st.subheader("3. ประมาณการและผู้จัดทำ")
     sig_data = st.session_state.plan_gen_data["signatures"]
 
-    st.text_area("ประมาณการค่าใช้จ่ายในการตรวจสอบ", key="cost_estimate")
-    st.text_area("ประมาณการคน/วันที่ใช้ในการตรวจสอบ", key="effort_estimate")
+    st.session_state.plan_gen_data["estimates"]["cost"] = st.text_area("ประมาณการค่าใช้จ่ายในการตรวจสอบ", st.session_state.plan_gen_data["estimates"]["cost"], key="cost_estimate")
+    st.session_state.plan_gen_data["estimates"]["effort"] = st.text_area("ประมาณการคน/วันที่ใช้ในการตรวจสอบ", st.session_state.plan_gen_data["estimates"]["effort"], key="effort_estimate")
+
 
     c1, c2, c3 = st.columns(3)
     with c1:
@@ -213,3 +218,4 @@ if st.button("📄 สร้างเอกสาร PDF (แนวนอน)", 
             mime="application/pdf",
             use_container_width=True
         )
+
