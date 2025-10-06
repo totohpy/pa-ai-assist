@@ -111,7 +111,7 @@ class PDF(FPDF):
     def header(self):
         try:
             self.add_font('Sarabun', '', 'Sarabun-Regular.ttf', uni=True)
-            self.set_font('Sarabun', 'B', 14)
+            self.set_font('Sarabun', '', 14) # Changed from 'B' to ''
             self.cell(0, 10, 'แผนและแนวการตรวจสอบ', 0, 1, 'C')
             self.ln(5)
         except RuntimeError:
@@ -121,7 +121,7 @@ class PDF(FPDF):
 
     def footer(self):
         self.set_y(-15)
-        self.set_font('Sarabun', 'I', 8)
+        self.set_font('Sarabun', '', 8) # Changed from 'I' to ''
         self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
 
     def write_thai(self, text):
@@ -134,13 +134,13 @@ def generate_pdf():
     
     plan_data = st.session_state.plan_gen_data
     
-    pdf.set_font('Sarabun', 'B', 12)
+    pdf.set_font('Sarabun', '', 12) # Changed from 'B' to ''
     pdf.write_thai(f"เรื่องที่ตรวจสอบ: {plan_data['general_info']['topic']}")
     pdf.write_thai(f"หน่วยงาน: {plan_data['general_info']['agency']} กระทรวง: {plan_data['general_info']['ministry']}")
     pdf.write_thai(f"สำนักงาน: {plan_data['general_info']['office']}")
     pdf.ln(5)
 
-    pdf.set_font('Sarabun', 'B', 12)
+    pdf.set_font('Sarabun', '', 12) # Changed from 'B' to ''
     pdf.cell(0, 10, 'วัตถุประสงค์และประเด็นการตรวจสอบ', 0, 1)
     
     def write_issues_to_pdf(issues_list, prefix_num, indent_level=1):
@@ -150,7 +150,7 @@ def generate_pdf():
             pdf.multi_cell(0, 7, f"{' ' * (indent_level*4)}ประเด็น {current_prefix}: {issue['text']}")
             
             if not issue['issues']:
-                pdf.set_font('Sarabun', 'I', 10)
+                pdf.set_font('Sarabun', '', 10) # Changed from 'I' to ''
                 details = issue['details']
                 indent_str = ' ' * ((indent_level*4)+2)
                 pdf.write_thai(f"{indent_str}เกณฑ์: {details['criteria']}")
@@ -163,13 +163,13 @@ def generate_pdf():
                 write_issues_to_pdf(issue['issues'], current_prefix, indent_level + 1)
 
     for i, obj in enumerate(plan_data['objectives']):
-        pdf.set_font('Sarabun', 'B', 11)
+        pdf.set_font('Sarabun', '', 11) # Changed from 'B' to ''
         pdf.multi_cell(0, 8, f"\nวัตถุประสงค์ที่ {i+1}: {obj['text']}")
         write_issues_to_pdf(obj['issues'], str(i+1))
     
     pdf.ln(10)
 
-    pdf.set_font('Sarabun', 'B', 12)
+    pdf.set_font('Sarabun', '', 12) # Changed from 'B' to ''
     pdf.cell(0, 10, 'ประมาณการและผู้จัดทำ', 0, 1)
     pdf.set_font('Sarabun', '', 11)
     pdf.write_thai(f"ประมาณการค่าใช้จ่าย: {plan_data['estimates']['cost']}")
@@ -183,7 +183,7 @@ def generate_pdf():
     line_height = 7
     
     # Headers
-    pdf.set_font('Sarabun', 'B', 11)
+    pdf.set_font('Sarabun', '', 11) # Changed from 'B' to ''
     pdf.cell(col_width, line_height, 'ผู้จัดทำ', border=1, align='C')
     pdf.cell(col_width, line_height, 'ผู้สอบทาน', border=1, align='C')
     pdf.cell(col_width, line_height, 'ผู้อนุมัติ (รผต. / ผอ. สำนัก)', border=1, align='C')
@@ -264,7 +264,7 @@ for i, obj in enumerate(st.session_state.plan_gen_data["objectives"]):
                                         if all(k in ai_result for k in issue['details'].keys()):
                                             issue['details'] = ai_result
                                             st.success("AI สร้างเนื้อหาเรียบร้อยแล้ว")
-                                            st.rerun() # Force a rerun to update the UI
+                                            # Removed st.rerun() to prevent message from disappearing
                                         else:
                                             st.warning("AI ไม่ได้ส่งข้อมูลกลับมาในรูปแบบที่ถูกต้องครบถ้วน")
 
@@ -317,11 +317,12 @@ st.subheader("สร้างเอกสาร")
 if st.button("📄 สร้างเอกสาร PDF (แนวนอน)", type="primary", use_container_width=True):
     with st.spinner("กำลังสร้างไฟล์ PDF..."):
         pdf_bytes = generate_pdf()
-        st.download_button(
-            label="✅ ดาวน์โหลด PDF สำเร็จ!",
-            data=pdf_bytes,
-            file_name=f"แผนการตรวจสอบ_{datetime.now().strftime('%Y%m%d')}.pdf",
-            mime="application/pdf",
-            use_container_width=True
-        )
+        if pdf_bytes:
+            st.download_button(
+                label="✅ ดาวน์โหลด PDF สำเร็จ!",
+                data=pdf_bytes,
+                file_name=f"แผนการตรวจสอบ_{datetime.now().strftime('%Y%m%d')}.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
 
