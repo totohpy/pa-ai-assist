@@ -67,7 +67,7 @@ st.markdown(
         border-radius: 20px;
         text-align: center;
         transition: transform 0.3s, box-shadow 0.3s;
-        height: 180px;
+        height: 200px;
         display: flex;
         flex-direction: column;
         justify-content: center;
@@ -120,7 +120,7 @@ with col1:
         """
         <a href="Design_Assistant" target="_self" class="feature-link">
             <div class="feature-box box-1">
-                <span class="emoji">❔</span>
+                <span class="emoji">🏳️</span>
                 <h3>Design Assistant</h3>
                 <p>แนะนำประเด็นตรวจสอบที่น่าสนใจ จากการวิเคราะห์ข้อมูลแผน, 6W2H, และฐานข้อมูลข้อตรวจพบในอดีต</p>
             </div>
