@@ -51,7 +51,7 @@ st.markdown("""
 
     /* Remove Streamlit's default top padding */
     .block-container {
-        padding-top: 2rem;
+        padding-top: 5rem;
     }
     
 /* --- Style the sidebar navigation --- */
