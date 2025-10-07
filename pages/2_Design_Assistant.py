@@ -280,7 +280,7 @@ with tab_plan:
 if 'uploaded_text' not in st.session_state:
     st.session_state.uploaded_text = ""
 
-st.write("อัปโหลดไฟล์ .docx หรือ .pdf เพื่อดึงข้อความมาใส่ในช่องด้านล่าง")
+st.write("หรือ อัปโหลดไฟล์ .docx หรือ .pdf เพื่อดึงข้อความมาใส่ในช่องด้านล่าง")
 
 # 1. สร้าง File Uploader
 uploaded_file = st.file_uploader(
