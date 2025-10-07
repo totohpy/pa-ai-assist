@@ -24,6 +24,16 @@ with st.sidebar:
 st.markdown(
     """
     <style>
+    /* --- NEW: Overall App Color Theme --- */
+    /* Main app background */
+    [data-testid="stAppViewContainer"] > .main {
+        background-color: #e0f2f1;
+    }
+    /* Sidebar background */
+    [data-testid="stSidebar"] {
+        background-color: #b2dfdb;
+    }
+
     /* Remove Streamlit's default top padding */
     .block-container {
         padding-top: 2rem;
@@ -85,17 +95,17 @@ st.markdown(
 
     /* Style each navigation link */
     div[data-testid="stSidebarNav"] > ul > li > a {
-        padding: 12px !important;      /* Make the link taller */
-        font-size: 18px !important;     /* Make the font bigger */
-        margin-bottom: 8px;           /* Add space between links */
-        border-radius: 5px;
+        padding: 16px !important;      /* Make the link taller */
+        font-size: 20px !important;     /* Make the font bigger */
+        margin-bottom: 10px;           /* Add space between links */
+        border-radius: 8px;
         color: #FFFFFF !important;        /* White text for all */
-        background-color: #3B5998;     /* Dark Blue from image */
+        background-color: #009688;     /* Dark Teal for all tabs */
     }
     
     /* Style the ACTIVE page link */
     div[data-testid="stSidebarNav"] a[aria-current="page"] {
-        background-color: #8B9DC3;     /* Light Blue from image */
+        background-color: #576CBC;     /* Sky Blue for active page */
         color: #FFFFFF !important;     /* White text for the selected page */
         font-weight: bold;
     }
