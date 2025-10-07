@@ -6,12 +6,94 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- Add the credit to the sidebar on the homepage ---
+# --- Enhanced CSS for homepage and sidebar ---
+st.markdown(
+    """
+    <style>
+    /* --- Overall App Color Theme --- */
+    [data-testid="stAppViewContainer"] > .main {
+        background-color: #e0f2f1;
+    }
+    [data-testid="stSidebar"] {
+        background-color: #e0f2f1;
+        width: 350px !important;
+    }
+    
+    /* --- Flexbox layout for Sidebar --- */
+    /* This targets the inner container of the sidebar */
+    [data-testid="stSidebar"] > div:first-child {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+    /* This makes the navigation take up all available space, pushing the footer down */
+    [data-testid="stSidebarNav"] {
+        flex-grow: 1;
+        margin-top: 20px; /* Move navigation down */
+    }
+    .sidebar-footer {
+        width: 100%;
+        padding: 1rem;
+        text-align: center; /* Center the footer content */
+    }
+
+    /* Remove Streamlit's default top padding */
+    .block-container {
+        padding-top: 2rem;
+    }
+
+    /* --- Feature Box Styling (Main Page) --- */
+    .feature-link { text-decoration: none !important; color: inherit !important; }
+    .feature-link:hover { text-decoration: none !important; color: inherit !important; }
+    .feature-box {
+        background-color: #e0f2f1;
+        padding: 1.2rem 1rem;
+        border-radius: 20px;
+        text-align: center;
+        transition: transform 0.3s, box-shadow 0.3s;
+        height: 160px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        border: 1px solid #d0e0df;
+    }
+    .feature-box:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+    }
+    .feature-box .emoji { font-size: 1.6rem; line-height: 1; }
+    .feature-box h3 { margin-top: 0.7rem; margin-bottom: 0.4rem; font-size: 1.2rem; }
+    .feature-box p { color: #6c757d; font-size: 0.85rem; }
+    
+    /* --- Style the sidebar navigation --- */
+    div[data-testid="stSidebarNav"] > ul > li > a {
+        padding: 18px 40px !important; /* Increased padding for more height */
+        font-size: 20px !important;    /* Larger font size */
+        margin-bottom: 10px;
+        border-radius: 8px;
+        color: #263238 !important;     /* Darker text for inactive links */
+        background-color: #b2dfdb;     /* Light teal for inactive links */
+        border: 1px solid #9dbdb9;
+        font-weight: 500;
+    }
+    
+    /* Style the ACTIVE page link */
+    div[data-testid="stSidebarNav"] a[aria-current="page"] {
+        background-color: #009688;     /* Dark teal for active link */
+        color: #FFFFFF !important;     /* White text for active link */
+        font-weight: 600;
+        border: 1px solid #00796b;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# --- Add the credit to the bottom of the sidebar ---
 with st.sidebar:
-    # This content will be pushed to the bottom by the CSS below
     st.markdown("""
         <div class="sidebar-footer">
-            <hr>
             <p>
                 <span style="color: grey;">By PAO1 </span><br>
                 <span style="font-size: 16px; letter-spacing: 0.5px;">
@@ -24,158 +106,55 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
 
-# --- Enhanced CSS for homepage and sidebar ---
-st.markdown(
-    """
-    <style>
-    /* --- Overall App Color Theme --- */
-    /* Main app background */
-    [data-testid="stAppViewContainer"] > .main {
-        background-color: #e0f2f1;
-    }
-    /* Sidebar background and initial width */
-    [data-testid="stSidebar"] {
-        background-color: #e0f2f1;
-        width: 350px !important;
-    }
-
-    /* --- CSS to push footer to the bottom of the sidebar --- */
-    .sidebar-footer {
-        position: absolute;
-        bottom: 20px;
-        width: 100%;
-        padding-left: 1rem; /* Adjust to align with sidebar content */
-        padding-right: 1rem;
-    }
-
-    /* Remove Streamlit's default top padding */
-    .block-container {
-        padding-top: 2rem;
-    }
-
-    /* Styling for the link to remove underline and inherit color */
-    .feature-link {
-        text-decoration: none !important;
-        color: inherit !important;
-    }
-    .feature-link:hover {
-        text-decoration: none !important;
-        color: inherit !important;
-    }
-
-    /* --- UPDATED: Clickable Feature Box Styling (Even Smaller) --- */
-    .feature-box {
-        background-color: #e0f2f1;
-        padding: 1.2rem 1rem; /* Reduced padding further */
-        border-radius: 20px;  /* Standard radius */
-        text-align: center;
-        transition: transform 0.3s, box-shadow 0.3s;
-        height: 160px; /* Reduced height further */
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        border: 1px solid #d0e0df;
-    }
-    .feature-box:hover {
-        transform: translateY(-10px);
-        box-shadow: 0 8px 30px rgba(0,0,0,0.12);
-    }
-    .feature-box .emoji {
-        font-size: 1.6rem; /* Reduced emoji size */
-        line-height: 1;
-    }
-    .feature-box h3 {
-        margin-top: 0.7rem;
-        margin-bottom: 0.4rem;
-        font-size: 1.2rem; /* Reduced header size */
-    }
-    .feature-box p {
-        color: #6c757d;
-        font-size: 0.85rem; /* Reduced paragraph size */
-    }
-    
-    /* --- Style the sidebar navigation --- */
-    
-    /* Move the whole navigation block down */
-    div[data-testid="stSidebarNav"] {
-        margin-top: 30px;
-    }
-
-    /* Style each navigation link */
-    div[data-testid="stSidebarNav"] > ul > li > a {
-        padding: 16px 40px !important;
-        font-size: 22px !important;
-        margin-bottom: 10px;
-        border-radius: 6px;
-        color: #FFFFFF !important;
-        background-color: #b2dfdb;
-        border: 1px solid #9dbdb9;
-    }
-    
-    /* Style the ACTIVE page link */
-    div[data-testid="stSidebarNav"] a[aria-current="page"] {
-        background-color: #80cbc4;
-        color: #FFFFFF !important;
-        font-weight: bold;
-        border: 1px solid #70b8af;
-    }
-
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
 # --- Homepage Layout ---
-with st.container():
-    st.title("🧭 Planning Studio – Performance Audit")
-    st.subheader("เครื่องมือดิจิทัลสำหรับงานตรวจสอบผลการดำเนินงาน", anchor=False)
-    st.write("")
-    st.write("")
+st.title("🧭 Planning Studio – Performance Audit")
+st.subheader("เครื่องมือดิจิทัลสำหรับงานตรวจสอบผลการดำเนินงาน", anchor=False)
+st.write("")
+st.write("")
 
-    col1, col2, col3 = st.columns(3, gap="large")
+col1, col2, col3 = st.columns(3, gap="large")
 
-    with col1:
-        st.markdown(
-            """
-            <a href="Design_Assistant" target="_self" class="feature-link">
-                <div class="feature-box box-1">
-                    <span class="emoji">❔</span>
-                    <h3>Design Assistant</h3>
-                    <p>แนะนำประเด็นตรวจสอบที่น่าสนใจ จากการวิเคราะห์ข้อมูลแผน, 6W2H, และฐานข้อมูลข้อตรวจพบในอดีต</p>
-                </div>
-            </a>
-            """,
-            unsafe_allow_html=True
-        )
+with col1:
+    st.markdown(
+        """
+        <a href="Design_Assistant" target="_self" class="feature-link">
+            <div class="feature-box box-1">
+                <span class="emoji">❔</span>
+                <h3>Design Assistant</h3>
+                <p>แนะนำประเด็นตรวจสอบที่น่าสนใจ จากการวิเคราะห์ข้อมูลแผน, 6W2H, และฐานข้อมูลข้อตรวจพบในอดีต</p>
+            </div>
+        </a>
+        """,
+        unsafe_allow_html=True
+    )
 
-    with col2:
-        st.markdown(
-            """
-            <a href="Plan_Generator" target="_self" class="feature-link">
-                <div class="feature-box box-2">
-                    <span class="emoji">🧾</span>
-                    <h3>Plan Generator</h3>
-                    <p>ช่วยร่างแผนและแนวการตรวจสอบ พร้อมระบบ AI ช่วยสร้างเนื้อหาในแต่ละส่วน และส่งออกเป็นเอกสารได้</p>
-                </div>
-            </a>
-            """,
-            unsafe_allow_html=True
-        )
+with col2:
+    st.markdown(
+        """
+        <a href="Plan_Generator" target="_self" class="feature-link">
+            <div class="feature-box box-2">
+                <span class="emoji">🧾</span>
+                <h3>Plan Generator</h3>
+                <p>ช่วยร่างแผนและแนวการตรวจสอบ พร้อมระบบ AI ช่วยสร้างเนื้อหาในแต่ละส่วน และส่งออกเป็นเอกสารได้</p>
+            </div>
+        </a>
+        """,
+        unsafe_allow_html=True
+    )
 
-    with col3:
-        st.markdown(
-            """
-            <a href="PA_Assistant_Chat" target="_self" class="feature-link">
-                <div class="feature-box box-3">
-                    <span class="emoji">💬</span>
-                    <h3>PA Assistant Chat</h3>
-                    <p>ผู้ช่วยอัจฉริยะที่สามารถถาม-ตอบข้อสงสัยจากคลังข้อมูลและเอกสารการตรวจสอบต่างๆ เพื่อช่วยสนับสนุนการทำงาน</p>
-                </div>
-            </a>
-            """,
-            unsafe_allow_html=True
-        )
+with col3:
+    st.markdown(
+        """
+        <a href="PA_Assistant_Chat" target="_self" class="feature-link">
+            <div class="feature-box box-3">
+                <span class="emoji">💬</span>
+                <h3>PA Assistant Chat</h3>
+                <p>ผู้ช่วยอัจฉริยะที่สามารถถาม-ตอบข้อสงสัยจากคลังข้อมูลและเอกสารการตรวจสอบต่างๆ เพื่อช่วยสนับสนุนการทำงาน</p>
+            </div>
+        </a>
+        """,
+        unsafe_allow_html=True
+    )
 
 st.markdown("---")
 st.info("⚙️ การใช้ฟีเจอร์ AI อาจทำผิดพลาดได้ ดังนั้น โปรดตรวจสอบคำตอบอีกครั้ง")
