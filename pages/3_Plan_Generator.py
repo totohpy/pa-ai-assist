@@ -324,7 +324,7 @@ for i, obj in enumerate(st.session_state.plan_gen_data["objectives"]):
                     target_issue['text'] = st.text_area(f"ประเด็นการตรวจสอบที่ {prefix}", value=target_issue.get('text', ''), key=f"issue_text_{key_suffix}")
                     if not target_issue.get('issues'):
                         st.markdown('<div class="ai-expander">', unsafe_allow_html=True)
-                        with st.expander("👆🏻เพิ่มรายละเอียดแนวการตรวจสอบ (💡ให้ AI ช่วย)"):
+                        with st.expander("Click เพิ่มรายละเอียดแนวการตรวจสอบ (💡ให้ AI ช่วย)"):
                             details = target_issue.get('details', {})
                             field_map = { "criteria": "เกณฑ์การตรวจสอบ", "info_needed": "ข้อมูลที่ต้องการ", "source": "แหล่งข้อมูล", "collection_method": "วิธีการรวบรวมหลักฐาน", "analysis_method": "วิธีการวิเคราะห์หลักฐาน" }
                             for field, label in field_map.items():
