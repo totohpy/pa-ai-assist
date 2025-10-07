@@ -8,24 +8,27 @@ st.set_page_config(
 
 # --- Add the credit to the sidebar on the homepage ---
 with st.sidebar:
-    st.markdown("---")
-    st.markdown(
-        '<p style="font-family: \'Kanit\', sans-serif;">'
-        '<span style="color: grey;">By PAO1 </span><br>'
-        '<span style="font-size: 16px; letter-spacing: 0.5px;">'
-        '<span style="color: red; font-weight: bold;">A</span>udit '
-        '<span style="color: red; font-weight: bold;">I</span>ntelligence'
-        '<span style="color: red; font-weight: bold;">T</span>eam'
-        '</span>'
-        '</p>',
-        unsafe_allow_html=True
-    )
+    # This content will be pushed to the bottom by the CSS below
+    st.markdown("""
+        <div class="sidebar-footer">
+            <hr>
+            <p>
+                <span style="color: grey;">By PAO1 </span><br>
+                <span style="font-size: 16px; letter-spacing: 0.5px;">
+                    <span style="color: red; font-weight: bold;">A</span>udit 
+                    <span style="color: red; font-weight: bold;">I</span>ntelligence
+                    <span style="color: red; font-weight: bold;">T</span>eam
+                </span>
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
+
 
 # --- Enhanced CSS for homepage and sidebar ---
 st.markdown(
     """
     <style>
-    /* --- NEW: Overall App Color Theme --- */
+    /* --- Overall App Color Theme --- */
     /* Main app background */
     [data-testid="stAppViewContainer"] > .main {
         background-color: #e0f2f1;
@@ -33,7 +36,16 @@ st.markdown(
     /* Sidebar background and initial width */
     [data-testid="stSidebar"] {
         background-color: #e0f2f1;
-        width: 250px !important; /* --- Set initial width of the sidebar --- */
+        width: 350px !important;
+    }
+
+    /* --- CSS to push footer to the bottom of the sidebar --- */
+    .sidebar-footer {
+        position: absolute;
+        bottom: 20px;
+        width: 100%;
+        padding-left: 1rem; /* Adjust to align with sidebar content */
+        padding-right: 1rem;
     }
 
     /* Remove Streamlit's default top padding */
@@ -51,38 +63,39 @@ st.markdown(
         color: inherit !important;
     }
 
-    /* Clickable Feature Box Styling */
+    /* --- UPDATED: Clickable Feature Box Styling (Even Smaller) --- */
     .feature-box {
         background-color: #e0f2f1;
-        padding: 2.5rem 2rem;
-        border-radius: 10px;
+        padding: 1.2rem 1rem; /* Reduced padding further */
+        border-radius: 20px;  /* Standard radius */
         text-align: center;
         transition: transform 0.3s, box-shadow 0.3s;
-        height: 100%;
+        height: 160px; /* Reduced height further */
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
-        border: 1px solid #e0e0e0;
+        border: 1px solid #d0e0df;
     }
     .feature-box:hover {
         transform: translateY(-10px);
         box-shadow: 0 8px 30px rgba(0,0,0,0.12);
     }
     .feature-box .emoji {
-        font-size: 4rem;
+        font-size: 1.6rem; /* Reduced emoji size */
         line-height: 1;
     }
     .feature-box h3 {
-        margin-top: 1rem;
-        margin-bottom: 0.5rem;
-        font-size: 1.5rem;
+        margin-top: 0.7rem;
+        margin-bottom: 0.4rem;
+        font-size: 1.2rem; /* Reduced header size */
     }
     .feature-box p {
         color: #6c757d;
-        font-size: 1rem;
+        font-size: 0.85rem; /* Reduced paragraph size */
     }
-    /* --- UPDATED: Style the sidebar navigation with the new color scheme --- */
+    
+    /* --- Style the sidebar navigation --- */
     
     /* Move the whole navigation block down */
     div[data-testid="stSidebarNav"] {
@@ -91,19 +104,21 @@ st.markdown(
 
     /* Style each navigation link */
     div[data-testid="stSidebarNav"] > ul > li > a {
-        padding: 16px !important;      /* Make the link taller */
-        font-size: 20px !important;     /* Make the font bigger */
-        margin-bottom: 10px;           /* Add space between links */
+        padding: 16px 40px !important;
+        font-size: 22px !important;
+        margin-bottom: 10px;
         border-radius: 6px;
-        color: #FFFFFF !important;        /* White text for all */
-        background-color: #b2dfdb;     /* Dark Teal for all tabs */
+        color: #FFFFFF !important;
+        background-color: #b2dfdb;
+        border: 1px solid #9dbdb9;
     }
     
     /* Style the ACTIVE page link */
     div[data-testid="stSidebarNav"] a[aria-current="page"] {
-        background-color: #80cbc4;     /* Sky Blue for active page */
-        color: #FFFFFF !important;     /* White text for the selected page */
+        background-color: #80cbc4;
+        color: #FFFFFF !important;
         font-weight: bold;
+        border: 1px solid #70b8af;
     }
 
     </style>
@@ -114,7 +129,7 @@ st.markdown(
 # --- Homepage Layout ---
 with st.container():
     st.title("🧭 Planning Studio – Performance Audit")
-    st.header("เครื่องมือดิจิทัลสำหรับงานตรวจสอบผลการดำเนินงาน", anchor=False)
+    st.subheader("เครื่องมือดิจิทัลสำหรับงานตรวจสอบผลการดำเนินงาน", anchor=False)
     st.write("")
     st.write("")
 
@@ -155,7 +170,7 @@ with st.container():
                 <div class="feature-box box-3">
                     <span class="emoji">💬</span>
                     <h3>PA Assistant Chat</h3>
-                    <p>ผู้ช่วยอัจฉริยะที่สามารถถาม-ตอบข้อสงสัยจากคลังข้อมูลและเอกสารต่างๆ เพื่อช่วยสนับสนุนการทำงาน</p>
+                    <p>ผู้ช่วยอัจฉริยะที่สามารถถาม-ตอบข้อสงสัยจากคลังข้อมูลและเอกสารการตรวจสอบต่างๆ เพื่อช่วยสนับสนุนการทำงาน</p>
                 </div>
             </a>
             """,
@@ -163,5 +178,5 @@ with st.container():
         )
 
 st.markdown("---")
-st.info("⚙️ ระบบมีฟีเจอร์ AI อาจทำผิดพลาดได้ ดังนั้น โปรดตรวจสอบคำตอบอีกครั้ง")
+st.info("⚙️ การใช้ฟีเจอร์ AI อาจทำผิดพลาดได้ ดังนั้น โปรดตรวจสอบคำตอบอีกครั้ง")
 
