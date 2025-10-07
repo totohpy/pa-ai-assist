@@ -273,7 +273,8 @@ with tab_plan:
         st.markdown("##### 🚀 สร้าง 6W2H อัตโนมัติด้วย AI")
         st.write("คัดลอกข้อความจากไฟล์มาวางในช่องด้านล่างนี้")
         uploaded_text = st.text_area("ระบุข้อความเพื่อให้ AI ช่วยสรุป 6W2H", height=200, key="uploaded_text")
-# --- เริ่มส่วนโค้dใหม่ ---
+
+# --- เริ่มส่วนโค้dใหม่ (สำหรับแทนที่) ---
 
 # Initialize session state to store the extracted text
 if 'uploaded_text' not in st.session_state:
@@ -317,6 +318,25 @@ st.text_area(
     key="uploaded_text", # เชื่อมกับ session state
     height=250
 )
+
+# --- จบส่วนโค้ดใหม่ (สำหรับแทนที่) ---
+
+if st.button("🚀 สร้าง 6W2H จากข้อความ", type="primary", key="6w2h_button"):
+    uploaded_text_from_file = st.session_state.uploaded_text
+    if not uploaded_text_from_file:
+        st.error("กรุณาอัปโหลดไฟล์ หรือวางข้อความในช่องก่อน")
+    elif not st.session_state.api_key_global:
+        st.error("ยังไม่ได้ตั้งค่า API Key, กรุณาติดต่อผู้ดูแลระบบ หรือตั้งค่าใน Streamlit Cloud Secrets")
+    else:
+        with st.spinner("กำลังประมวลผล..."):
+            try:
+                user_prompt = f"จากข้อความด้านล่างนี้ กรุณาสรุปและแยกแยะข้อมูลให้เป็น 6W2H ได้แก่ Who, Whom, What, Where, When, Why, How, และ How much โดยให้อยู่ในรูปแบบ key-value ที่ชัดเจน\nข้อความ:\n---\n{uploaded_text_from_file}\n---\nรูปแบบที่ต้องการ:\nWho: [ข้อความ]\nWhom: [ข้อความ]\nWhat: [ข้อความ]\nWhere: [ข้อความ]\nWhen: [ข้อความ]\nWhy: [ข้อความ]\nHow: [ข้อความ]\nHow Much: [ข้อความ]"
+                client = OpenAI(api_key=st.session_state.api_key_global, base_url="https://api.opentyphoon.ai/v1")
+                response = client.chat.completions.create(model="typhoon-v2.1-12b-instruct", messages=[{"role": "user", "content": user_prompt}], temperature=0.7, max_tokens=1024, top_p=0.9)
+                st.session_state["6w2h_output"] = response.choices[0].message.content
+                st.success("สร้าง 6W2H เรียบร้อยแล้ว! ผลลัพธ์แสดงอยู่ด้านล่าง"); st.balloons(); st.rerun()
+            except Exception as e:
+                st.error(f"เกิดข้อผิดพลาดในการเรียกใช้ AI: {e}")
 
 # --- จบส่วนโค้ดใหม่ ---
         if st.button("🚀 สร้าง 6W2H จากข้อความ", type="primary", key="6w2h_button"):
