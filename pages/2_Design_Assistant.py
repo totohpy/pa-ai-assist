@@ -17,6 +17,33 @@ st.set_page_config(page_title="Design Assistant", page_icon="✨", layout="wide"
 
 # --- Sidebar Configuration (Updated to match Home.py) ---
 with st.sidebar:
+
+with st.sidebar:
+# --- ย้ายโค้ดทั้งหมดมาไว้ที่นี่ ---
+st.title("✨ Design Assistant Menu") # อาจจะเปลี่ยน Title ให้เป็นเมนู
+
+tab_plan, tab_logic, tab_method, tab_kpi, tab_risk, tab_issue, tab_preview, tab_assist = st.tabs([
+    "1. Plan & 6W2H", "2. Logic Model", "3. Methods", 
+    "4. KPIs", "5. Risks", "🔍 Find Issues", 
+    "📋 Preview", "✨ AI Assist"
+]) 
+
+with tab_plan:
+    st.subheader("ข้อมูลแผน - กรุณาระบุข้อมูล")
+    # ... เนื้อหาของ tab_plan ...
+
+with tab_logic:
+    st.subheader("ระบุ Logic Model")
+    # ... เนื้อหาของ tab_logic ...
+
+# ... และ with tab อื่นๆ ต่อไป ...
+
+# --- ส่วนเนื้อหาหลักของหน้าอาจจะแสดงผลลัพธ์หรือข้อมูลสรุป ---
+st.title("Audit Design Workspace")
+st.info("กรุณาเลือกเมนูจาก Sidebar ด้านซ้ายเพื่อเริ่มดำเนินการ")
+
+
+
     st.markdown("""
         <div class="sidebar-footer">
             <p>
