@@ -323,28 +323,28 @@ st.text_area(
 
 
 # --- จบส่วนโค้ดใหม่ ---
-        if st.button("🚀 สร้าง 6W2H จากข้อความ", type="primary", key="6w2h_button"):
-            if not uploaded_text:
-                st.error("กรุณาวางข้อความในช่องก่อน")
-            elif not st.session_state.api_key_global:
-                st.error("ยังไม่ได้ตั้งค่า API Key, กรุณาติดต่อผู้ดูแลระบบ หรือตั้งค่าใน Streamlit Cloud Secrets")
-            else:
-                with st.spinner("กำลังประมวลผล..."):
-                    try:
-                        user_prompt = f"จากข้อความด้านล่างนี้ กรุณาสรุปและแยกแยะข้อมูลให้เป็น 6W2H ได้แก่ Who, Whom, What, Where, When, Why, How, และ How much โดยให้อยู่ในรูปแบบ key-value ที่ชัดเจน\nข้อความ:\n---\n{uploaded_text}\n---\nรูปแบบที่ต้องการ:\nWho: [ข้อความ]\nWhom: [ข้อความ]\nWhat: [ข้อความ]\nWhere: [ข้อความ]\nWhen: [ข้อความ]\nWhy: [ข้อความ]\nHow: [ข้อความ]\nHow Much: [ข้อความ]"
-                        client = OpenAI(api_key=st.session_state.api_key_global, base_url="https://api.opentyphoon.ai/v1")
-                        response = client.chat.completions.create(model="typhoon-v2.1-12b-instruct", messages=[{"role": "user", "content": user_prompt}], temperature=0.7, max_tokens=1024, top_p=0.9)
-                        st.session_state["6w2h_output"] = response.choices[0].message.content
-                        st.success("สร้าง 6W2H เรียบร้อยแล้ว! ผลลัพธ์แสดงอยู่ด้านล่าง"); st.balloons(); st.rerun()
-                    except Exception as e:
-                        st.error(f"เกิดข้อผิดพลาดในการเรียกใช้ AI: {e}")
+    if st.button("🚀 สร้าง 6W2H จากข้อความ", type="primary", key="6w2h_button"):
+        if not uploaded_text:
+            st.error("กรุณาวางข้อความในช่องก่อน")
+        elif not st.session_state.api_key_global:
+            st.error("ยังไม่ได้ตั้งค่า API Key, กรุณาติดต่อผู้ดูแลระบบ หรือตั้งค่าใน Streamlit Cloud Secrets")
+        else:
+            with st.spinner("กำลังประมวลผล..."):
+                try:
+                    user_prompt = f"จากข้อความด้านล่างนี้ กรุณาสรุปและแยกแยะข้อมูลให้เป็น 6W2H ได้แก่ Who, Whom, What, Where, When, Why, How, และ How much โดยให้อยู่ในรูปแบบ key-value ที่ชัดเจน\nข้อความ:\n---\n{uploaded_text}\n---\nรูปแบบที่ต้องการ:\nWho: [ข้อความ]\nWhom: [ข้อความ]\nWhat: [ข้อความ]\nWhere: [ข้อความ]\nWhen: [ข้อความ]\nWhy: [ข้อความ]\nHow: [ข้อความ]\nHow Much: [ข้อความ]"
+                    client = OpenAI(api_key=st.session_state.api_key_global, base_url="https://api.opentyphoon.ai/v1")
+                    response = client.chat.completions.create(model="typhoon-v2.1-12b-instruct", messages=[{"role": "user", "content": user_prompt}], temperature=0.7, max_tokens=1024, top_p=0.9)
+                    st.session_state["6w2h_output"] = response.choices[0].message.content
+                    st.success("สร้าง 6W2H เรียบร้อยแล้ว! ผลลัพธ์แสดงอยู่ด้านล่าง"); st.balloons(); st.rerun()
+                except Exception as e:
+                    st.error(f"เกิดข้อผิดพลาดในการเรียกใช้ AI: {e}")
 
-        if st.session_state.get("6w2h_output"):
-            st.markdown("---")
-            with st.expander("คลิกเพื่อดู/ซ่อนผลลัพธ์จาก AI ล่าสุด", expanded=True):
-                st.info("ตรวจสอบและคัดลอกข้อมูลด้านล่างนี้ไปวางในช่องที่เกี่ยวข้อง:")
-                with st.container(border=True):
-                    st.markdown(st.session_state["6w2h_output"])
+    if st.session_state.get("6w2h_output"):
+        st.markdown("---")
+        with st.expander("คลิกเพื่อดู/ซ่อนผลลัพธ์จาก AI ล่าสุด", expanded=True):
+            st.info("ตรวจสอบและคัดลอกข้อมูลด้านล่างนี้ไปวางในช่องที่เกี่ยวข้อง:")
+            with st.container(border=True):
+                st.markdown(st.session_state["6w2h_output"])
 
     st.markdown("##### ⭐กรุณาระบุข้อมูล เพื่อนำไปใช้ประมวลผล")
     with st.container(border=True):
