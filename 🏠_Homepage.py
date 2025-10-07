@@ -20,7 +20,7 @@ with st.sidebar:
         unsafe_allow_html=True
     )
 
-# --- Enhanced CSS for homepage and sidebar ---
+# --- Enhanced CSS for homepage and sidebar with new color theme ---
 st.markdown(
     """
     <style>
@@ -71,10 +71,10 @@ st.markdown(
         font-size: 1rem;
     }
 
-    /* Color Overrides for each box */
-    .box-1 h3 { color: #A93C2D; } /* Red */
-    .box-2 h3 { color: #2E8B57; } /* Green */
-    .box-3 h3 { color: #4A6A8A; } /* Blue */
+    /* --- UPDATED: Color Overrides for each box --- */
+    .box-1 h3 { color: #19376D; } /* Teal */
+    .box-2 h3 { color: #0B2447; } /* Navy Blue */
+    .box-3 h3 { color: #576CBC; } /* Sky Blue */
 
     /* --- UPDATED: Style the sidebar navigation --- */
     
@@ -93,7 +93,7 @@ st.markdown(
         background-color: #f0f2f6;     /* Default background for inactive links */
     }
     
-    /* Set specific background colors for each link (except the active one) */
+    /* --- UPDATED: Set specific background colors for each link --- */
     /* Homepage (the first item) */
     div[data-testid="stSidebarNav"] ul li:nth-of-type(1) a {
         background-color: #f0f2f6; /* A neutral light gray */
@@ -101,24 +101,24 @@ st.markdown(
     }
     /* Design Assistant (the second item) */
     div[data-testid="stSidebarNav"] ul li:nth-of-type(2) a {
-        background-color: #A93C2D;
+        background-color: #19376D; /* Teal */
         color: white !important;
     }
     /* Plan Generator (the third item) */
     div[data-testid="stSidebarNav"] ul li:nth-of-type(3) a {
-        background-color: #4D8076;
+        background-color: #0B2447; /* Navy Blue */
         color: white !important;
     }
     /* PA Assistant Chat (the fourth item) */
     div[data-testid="stSidebarNav"] ul li:nth-of-type(4) a {
-        background-color: #4A6A8A;
+        background-color: #576CBC; /* Sky Blue */
         color: white !important;
     }
 
     /* Style the ACTIVE page link to override the colors above */
     div[data-testid="stSidebarNav"] a[aria-current="page"] {
-        background-color: #D1E8FF;     /* Highlight color for the selected page */
-        color: #004085 !important;     /* Text color for the selected page */
+        background-color: #A5D7E8;     /* Highlight color for the selected page (Light Gray) */
+        color: #0B2447 !important;     /* Text color for the selected page (Navy Blue) */
         font-weight: bold;
     }
 
@@ -180,3 +180,4 @@ with st.container():
 
 st.markdown("---")
 st.info("💡 กรุณาเลือกเมนูจากแถบด้านข้าง (Sidebar) เพื่อเริ่มต้นใช้งาน")
+
