@@ -76,7 +76,7 @@ st.markdown(
     .box-2 h3 { color: #2E8B57; } /* Green */
     .box-3 h3 { color: #4A6A8A; } /* Blue */
 
-    /* --- NEW: Style the sidebar navigation --- */
+    /* --- UPDATED: Style the sidebar navigation --- */
     
     /* Move the whole navigation block down */
     div[data-testid="stSidebarNav"] {
@@ -94,20 +94,28 @@ st.markdown(
     }
     
     /* Set specific background colors for each link (except the active one) */
-    div[data-testid="stSidebarNav"] ul li:nth-of-type(2) a { /* Design Assistant */
+    /* Homepage (the first item) */
+    div[data-testid="stSidebarNav"] ul li:nth-of-type(1) a {
+        background-color: #f0f2f6; /* A neutral light gray */
+        color: #333 !important;
+    }
+    /* Design Assistant (the second item) */
+    div[data-testid="stSidebarNav"] ul li:nth-of-type(2) a {
         background-color: #A93C2D;
         color: white !important;
     }
-    div[data-testid="stSidebarNav"] ul li:nth-of-type(3) a { /* Plan Generator */
+    /* Plan Generator (the third item) */
+    div[data-testid="stSidebarNav"] ul li:nth-of-type(3) a {
         background-color: #4D8076;
         color: white !important;
     }
-    div[data-testid="stSidebarNav"] ul li:nth-of-type(4) a { /* PA Assistant Chat */
+    /* PA Assistant Chat (the fourth item) */
+    div[data-testid="stSidebarNav"] ul li:nth-of-type(4) a {
         background-color: #4A6A8A;
         color: white !important;
     }
 
-    /* Style the ACTIVE page link */
+    /* Style the ACTIVE page link to override the colors above */
     div[data-testid="stSidebarNav"] a[aria-current="page"] {
         background-color: #D1E8FF;     /* Highlight color for the selected page */
         color: #004085 !important;     /* Text color for the selected page */
@@ -171,4 +179,4 @@ with st.container():
         )
 
 st.markdown("---")
-st.info("⚙️ ระบบมีฟีเจอร์ AI อาจทำผิดพลาดได้ ดังนั้น โปรดตรวจสอบคำตอบอีกครั้ง")
+st.info("💡 กรุณาเลือกเมนูจากแถบด้านข้าง (Sidebar) เพื่อเริ่มต้นใช้งาน")
