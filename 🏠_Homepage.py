@@ -73,10 +73,10 @@ st.markdown(
 
     /* Color Overrides for each box */
     .box-1 h3 { color: #A93C2D; } /* Red */
-    .box-2 h3 { color: #4D8076; } /* Green-Teal */
-    .box-3 h3 { color: #4A6A8A; } /* Blue-Grey */
+    .box-2 h3 { color: #2E8B57; } /* Green */
+    .box-3 h3 { color: #4A6A8A; } /* Blue */
 
-    /* --- NEW: Style the sidebar navigation --- */
+    /* --- UPDATED: Style the sidebar navigation with the new color scheme --- */
     
     /* Move the whole navigation block down */
     div[data-testid="stSidebarNav"] {
@@ -89,25 +89,14 @@ st.markdown(
         font-size: 18px !important;     /* Make the font bigger */
         margin-bottom: 8px;           /* Add space between links */
         border-radius: 5px;
-        color: white !important;        /* Default text color for inactive links */
-        background-color: #f0f2f6;     /* Default background for inactive links */
+        color: #FFFFFF !important;        /* White text for all */
+        background-color: #3B5998;     /* Dark Blue from image */
     }
     
-    /* Set specific background colors for each link (except the active one) */
-    div[data-testid="stSidebarNav"] ul li:nth-of-type(2) a { /* Design Assistant */
-        background-color: #A93C2D;
-    }
-    div[data-testid="stSidebarNav"] ul li:nth-of-type(3) a { /* Plan Generator */
-        background-color: #4D8076;
-    }
-    div[data-testid="stSidebarNav"] ul li:nth-of-type(4) a { /* PA Assistant Chat */
-        background-color: #4A6A8A;
-    }
-
     /* Style the ACTIVE page link */
     div[data-testid="stSidebarNav"] a[aria-current="page"] {
-        background-color: #D1E8FF;     /* Highlight color for the selected page */
-        color: #004085 !important;     /* Text color for the selected page */
+        background-color: #8B9DC3;     /* Light Blue from image */
+        color: #FFFFFF !important;     /* White text for the selected page */
         font-weight: bold;
     }
 
@@ -168,5 +157,5 @@ with st.container():
         )
 
 st.markdown("---")
-st.info("💡 กรุณาเลือกเมนูจากแถบด้านข้าง (Sidebar) เพื่อเริ่มต้นใช้งาน")
+st.info("⚙️ ระบบมีฟีเจอร์ AI อาจทำผิดพลาดได้ ดังนั้น โปรดตรวจสอบคำตอบอีกครั้ง")
 
