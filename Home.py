@@ -79,8 +79,8 @@ st.markdown(
         box-shadow: 0 8px 30px rgba(0,0,0,0.12);
     }
     .feature-box .emoji { font-size: 2rem; line-height: 1; }
-    .feature-box h3 { margin-top: 0.7rem; margin-bottom: 0.4rem; font-size: 2rem; }
-    .feature-box p { color: #6c757d; font-size: 1.5rem; }
+    .feature-box h3 { margin-top: 0.7rem; margin-bottom: 0.4rem; font-size: 1.2rem; }
+    .feature-box p { color: #6c757d; font-size: 1rem; }
     
     /* --- Style the sidebar navigation --- */
     div[data-testid="stSidebarNav"] > ul > li > a {
