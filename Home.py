@@ -72,7 +72,7 @@ st.markdown(
         flex-direction: column;
         justify-content: center;
         align-items: center;
-        border: 1px solid #d0e0df;
+        border: 2px solid #d0e0df;
     }
     .feature-box:hover {
         transform: translateY(-10px);
