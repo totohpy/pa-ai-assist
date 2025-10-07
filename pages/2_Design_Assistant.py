@@ -8,6 +8,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from openai import OpenAI
 import os
 import io
+import docx
 from PyPDF2 import PdfReader
 from streamlit_agraph import agraph, Node, Edge, Config
 
