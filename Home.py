@@ -110,7 +110,7 @@ st.markdown(
 # --- Homepage Layout ---
 st.title("🧭 Planning Studio – Performance Audit")
 st.subheader("", anchor=False)
-st.write("")
+st.write("เครื่องมือ")
 st.write("")
 
 col1, col2, col3 = st.columns(3, gap="medium")
