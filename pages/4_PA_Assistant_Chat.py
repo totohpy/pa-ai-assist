@@ -14,48 +14,79 @@ with st.sidebar:
 # --- Apply Consistent Styling ---
 st.markdown(
     """
-    <style>
+     <style>
     /* --- Overall App Color Theme --- */
     [data-testid="stAppViewContainer"] > .main {
         background-color: #e0f2f1;
     }
     [data-testid="stSidebar"] {
         background-color: #e0f2f1;
-        width: 350px !important;
+        width: 250px !important;
     }
     
     /* --- Flexbox layout for Sidebar --- */
+    /* This targets the inner container of the sidebar */
     [data-testid="stSidebar"] > div:first-child {
         display: flex;
         flex-direction: column;
         height: 100%;
     }
+    /* This makes the navigation take up all available space, pushing the footer down */
     [data-testid="stSidebarNav"] {
         flex-grow: 1;
-        margin-top: 20px;
+        margin-top: 20px; /* Move navigation down */
     }
     .sidebar-footer {
         width: 100%;
         padding: 1rem;
-        text-align: center;
+        text-align: center; /* Center the footer content */
     }
 
+    /* Remove Streamlit's default top padding */
+    .block-container {
+        padding-top: 2rem;
+    }
+
+    /* --- Feature Box Styling (Main Page) --- */
+    .feature-link { text-decoration: none !important; color: inherit !important; }
+    .feature-link:hover { text-decoration: none !important; color: inherit !important; }
+    .feature-box {
+        background-color: #e0f2f1;
+        padding: 1rem 1rem;
+        border-radius: 20px;
+        text-align: center;
+        transition: transform 0.3s, box-shadow 0.3s;
+        height: 200px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        border: 1px solid #d0e0df;
+    }
+    .feature-box:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+    }
+    .feature-box .emoji { font-size: 1.6rem; line-height: 1; }
+    .feature-box h3 { margin-top: 0.7rem; margin-bottom: 0.4rem; font-size: 1.2rem; }
+    .feature-box p { color: #6c757d; font-size: 0.85rem; }
+    
     /* --- Style the sidebar navigation --- */
     div[data-testid="stSidebarNav"] > ul > li > a {
-        padding: 18px 40px !important;
-        font-size: 20px !important;
+        padding: 18px 40px !important; /* Increased padding for more height */
+        font-size: 20px !important;    /* Larger font size */
         margin-bottom: 10px;
         border-radius: 8px;
-        color: #263238 !important;
-        background-color: #b2dfdb;
+        color: #263238 !important;     /* Darker text for inactive links */
+        background-color: #b2dfdb;     /* Light teal for inactive links */
         border: 1px solid #9dbdb9;
         font-weight: 500;
     }
     
     /* Style the ACTIVE page link */
     div[data-testid="stSidebarNav"] a[aria-current="page"] {
-        background-color: #009688;
-        color: #FFFFFF !important;
+        background-color: #80cbc4;     /* Dark teal for active link */
+        color: #FFFFFF !important;     /* White text for active link */
         font-weight: 600;
         border: 1px solid #00796b;
     }
