@@ -273,7 +273,52 @@ with tab_plan:
         st.markdown("##### 🚀 สร้าง 6W2H อัตโนมัติด้วย AI")
         st.write("คัดลอกข้อความจากไฟล์มาวางในช่องด้านล่างนี้")
         uploaded_text = st.text_area("ระบุข้อความเพื่อให้ AI ช่วยสรุป 6W2H", height=200, key="uploaded_text")
+# --- เริ่มส่วนโค้dใหม่ ---
 
+# Initialize session state to store the extracted text
+if 'uploaded_text' not in st.session_state:
+    st.session_state.uploaded_text = ""
+
+st.write("อัปโหลดไฟล์ .docx หรือ .pdf เพื่อดึงข้อความมาใส่ในช่องด้านล่าง")
+
+# 1. สร้าง File Uploader
+uploaded_file = st.file_uploader(
+    "เลือกไฟล์เอกสาร...",
+    type=['docx', 'pdf'],
+    label_visibility="collapsed"
+)
+
+# 2. ตรวจสอบและประมวลผลไฟล์ที่อัปโหลด
+if uploaded_file is not None:
+    text = ""
+    try:
+        # ถ้าเป็นไฟล์ PDF
+        if uploaded_file.name.endswith('.pdf'):
+            reader = PdfReader(uploaded_file)
+            for page in reader.pages:
+                text += page.extract_text() or ""
+        
+        # ถ้าเป็นไฟล์ DOCX
+        elif uploaded_file.name.endswith('.docx'):
+            doc = docx.Document(uploaded_file)
+            for para in doc.paragraphs:
+                text += para.text + "\n"
+        
+        # อัปเดตข้อความใน session state
+        st.session_state.uploaded_text = text
+        st.success("ดึงข้อความจากไฟล์สำเร็จ!")
+
+    except Exception as e:
+        st.error(f"เกิดข้อผิดพลาดในการอ่านไฟล์: {e}")
+
+# 3. แสดงผลข้อความใน Text Area
+st.text_area(
+    "ระบุข้อความเพื่อให้ AI ช่วยสรุป 6W2H",
+    key="uploaded_text", # เชื่อมกับ session state
+    height=250
+)
+
+# --- จบส่วนโค้ดใหม่ ---
         if st.button("🚀 สร้าง 6W2H จากข้อความ", type="primary", key="6w2h_button"):
             if not uploaded_text:
                 st.error("กรุณาวางข้อความในช่องก่อน")
