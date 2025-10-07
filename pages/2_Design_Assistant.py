@@ -343,31 +343,31 @@ with tab_plan:
                 except Exception as e:
                     st.error(f"เกิดข้อผิดพลาดในการเรียกใช้ AI: {e}")
 
-if st.session_state.get("6w2h_output"):
-    st.markdown("---")
-    with st.expander("คลิกเพื่อดู/ซ่อนผลลัพธ์จาก AI ล่าสุด", expanded=True):
-        st.info("ตรวจสอบและคัดลอกข้อมูลด้านล่างนี้ไปวางในช่องที่เกี่ยวข้อง:")
-        with st.container(border=True):
-            st.markdown(st.session_state["6w2h_output"])
-
-st.markdown("##### ⭐กรุณาระบุข้อมูล เพื่อนำไปใช้ประมวลผล")
-with st.container(border=True):
-    cc1, cc2, cc3 = st.columns(3)
-    with cc1:
-        plan["who"] = st.text_input("Who (ใคร)", plan["who"], key="who_input")
-        plan["whom"] = st.text_input("Whom (เพื่อใคร)", plan["whom"], key="whom_input")
-        plan["what"] = st.text_input("What (ทำอะไร)", plan["what"], key="what_input")
-    with cc2:
-        plan["where"] = st.text_input("Where (ที่ไหน)", plan["where"], key="where_input")
-        plan["when"] = st.text_input("When (เมื่อใด)", plan["when"], key="when_input")
-        plan["why"] = st.text_area("Why (ทำไม)", plan["why"], key="why_input")
-    with cc3:
-        plan["how"] = st.text_area("How (อย่างไร)", plan["how"], key="how_input")
-        plan["how_much"] = st.text_input("How much (เท่าไร)", plan["how_much"], key="how_much_input")
-
-# ... (ส่วนที่เหลือของโค้ดเหมือนเดิมทุกประการ) ...
-# The rest of the file content from tab_logic onwards remains unchanged.
-# I will append the rest of the original file content here to be complete.
+    if st.session_state.get("6w2h_output"):
+        st.markdown("---")
+        with st.expander("คลิกเพื่อดู/ซ่อนผลลัพธ์จาก AI ล่าสุด", expanded=True):
+            st.info("ตรวจสอบและคัดลอกข้อมูลด้านล่างนี้ไปวางในช่องที่เกี่ยวข้อง:")
+            with st.container(border=True):
+                st.markdown(st.session_state["6w2h_output"])
+    
+    st.markdown("##### ⭐กรุณาระบุข้อมูล เพื่อนำไปใช้ประมวลผล")
+    with st.container(border=True):
+        cc1, cc2, cc3 = st.columns(3)
+        with cc1:
+            plan["who"] = st.text_input("Who (ใคร)", plan["who"], key="who_input")
+            plan["whom"] = st.text_input("Whom (เพื่อใคร)", plan["whom"], key="whom_input")
+            plan["what"] = st.text_input("What (ทำอะไร)", plan["what"], key="what_input")
+        with cc2:
+            plan["where"] = st.text_input("Where (ที่ไหน)", plan["where"], key="where_input")
+            plan["when"] = st.text_input("When (เมื่อใด)", plan["when"], key="when_input")
+            plan["why"] = st.text_area("Why (ทำไม)", plan["why"], key="why_input")
+        with cc3:
+            plan["how"] = st.text_area("How (อย่างไร)", plan["how"], key="how_input")
+            plan["how_much"] = st.text_input("How much (เท่าไร)", plan["how_much"], key="how_much_input")
+    
+    # ... (ส่วนที่เหลือของโค้ดเหมือนเดิมทุกประการ) ...
+    # The rest of the file content from tab_logic onwards remains unchanged.
+    # I will append the rest of the original file content here to be complete.
 
 with tab_logic:
     st.subheader("ระบุ Logic Model")
