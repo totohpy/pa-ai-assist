@@ -237,7 +237,7 @@ def generate_html_report(data):
         .header-info p, .objective-info p {{ margin: 0; padding: 2px 0; }}
         .signature-table td {{ height: 120px; }}
         .print-button-container {{ text-align: center; margin: 15px 0; }}
-        .print-button {{ padding: 10px 20px; font-size: 16px; cursor: pointer; border-radius: 5px; border: 1px solid #007bff; background-color: #007bff; color: white; font-family: 'Sarabun', sans-serif;}}
+        .print-button {{ padding: 10px 20px; font-size: 16px; cursor: pointer; border-radius: 5px; border: 1px solid #007bff; background-color: #81d4fa; color: white; font-family: 'Sarabun', sans-serif;}}
         thead th {{ position: -webkit-sticky; position: sticky; top: -1px; background-color: #f2f2f2; z-index: 2; }}
         @media print {{ .no-print {{ display: none; }} @page {{ size: A4 landscape; margin: 1.5cm; }} body {{ margin: 0; }} }}
     </style></head><body>
@@ -324,7 +324,7 @@ for i, obj in enumerate(st.session_state.plan_gen_data["objectives"]):
                     target_issue['text'] = st.text_area(f"ประเด็นการตรวจสอบที่ {prefix}", value=target_issue.get('text', ''), key=f"issue_text_{key_suffix}")
                     if not target_issue.get('issues'):
                         st.markdown('<div class="ai-expander">', unsafe_allow_html=True)
-                        with st.expander("เพิ่มรายละเอียดแนวการตรวจสอบ (💡ให้ AI ช่วย)"):
+                        with st.expander("👆🏻เพิ่มรายละเอียดแนวการตรวจสอบ (💡ให้ AI ช่วย)"):
                             details = target_issue.get('details', {})
                             field_map = { "criteria": "เกณฑ์การตรวจสอบ", "info_needed": "ข้อมูลที่ต้องการ", "source": "แหล่งข้อมูล", "collection_method": "วิธีการรวบรวมหลักฐาน", "analysis_method": "วิธีการวิเคราะห์หลักฐาน" }
                             for field, label in field_map.items():
