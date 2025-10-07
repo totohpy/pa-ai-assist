@@ -33,7 +33,7 @@ st.markdown(
     h1 { font-size: 36px !important; }
     
     [data-testid="stSidebar"] {
-        background-color: #ffffff;
+        background-color: #e0f2f1;
         width: 250px !important;
     }
     
@@ -91,7 +91,7 @@ st.markdown(
         margin-bottom: 10px;
         border-radius: 8px;
         color: #263238 !important;     /* Darker text for inactive links */
-        background-color: #80deea;     /* Light teal for inactive links */
+        background-color: #80deea !important;     /* Light teal for inactive links */
         border: 1px solid #9dbdb9;
         font-weight: 500;
     }
