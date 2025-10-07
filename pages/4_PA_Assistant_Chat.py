@@ -67,7 +67,7 @@ st.markdown(
         border-radius: 20px;
         text-align: center;
         transition: transform 0.3s, box-shadow 0.3s;
-        height: 200px;
+        height: 150px;
         display: flex;
         flex-direction: column;
         justify-content: center;
