@@ -109,8 +109,12 @@ st.markdown(
 
 # --- Homepage Layout ---
 st.title("🧭 Planning Studio – Performance Audit")
-st.subheader("", anchor=False)
-st.write("เครื่องมือ")
+st.subheader("Achieve More, Faster. Your Intelligent Efficiency Tools", anchor=False)
+st.markdown(
+    "<h3 style='font-style: italic; color: grey;'>Achieve More, Faster. Your Intelligent Efficiency Tools</h3>",
+    unsafe_allow_html=True
+)
+st.write("")
 st.write("")
 
 col1, col2, col3 = st.columns(3, gap="medium")
