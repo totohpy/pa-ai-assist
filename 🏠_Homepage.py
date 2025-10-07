@@ -33,7 +33,7 @@ st.markdown(
     /* Sidebar background and initial width */
     [data-testid="stSidebar"] {
         background-color: #e0f2f1;
-        width: 350px !important; /* --- Set initial width of the sidebar --- */
+        width: 250px !important; /* --- Set initial width of the sidebar --- */
     }
 
     /* Remove Streamlit's default top padding */
@@ -125,7 +125,7 @@ with st.container():
             """
             <a href="Design_Assistant" target="_self" class="feature-link">
                 <div class="feature-box box-1">
-                    <span class="emoji">✨</span>
+                    <span class="emoji">❔</span>
                     <h3>Design Assistant</h3>
                     <p>แนะนำประเด็นตรวจสอบที่น่าสนใจ จากการวิเคราะห์ข้อมูลแผน, 6W2H, และฐานข้อมูลข้อตรวจพบในอดีต</p>
                 </div>
@@ -139,7 +139,7 @@ with st.container():
             """
             <a href="Plan_Generator" target="_self" class="feature-link">
                 <div class="feature-box box-2">
-                    <span class="emoji">📜</span>
+                    <span class="emoji">🧾</span>
                     <h3>Plan Generator</h3>
                     <p>ช่วยร่างแผนและแนวการตรวจสอบ พร้อมระบบ AI ช่วยสร้างเนื้อหาในแต่ละส่วน และส่งออกเป็นเอกสารได้</p>
                 </div>
