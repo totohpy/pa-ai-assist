@@ -31,7 +31,7 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
 
-st.title("🔮 Plan Generator")
+st.title("🔮 Audit Plan Generator")
 st.markdown("เครื่องมือช่วยสร้างแผนและแนวการตรวจสอบ พร้อมระบบ AI ช่วยร่างเนื้อหา")
 
 # --- Custom CSS for Styling App Interface ---
