@@ -162,7 +162,7 @@ def run_ai_for_field(obj_index, path, field_name):
         target_issue = obj
         for index in path:
             target_issue = target_issue["issues"][index]
-        context = f"เรื่องที่ตรวจสอบ: {st.session_state.plan_gen_data['general_info']['topic']}\n"
+        context = f"เรื่องที่ตรวจสอบ: {st.session_state.plan_gen_data['general_info']['topic']['agency']['ministry']}\n"
         context += f"วัตถุประสงค์: {obj.get('text', '')}\n"
         context += f"ประเด็นการตรวจสอบ: {target_issue.get('text', '')}\n"
         prompt_instruction = ""
