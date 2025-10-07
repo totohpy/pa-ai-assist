@@ -237,7 +237,7 @@ def generate_html_report(data):
         .header-info p, .objective-info p {{ margin: 0; padding: 2px 0; }}
         .signature-table td {{ height: 120px; }}
         .print-button-container {{ text-align: center; margin: 15px 0; }}
-        .print-button {{ padding: 10px 20px; font-size: 16px; cursor: pointer; border-radius: 5px; border: 1px solid #007bff; background-color: #81d4fa; color: #ffffff; font-family: 'Sarabun', sans-serif;}}
+        .print-button {{ padding: 10px 20px; font-size: 16px; cursor: pointer; border-radius: 5px; border: 1px solid #007bff; background-color: #81d4fa; color: #000000; font-family: 'Sarabun', sans-serif;}}
         thead th {{ position: -webkit-sticky; position: sticky; top: -1px; background-color: #f2f2f2; z-index: 2; }}
         @media print {{ .no-print {{ display: none; }} @page {{ size: A4 landscape; margin: 1.5cm; }} body {{ margin: 0; }} }}
     </style></head><body>
