@@ -6,22 +6,6 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- Add the credit to the bottom of the sidebar ---
-with st.sidebar:
-    st.markdown("""
-        <div class="sidebar-footer">
-            <p>
-                <span style="color: grey;">By PAO1 </span><br>
-                <span style="font-size: 16px; letter-spacing: 0.5px;">
-                    <span style="color: red; font-weight: bold;">A</span>udit 
-                    <span style="color: red; font-weight: bold;">I</span>ntelligence
-                    <span style="color: red; font-weight: bold;">T</span>eam
-                </span>
-            </p>
-        </div>
-    """, unsafe_allow_html=True)
-
-
 # --- Enhanced CSS for homepage and sidebar ---
 st.markdown(
     """
@@ -32,17 +16,15 @@ st.markdown(
     }
     [data-testid="stSidebar"] {
         background-color: #e0f2f1;
-        width: 250px !important;
+        width: 350px !important;
     }
     
     /* --- Flexbox layout for Sidebar --- */
-    /* This targets the inner container of the sidebar */
     [data-testid="stSidebar"] > div:first-child {
         display: flex;
         flex-direction: column;
         height: 100%;
     }
-    /* This makes the navigation take up all available space, pushing the footer down */
     [data-testid="stSidebarNav"] {
         flex-grow: 1;
         margin-top: 20px; /* Move navigation down */
@@ -50,7 +32,7 @@ st.markdown(
     .sidebar-footer {
         width: 100%;
         padding: 1rem;
-        text-align: center; /* Center the footer content */
+        text-align: center;
     }
 
     /* Remove Streamlit's default top padding */
@@ -84,20 +66,20 @@ st.markdown(
     
     /* --- Style the sidebar navigation --- */
     div[data-testid="stSidebarNav"] > ul > li > a {
-        padding: 18px 40px !important; /* Increased padding for more height */
-        font-size: 20px !important;    /* Larger font size */
+        padding: 18px 40px !important; /* Move text to the right */
+        font-size: 20px !important;    
         margin-bottom: 10px;
         border-radius: 8px;
-        color: #263238 !important;     /* Darker text for inactive links */
-        background-color: #b2dfdb;     /* Light teal for inactive links */
-        border: 1px solid #9dbdb9;
+        color: #263238 !important;     
+        background-color: #b2dfdb;     
+        border: 1px solid #9dbdb9;      /* Add a thin gray border */
         font-weight: 500;
     }
     
     /* Style the ACTIVE page link */
     div[data-testid="stSidebarNav"] a[aria-current="page"] {
-        background-color: #80cbc4;     /* Dark teal for active link */
-        color: #FFFFFF !important;     /* White text for active link */
+        background-color: #009688;     /* Dark teal for active link */
+        color: #FFFFFF !important;     /* --- Change text to white --- */
         font-weight: 600;
         border: 1px solid #00796b;
     }
@@ -109,7 +91,7 @@ st.markdown(
 
 # --- Homepage Layout ---
 st.title("🧭 Planning Studio – Performance Audit")
-st.subheader("", anchor=False)
+st.subheader("เครื่องมือดิจิทัลสำหรับงานตรวจสอบผลการดำเนินงาน", anchor=False)
 st.write("")
 st.write("")
 
@@ -120,7 +102,7 @@ with col1:
         """
         <a href="Design_Assistant" target="_self" class="feature-link">
             <div class="feature-box box-1">
-                <span class="emoji">🏳️</span>
+                <span class="emoji">❔</span>
                 <h3>Design Assistant</h3>
                 <p>แนะนำประเด็นตรวจสอบที่น่าสนใจ จากการวิเคราะห์ข้อมูลแผน, 6W2H, และฐานข้อมูลข้อตรวจพบในอดีต</p>
             </div>
@@ -150,7 +132,7 @@ with col3:
             <div class="feature-box box-3">
                 <span class="emoji">💬</span>
                 <h3>PA Assistant Chat</h3>
-                <p>ผู้ช่วยอัจฉริยะที่สามารถถาม-ตอบข้อสงสัยจากคลังข้อมูลการตรวจสอบต่างๆ ช่วยสนับสนุนการทำงาน</p>
+                <p>ผู้ช่วยอัจฉริยะที่สามารถถาม-ตอบข้อสงสัยจากคลังข้อมูลและเอกสารการตรวจสอบต่างๆ เพื่อช่วยสนับสนุนการทำงาน</p>
             </div>
         </a>
         """,
@@ -159,4 +141,3 @@ with col3:
 
 st.markdown("---")
 st.info("⚙️ การใช้ฟีเจอร์ AI อาจทำผิดพลาดได้ ดังนั้น โปรดตรวจสอบคำตอบอีกครั้ง")
-
