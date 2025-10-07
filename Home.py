@@ -111,7 +111,7 @@ st.markdown(
 st.title("🧭 Planning Studio – Performance Audit")
 st.subheader("", anchor=False)
 st.markdown(
-    "<h2 style='font-style: italic; color: #2baf2b; font-size: 24px'> ⚒ Achieve More, Faster. Your Intelligent Efficiency Tools  ᯓ★ </h3>",
+    "<h2 style='font-style: italic; color: #2baf2b; font-size: 22px'> ⚒ Achieve More, Faster. Your Intelligent Efficiency Tools  ᯓ★ </h3>",
     unsafe_allow_html=True
 )
 st.write("")
