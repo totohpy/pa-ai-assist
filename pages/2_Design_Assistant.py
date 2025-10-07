@@ -15,7 +15,6 @@ from streamlit_agraph import agraph, Node, Edge, Config
 st.set_page_config(page_title="Design Assistant", page_icon="✨", layout="wide")
 
 # --- Enhanced CSS for homepage and sidebar ---
-st.markdown("---")
 st.markdown(
     """
     <style>
