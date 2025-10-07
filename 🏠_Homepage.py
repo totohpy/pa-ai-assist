@@ -51,7 +51,7 @@ st.markdown(
 
     /* Clickable Feature Box Styling */
     .feature-box {
-        background-color: #ffffff;
+        background-color: #b2dfdb;
         padding: 2.5rem 2rem;
         border-radius: 10px;
         text-align: center;
@@ -84,7 +84,7 @@ st.markdown(
     
     /* Move the whole navigation block down */
     div[data-testid="stSidebarNav"] {
-        margin-top: 20px;
+        margin-top: 30px;
     }
 
     /* Style each navigation link */
@@ -92,7 +92,7 @@ st.markdown(
         padding: 16px !important;      /* Make the link taller */
         font-size: 20px !important;     /* Make the font bigger */
         margin-bottom: 10px;           /* Add space between links */
-        border-radius: 8px;
+        border-radius: 6px;
         color: #FFFFFF !important;        /* White text for all */
         background-color: #b2dfdb;     /* Dark Teal for all tabs */
     }
