@@ -6,19 +6,9 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- Add the credit to the sidebar on the homepage ---
-with st.sidebar:
-    st.markdown("---")
-    st.markdown(
-        '<p style="font-family: \'Kanit\', sans-serif;">'
-        '<span style="color: grey;">By PAO1 </span><br>'
-        '<span style="font-size: 16px; letter-spacing: 0.5px;">'
-        '<span style="color: red; font-weight: bold;">A</span>udit '
-        '<span style="color: red; font-weight: bold;">I</span>ntelligence Team'
-        '</span>'
-        '</p>',
-        unsafe_allow_html=True
-    )
+# --- ลบส่วนเครดิตออกจาก Sidebar แล้ว ---
+# with st.sidebar:
+#     ...
 
 # --- Enhanced CSS for homepage and sidebar with new color theme ---
 st.markdown(
@@ -71,55 +61,39 @@ st.markdown(
         font-size: 1rem;
     }
 
-    /* --- UPDATED: Color Overrides for each box --- */
+    /* Color Overrides for each box */
     .box-1 h3 { color: #19376D; } /* Teal */
     .box-2 h3 { color: #0B2447; } /* Navy Blue */
     .box-3 h3 { color: #576CBC; } /* Sky Blue */
 
-    /* --- UPDATED: Style the sidebar navigation --- */
+    /* Style the sidebar navigation */
     
+    /* Set sidebar background color */
+    [data-testid="stSidebar"] > div:first-of-type {
+        background-color: #E9F1FA; /* Lightest Sky Blue */
+    }
+
     /* Move the whole navigation block down */
     div[data-testid="stSidebarNav"] {
-        margin-top: 20px;
+        margin-top: 25px;
     }
 
     /* Style each navigation link */
     div[data-testid="stSidebarNav"] > ul > li > a {
-        padding: 12px !important;      /* Make the link taller */
-        font-size: 18px !important;     /* Make the font bigger */
-        margin-bottom: 8px;           /* Add space between links */
-        border-radius: 5px;
-        color: #333 !important;        /* Default text color for inactive links */
-        background-color: #f0f2f6;     /* Default background for inactive links */
+        padding: 15px !important;      /* Make the link taller */
+        font-size: 20px !important;     /* Make font bigger */
+        margin-bottom: 10px;          /* Add space between links */
+        border-radius: 8px;
+        color: white !important;        /* White text for all */
+        background-color: #576CBC;     /* Sky Blue for all inactive tabs */
     }
     
-    /* --- UPDATED: Set specific background colors for each link --- */
-    /* Homepage (the first item) */
-    div[data-testid="stSidebarNav"] ul li:nth-of-type(1) a {
-        background-color: #f0f2f6; /* A neutral light gray */
-        color: #333 !important;
-    }
-    /* Design Assistant (the second item) */
-    div[data-testid="stSidebarNav"] ul li:nth-of-type(2) a {
-        background-color: #19376D; /* Teal */
-        color: white !important;
-    }
-    /* Plan Generator (the third item) */
-    div[data-testid="stSidebarNav"] ul li:nth-of-type(3) a {
-        background-color: #0B2447; /* Navy Blue */
-        color: white !important;
-    }
-    /* PA Assistant Chat (the fourth item) */
-    div[data-testid="stSidebarNav"] ul li:nth-of-type(4) a {
-        background-color: #576CBC; /* Sky Blue */
-        color: white !important;
-    }
-
-    /* Style the ACTIVE page link to override the colors above */
+    /* Style the ACTIVE page link */
     div[data-testid="stSidebarNav"] a[aria-current="page"] {
-        background-color: #A5D7E8;     /* Highlight color for the selected page (Light Gray) */
-        color: #0B2447 !important;     /* Text color for the selected page (Navy Blue) */
+        background-color: #FFFFFF;     /* White background for active page */
+        color: #0B2447 !important;     /* Navy Blue text for active page */
         font-weight: bold;
+        border: 2px solid #576CBC;
     }
 
     </style>
@@ -178,6 +152,7 @@ with st.container():
             unsafe_allow_html=True
         )
 
+# --- UPDATED: Changed the info text at the bottom ---
 st.markdown("---")
-st.info("💡 กรุณาเลือกเมนูจากแถบด้านข้าง (Sidebar) เพื่อเริ่มต้นใช้งาน")
+st.info("⚙️ ระบบมีฟีเจอร์ AI อาจทำผิดพลาดได้ ดังนั้น โปรดตรวจสอบคำตอบอีกครั้ง")
 
