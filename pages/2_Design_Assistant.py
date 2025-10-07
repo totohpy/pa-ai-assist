@@ -324,14 +324,18 @@ st.text_area(
 
 # --- จบส่วนโค้ดใหม่ ---
 if st.button("🚀 สร้าง 6W2H จากข้อความ", type="primary", key="6w2h_button"):
-    if not uploaded_text:
-        st.error("กรุณาวางข้อความในช่องก่อน")
+    # ดึงค่าจาก session_state มาใช้แทน
+    uploaded_text_from_file = st.session_state.uploaded_text
+
+    if not uploaded_text_from_file:
+        st.error("กรุณาอัปโหลดไฟล์ หรือวางข้อความในช่องก่อน")
     elif not st.session_state.api_key_global:
         st.error("ยังไม่ได้ตั้งค่า API Key, กรุณาติดต่อผู้ดูแลระบบ หรือตั้งค่าใน Streamlit Cloud Secrets")
     else:
         with st.spinner("กำลังประมวลผล..."):
             try:
-                user_prompt = f"จากข้อความด้านล่างนี้ กรุณาสรุปและแยกแยะข้อมูลให้เป็น 6W2H ได้แก่ Who, Whom, What, Where, When, Why, How, และ How much โดยให้อยู่ในรูปแบบ key-value ที่ชัดเจน\nข้อความ:\n---\n{uploaded_text}\n---\nรูปแบบที่ต้องการ:\nWho: [ข้อความ]\nWhom: [ข้อความ]\nWhat: [ข้อความ]\nWhere: [ข้อความ]\nWhen: [ข้อความ]\nWhy: [ข้อความ]\nHow: [ข้อความ]\nHow Much: [ข้อความ]"
+                # แก้ไขตรงนี้ให้ใช้ตัวแปรใหม่
+                user_prompt = f"จากข้อความด้านล่างนี้ กรุณาสรุปและแยกแยะข้อมูลให้เป็น 6W2H ...\nข้อความ:\n---\n{uploaded_text_from_file}\n---\n..."
                 client = OpenAI(api_key=st.session_state.api_key_global, base_url="https://api.opentyphoon.ai/v1")
                 response = client.chat.completions.create(model="typhoon-v2.1-12b-instruct", messages=[{"role": "user", "content": user_prompt}], temperature=0.7, max_tokens=1024, top_p=0.9)
                 st.session_state["6w2h_output"] = response.choices[0].message.content
