@@ -12,10 +12,25 @@ import base64
 import json
 import streamlit.components.v1 as components
 
-# (วางโค้ดทั้งหมดจากไฟล์ 2_🤖_Plan_Generator.py ที่ใช้งานได้ดีล่าสุดของคุณที่นี่)
-# ... โค้ดที่สมบูรณ์ที่สุดจากคำตอบก่อนหน้า ...
 # --- Page Configuration ---
 st.set_page_config(layout="wide", page_title="AI Plan Generator")
+
+# --- ADDED: Sidebar Configuration (to match Home.py) ---
+with st.sidebar:
+    st.markdown("""
+        <div class="sidebar-footer">
+            <p>
+                <span style="color: grey;">By PAO1 </span><br>
+                <span style="font-size: 16px; letter-spacing: 0.5px;">
+                    <span style="color: red; font-weight: bold;">A</span>udit 
+                    <span style="color: red; font-weight: bold;">I</span>ntelligence
+                    <span style="color: red; font-weight: bold;">T</span>eam
+                </span>
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
+
+
 st.title("🔮 Plan Generator")
 st.markdown("เครื่องมือช่วยสร้างแผนและแนวการตรวจสอบ พร้อมระบบ AI ช่วยร่างเนื้อหา")
 
@@ -103,6 +118,14 @@ def init_plan_state():
         ss.plan_gen_data = { "general_info": {"office": "", "topic": "", "agency": "", "ministry": ""}, "objectives": [], "estimates": {"cost": "", "effort": ""}, "signatures": { "maker": {"name": "", "position": "", "date": None, "comment": ""}, "reviewer": {"name": "", "position": "", "date": None, "comment": ""}, "approver": {"name": "", "position": "", "date": None, "comment": ""}, } }
     if "ui_feedback_message" not in ss:
         ss.ui_feedback_message = None
+        
+    # --- ADDED: API Key loader for Streamlit Cloud ---
+    if 'api_key_global' not in ss:
+        try:
+            ss['api_key_global'] = st.secrets["api_key"]
+        except (KeyError, FileNotFoundError):
+            ss['api_key_global'] = "" # Set as empty string if not found
+            
 init_plan_state()
 
 def add_objective():
@@ -125,15 +148,15 @@ def add_issue(obj_index, parent_issue_path=None):
     st.session_state.ui_feedback_message = None
 
 
-# --- AI Function (Unchanged) ---
+# --- AI Function (Updated to use Session State API Key) ---
 def run_ai_for_field(obj_index, path, field_name):
-    # This function remains unchanged
     st.session_state.ui_feedback_message = None
     try:
-        if "api_key" not in st.secrets:
-            st.session_state.ui_feedback_message = ("error", "ไม่พบ API Key ใน Streamlit Secrets")
+        api_key = st.session_state.get("api_key_global") # Get key from session state
+        if not api_key:
+            st.session_state.ui_feedback_message = ("error", "ไม่พบ API Key กรุณาตั้งค่าใน Streamlit Cloud Secrets")
             return
-        api_key = st.secrets["api_key"]
+            
         client = OpenAI(api_key=api_key, base_url="https://api.opentyphoon.ai/v1")
         obj = st.session_state.plan_gen_data["objectives"][obj_index]
         target_issue = obj
@@ -179,7 +202,9 @@ def run_ai_for_field(obj_index, path, field_name):
     except Exception as e:
         st.session_state.ui_feedback_message = ("error", f"เกิดข้อผิดพลาดในการเรียก AI: {e}")
 
-# --- Function to load and encode fonts (Unchanged) ---
+# ... (ส่วนที่เหลือของโค้ดเหมือนเดิมทุกประการ) ...
+# The rest of the file content from generate_html_report onwards remains unchanged.
+# I will append the rest of the original file content here to be complete.
 @st.cache_data
 def load_font_as_base64(font_path):
     try:
@@ -189,7 +214,6 @@ def load_font_as_base64(font_path):
         st.warning(f"ไม่พบไฟล์ฟอนต์ที่ {font_path} จะใช้ฟอนต์มาตรฐานของเบราว์เซอร์แทน")
         return None
 
-# --- Function to generate HTML report ---
 def generate_html_report(data):
     sarabun_regular_b64 = load_font_as_base64("Sarabun-Regular.ttf")
     sarabun_bold_b64 = load_font_as_base64("Sarabun-Bold.ttf")
@@ -241,7 +265,6 @@ def generate_html_report(data):
     """
     return html_template
 
-# --- Function to generate DOCX ---
 def generate_docx_report(data):
     doc = docx.Document()
     current_section = doc.sections[-1]
@@ -268,8 +291,6 @@ def generate_docx_report(data):
     buffer = io.BytesIO(); doc.save(buffer); buffer.seek(0)
     return buffer
 
-
-# --- UI Rendering ---
 if st.session_state.get("ui_feedback_message"):
     msg_type, msg_content = st.session_state.ui_feedback_message
     if msg_type == "success": st.success(msg_content)
@@ -352,20 +373,13 @@ with st.form("estimates_signatures_form"):
         sig_data["approver"]["comment"] = st.text_area("ความเห็นเพิ่มเติม", value=sig_data["approver"].get("comment", ""), key="approver_comment")
     st.form_submit_button("บันทึกข้อมูลผู้จัดทำ", use_container_width=True)
 
-
-# --- Section for direct HTML preview ---
 st.divider()
 
 with st.container(border=True):
     st.subheader("4. แสดงผลและส่งออกเอกสาร")
-
-    # Use components.html to create a scrollable frame with a fixed height.
-    # This makes the sticky header work and isolates the print command.
     html_report = generate_html_report(st.session_state.plan_gen_data)
     components.html(html_report, height=800, scrolling=True)
-    
     st.markdown("---")
-    
     st.markdown("##### หรือดาวน์โหลดเป็นไฟล์ Word")
     docx_buffer = generate_docx_report(st.session_state.plan_gen_data)
     st.download_button(
