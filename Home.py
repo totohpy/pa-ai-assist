@@ -125,7 +125,7 @@ with col1:
         <a href="Design_Assistant" target="_self" class="feature-link">
             <div class="feature-box box-1">
                 <span class="emoji">🏳️</span>
-                <h3>Design Assistant</h3>
+                <h3>Audit Design Assistant</h3>
                 <p>แนะนำประเด็นตรวจสอบที่น่าสนใจ จากการวิเคราะห์ข้อมูลแผน, 6W2H, Flowchart Logic Model  และฐานข้อมูลข้อตรวจพบในอดีต</p>
             </div>
         </a>
@@ -139,7 +139,7 @@ with col2:
         <a href="Plan_Generator" target="_self" class="feature-link">
             <div class="feature-box box-2">
                 <span class="emoji">🧾</span>
-                <h3>Plan Generator</h3>
+                <h3>Audit Plan Generator</h3>
                 <p>ช่วยร่างแผนและแนวการตรวจสอบ พร้อมระบบ AI ช่วยสร้างเนื้อหาในแต่ละส่วน และส่งออกเป็นเอกสารได้</p>
             </div>
         </a>
