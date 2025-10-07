@@ -14,9 +14,20 @@ from streamlit_agraph import agraph, Node, Edge, Config
 # Page config
 st.set_page_config(page_title="Design Assistant", page_icon="✨", layout="wide")
 
-# --- Sidebar Configuration (empty to inherit from main page) ---
+# --- Sidebar Configuration (Updated to match Home.py) ---
 with st.sidebar:
-    pass
+    st.markdown("""
+        <div class="sidebar-footer">
+            <p>
+                <span style="color: grey;">By PAO1 </span><br>
+                <span style="font-size: 16px; letter-spacing: 0.5px;">
+                    <span style="color: red; font-weight: bold;">A</span>udit 
+                    <span style="color: red; font-weight: bold;">I</span>ntelligence
+                    <span style="color: red; font-weight: bold;">T</span>eam
+                </span>
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
 
 # --- Apply Consistent Styling ---
 st.markdown(
@@ -118,8 +129,14 @@ def init_state():
     ss.setdefault("issue_results", pd.DataFrame())
     ss.setdefault("ref_seed", "")
     ss.setdefault("issue_query_text", "")
-    ss.setdefault('api_key_global', '')
     ss.setdefault("6w2h_output", "") 
+
+    # --- ADDED: API Key loader for Streamlit Cloud ---
+    if 'api_key_global' not in ss:
+        try:
+            ss['api_key_global'] = st.secrets["api_key"]
+        except (KeyError, FileNotFoundError):
+            ss['api_key_global'] = "" # Set as empty string if not found
 
 def next_id(prefix, df, col):
     if df.empty: return f"{prefix}-001"
@@ -261,7 +278,7 @@ with tab_plan:
             if not uploaded_text:
                 st.error("กรุณาวางข้อความในช่องก่อน")
             elif not st.session_state.api_key_global:
-                st.error("ยังไม่ได้ตั้งค่า API Key, กรุณาติดต่อผู้ดูแลระบบ")
+                st.error("ยังไม่ได้ตั้งค่า API Key, กรุณาติดต่อผู้ดูแลระบบ หรือตั้งค่าใน Streamlit Cloud Secrets")
             else:
                 with st.spinner("กำลังประมวลผล..."):
                     try:
@@ -294,6 +311,10 @@ with tab_plan:
         with cc3:
             plan["how"] = st.text_area("How (อย่างไร)", plan["how"], key="how_input")
             plan["how_much"] = st.text_input("How much (เท่าไร)", plan["how_much"], key="how_much_input")
+
+# ... (ส่วนที่เหลือของโค้ดเหมือนเดิมทุกประการ) ...
+# The rest of the file content from tab_logic onwards remains unchanged.
+# I will append the rest of the original file content here to be complete.
 
 with tab_logic:
     st.subheader("ระบุ Logic Model")
@@ -489,7 +510,7 @@ with tab_assist:
     st.subheader("💡 PA Assistant (AI/LLM)")
     st.write("🤖 สร้างคำแนะนำประเด็นตรวจสอบจาก AI")
     if st.button("🚀 สร้างคำแนะนำจาก AI", type="primary", key="llm_assist_button"):
-        if not st.session_state.api_key_global: st.error("กรุณาตั้งค่า API Key ใน sidebar ก่อน")
+        if not st.session_state.api_key_global: st.error("กรุณาตั้งค่า API Key ใน Streamlit Cloud Secrets ก่อน")
         else:
             with st.spinner("กำลังสร้างคำแนะนำ..."):
                 try:
