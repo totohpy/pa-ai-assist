@@ -78,7 +78,7 @@ st.markdown(
         transform: translateY(-10px);
         box-shadow: 0 8px 30px rgba(0,0,0,0.12);
     }
-    .feature-box .emoji { font-size: 2rem; line-height: 1.5; }
+    .feature-box .emoji { font-size: 2.5rem; line-height: 1.5; }
     .feature-box h3 { margin-top: 0.4rem; margin-bottom: 0.1rem; font-size: 1.2rem; }
     .feature-box p { color: #6c757d; font-size: 1rem; }
     
