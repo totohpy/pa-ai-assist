@@ -7,9 +7,20 @@ from PyPDF2 import PdfReader
 # --- Page Configuration ---
 st.set_page_config(page_title="PA Assistant Chat", page_icon="💬", layout="wide")
 
-# --- Sidebar Configuration (empty to inherit from main page) ---
+# --- Sidebar Configuration (Updated to match Home.py) ---
 with st.sidebar:
-    pass
+    st.markdown("""
+        <div class="sidebar-footer">
+            <p>
+                <span style="color: grey;">By PAO1 </span><br>
+                <span style="font-size: 16px; letter-spacing: 0.5px;">
+                    <span style="color: red; font-weight: bold;">A</span>udit 
+                    <span style="color: red; font-weight: bold;">I</span>ntelligence
+                    <span style="color: red; font-weight: bold;">T</span>eam
+                </span>
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
 
 # --- Apply Consistent Styling ---
 st.markdown(
@@ -170,16 +181,19 @@ def init_chat_state():
     ss.setdefault('doc_context_uploaded', "")
     ss.setdefault('last_uploaded_files', set())
 
-    # Load API Key from secrets
-    try:
-        ss.setdefault('api_key_global', st.secrets["api_key"])
-    except (KeyError, FileNotFoundError):
-        ss.setdefault('api_key_global', "")
-        # A warning will be shown in the main UI if key is missing
+    # --- UPDATED: API Key loader for Streamlit Cloud (Cleaner Logic) ---
+    # Load API Key from secrets only once per session
+    if 'api_key_global' not in ss:
+        try:
+            ss['api_key_global'] = st.secrets["api_key"]
+        except (KeyError, FileNotFoundError):
+            ss['api_key_global'] = "" # Set as empty string if not found
+            # A warning will be shown in the main UI if key is missing
 
     # Load local documents only once
     if 'doc_context_local' not in ss:
-        ss.doc_context_local = load_local_documents()
+        with st.spinner("กำลังโหลดคลังข้อมูลตั้งต้น..."):
+            ss.doc_context_local = load_local_documents()
         if ss.doc_context_local and os.path.isdir('Doc'):
              ss.chatbot_messages.append({"role": "assistant", "content": f"ผมได้โหลดเอกสารเป็นฐานความรู้แล้ว"})
 
@@ -234,7 +248,7 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณ..."
             
             api_key = st.session_state.api_key_global
             if not api_key:
-                error_message = "เกิดข้อผิดพลาด: ไม่พบ API Key กรุณาติดต่อผู้ดูแลระบบ"
+                error_message = "เกิดข้อผิดพลาด: ไม่พบ API Key กรุณาติดต่อผู้ดูแลระบบ หรือตั้งค่าใน Streamlit Cloud Secrets"
                 message_placeholder.error(error_message)
                 st.session_state.chatbot_messages.append({"role": "assistant", "content": error_message})
             else:
