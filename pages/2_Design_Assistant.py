@@ -273,8 +273,7 @@ with tab_plan:
     with st.container(border=True):
         st.markdown("##### 🚀 สร้าง 6W2H อัตโนมัติด้วย AI")
         st.write("คัดลอกข้อความจากไฟล์มาวางในช่องด้านล่างนี้")
-        uploaded_text = st.text_area("ระบุข้อความเพื่อให้ AI ช่วยสรุป 6W2H", height=200, key="uploaded_text")
-
+       
 # --- เริ่มส่วนโค้dใหม่ (สำหรับแทนที่) ---
 
 # Initialize session state to store the extracted text
