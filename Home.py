@@ -8,7 +8,6 @@ st.set_page_config(
 
 # --- Add the credit to the bottom of the sidebar ---
 with st.sidebar:
-    pass
     st.markdown("""
         <div class="sidebar-footer">
             <p>
