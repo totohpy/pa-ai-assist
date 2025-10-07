@@ -6,6 +6,22 @@ st.set_page_config(
     layout="wide"
 )
 
+# --- Add the credit to the bottom of the sidebar ---
+with st.sidebar:
+    st.markdown("""
+        <div class="sidebar-footer">
+            <p>
+                <span style="color: grey;">By PAO1 </span><br>
+                <span style="font-size: 16px; letter-spacing: 0.5px;">
+                    <span style="color: red; font-weight: bold;">A</span>udit 
+                    <span style="color: red; font-weight: bold;">I</span>ntelligence
+                    <span style="color: red; font-weight: bold;">T</span>eam
+                </span>
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
+
+
 # --- Enhanced CSS for homepage and sidebar ---
 st.markdown(
     """
@@ -16,7 +32,7 @@ st.markdown(
     }
     [data-testid="stSidebar"] {
         background-color: #e0f2f1;
-        width: 350px !important;
+        width: 250px !important;
     }
     
     /* --- Flexbox layout for Sidebar --- */
@@ -80,7 +96,7 @@ st.markdown(
     
     /* Style the ACTIVE page link */
     div[data-testid="stSidebarNav"] a[aria-current="page"] {
-        background-color: #009688;     /* Dark teal for active link */
+        background-color: #80cbc4;     /* Dark teal for active link */
         color: #FFFFFF !important;     /* White text for active link */
         font-weight: 600;
         border: 1px solid #00796b;
@@ -90,29 +106,14 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --- Add the credit to the bottom of the sidebar ---
-with st.sidebar:
-    st.markdown("""
-        <div class="sidebar-footer">
-            <p>
-                <span style="color: grey;">By PAO1 </span><br>
-                <span style="font-size: 16px; letter-spacing: 0.5px;">
-                    <span style="color: red; font-weight: bold;">A</span>udit 
-                    <span style="color: red; font-weight: bold;">I</span>ntelligence
-                    <span style="color: red; font-weight: bold;">T</span>eam
-                </span>
-            </p>
-        </div>
-    """, unsafe_allow_html=True)
-
 
 # --- Homepage Layout ---
 st.title("🧭 Planning Studio – Performance Audit")
-st.subheader("เครื่องมือดิจิทัลสำหรับงานตรวจสอบผลการดำเนินงาน", anchor=False)
+st.subheader("", anchor=False)
 st.write("")
 st.write("")
 
-col1, col2, col3 = st.columns(3, gap="large")
+col1, col2, col3 = st.columns(3, gap="medium")
 
 with col1:
     st.markdown(
