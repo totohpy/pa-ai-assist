@@ -31,7 +31,7 @@ st.markdown(
     }
     /* Sidebar background */
     [data-testid="stSidebar"] {
-        background-color: #b2dfdb;
+        background-color: #e0f2f1;
     }
 
     /* Remove Streamlit's default top padding */
@@ -80,12 +80,6 @@ st.markdown(
         color: #6c757d;
         font-size: 1rem;
     }
-
-    /* Color Overrides for each box */
-    .box-1 h3 { color: #A93C2D; } /* Red */
-    .box-2 h3 { color: #2E8B57; } /* Green */
-    .box-3 h3 { color: #4A6A8A; } /* Blue */
-
     /* --- UPDATED: Style the sidebar navigation with the new color scheme --- */
     
     /* Move the whole navigation block down */
@@ -100,12 +94,12 @@ st.markdown(
         margin-bottom: 10px;           /* Add space between links */
         border-radius: 8px;
         color: #FFFFFF !important;        /* White text for all */
-        background-color: #009688;     /* Dark Teal for all tabs */
+        background-color: #b2dfdb;     /* Dark Teal for all tabs */
     }
     
     /* Style the ACTIVE page link */
     div[data-testid="stSidebarNav"] a[aria-current="page"] {
-        background-color: #576CBC;     /* Sky Blue for active page */
+        background-color: #26a69a;     /* Sky Blue for active page */
         color: #FFFFFF !important;     /* White text for the selected page */
         font-weight: bold;
     }
