@@ -22,6 +22,59 @@ st.markdown("เครื่องมือช่วยสร้างแผน�
 # --- Custom CSS for Styling App Interface ---
 st.markdown("""
 <style>
+    /* --- Overall App Color Theme --- */
+    [data-testid="stAppViewContainer"] > .main {
+        background-color: #e0f2f1;
+    }
+    [data-testid="stSidebar"] {
+        background-color: #e0f2f1;
+        width: 250px !important;
+    }
+    
+    /* --- Flexbox layout for Sidebar --- */
+    /* This targets the inner container of the sidebar */
+    [data-testid="stSidebar"] > div:first-child {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+    /* This makes the navigation take up all available space, pushing the footer down */
+    [data-testid="stSidebarNav"] {
+        flex-grow: 1;
+        margin-top: 20px; /* Move navigation down */
+    }
+    .sidebar-footer {
+        width: 100%;
+        padding: 1rem;
+        text-align: center; /* Center the footer content */
+    }
+
+    /* Remove Streamlit's default top padding */
+    .block-container {
+        padding-top: 2rem;
+    }
+    
+/* --- Style the sidebar navigation --- */
+div[data-testid="stSidebarNav"] > ul > li > a {
+    padding: 18px 40px !important; /* Increased padding for more height */
+    font-size: 20px !important;    /* Larger font size */
+    margin-bottom: 10px;
+    border-radius: 8px;
+    color: #263238 !important;     /* Darker text for inactive links */
+    background-color: #b2dfdb;     /* Light teal for inactive links */
+    border: 1px solid #9dbdb9;
+    font-weight: 500;
+}
+
+/* Style the ACTIVE page link */
+div[data-testid="stSidebarNav"] a[aria-current="page"] {
+    background-color: #80cbc4;     /* Dark teal for active link */
+    color: #FFFFFF !important;     /* White text for active link */
+    font-weight: 600;
+    border: 1px solid #00796b;
+}
+
+
 /* General expander button text */
 div[data-testid="stExpander"] div[role="button"] p { font-size: 1.1rem; }
 
