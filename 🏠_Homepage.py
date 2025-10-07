@@ -10,6 +10,7 @@ st.set_page_config(
 with st.sidebar:
     st.markdown("---")
     st.markdown(
+        '<p style="font-family: \'Kanit\', sans-serif;">'
         '<span style="color: grey;">By PAO1 </span><br>'
         '<span style="font-size: 16px; letter-spacing: 0.5px;">'
         '<span style="color: red; font-weight: bold;">A</span>udit '
@@ -29,9 +30,10 @@ st.markdown(
     [data-testid="stAppViewContainer"] > .main {
         background-color: #e0f2f1;
     }
-    /* Sidebar background */
+    /* Sidebar background and initial width */
     [data-testid="stSidebar"] {
         background-color: #e0f2f1;
+        width: 350px !important; /* --- Set initial width of the sidebar --- */
     }
 
     /* Remove Streamlit's default top padding */
