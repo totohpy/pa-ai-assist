@@ -16,7 +16,7 @@ import streamlit.components.v1 as components
 # ... โค้ดที่สมบูรณ์ที่สุดจากคำตอบก่อนหน้า ...
 # --- Page Configuration ---
 st.set_page_config(layout="wide", page_title="AI Plan Generator")
-st.title("🔮 AI Plan Generator")
+st.title("🔮 Plan Generator")
 st.markdown("เครื่องมือช่วยสร้างแผนและแนวการตรวจสอบ พร้อมระบบ AI ช่วยร่างเนื้อหา")
 
 # --- Custom CSS for Styling App Interface ---
