@@ -159,12 +159,3 @@ with col3:
 
 st.markdown("---")
 st.info("⚙️ การใช้ฟีเจอร์ AI อาจทำผิดพลาดได้ ดังนั้น โปรดตรวจสอบคำตอบอีกครั้ง")
-   # --- Load API Key from Streamlit Secrets ---
-    try:
-        st.session_state.api_key_global = st.secrets["api_key"]
-    except KeyError:
-        st.session_state.api_key_global = ""
-        st.warning("ฟีเจอร์ AI ยังไม่พร้อมใช้งาน กรุณาติดต่อผู้ดูแลระบบ")
-    except Exception as e:
-        st.session_state.api_key_global = ""
-        st.error(f"เกิดข้อผิดพลาดในการโหลด API Key: {e}")
