@@ -272,7 +272,7 @@ with tab_plan:
     st.subheader("สรุปเรื่องที่ตรวจสอบ (6W2H)")
     with st.container(border=True):
         st.markdown("##### 🚀 สร้าง 6W2H อัตโนมัติด้วย AI")
-        st.write("คัดลอกข้อความจากไฟล์มาวางในช่องด้านล่างนี้")
+        st.write("คัดลอกข้อความมาวางในช่องด้านล่างนี้ หรือ อัปโหลดไฟล์เพื่อดึงข้อความมาใส่ในช่องด้านล่าง")
        
 # --- เริ่มส่วนโค้dใหม่ (สำหรับแทนที่) ---
 
@@ -280,7 +280,7 @@ with tab_plan:
 if 'uploaded_text' not in st.session_state:
     st.session_state.uploaded_text = ""
 
-st.write("หรือ อัปโหลดไฟล์ .docx หรือ .pdf เพื่อดึงข้อความมาใส่ในช่องด้านล่าง")
+st.write("อัปโหลดไฟล์ .docx หรือ .pdf")
 
 # 1. สร้าง File Uploader
 uploaded_file = st.file_uploader(
