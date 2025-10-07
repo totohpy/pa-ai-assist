@@ -89,7 +89,7 @@ st.markdown(
         margin-bottom: 10px;
         border-radius: 8px;
         color: #263238 !important;     /* Darker text for inactive links */
-        background-color: #004d40;     /* Light teal for inactive links */
+        background-color: #80deea;     /* Light teal for inactive links */
         border: 1px solid #9dbdb9;
         font-weight: 500;
     }
