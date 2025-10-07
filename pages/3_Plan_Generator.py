@@ -56,7 +56,7 @@ st.markdown("""
     /* This makes the navigation take up all available space, pushing the footer down */
     [data-testid="stSidebarNav"] {
         flex-grow: 1;
-        margin-top: 20px; /* Move navigation down */
+        margin-top: 10px; /* Move navigation down */
     }
     .sidebar-footer {
         width: 100%;
