@@ -33,7 +33,7 @@ st.markdown(
     h1 { font-size: 36px !important; }
     
     [data-testid="stSidebar"] {
-        background-color: #e0f2f1;
+        background-color: #ffffff;
         width: 250px !important;
     }
     
