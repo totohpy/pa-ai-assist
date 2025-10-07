@@ -10,7 +10,6 @@ st.set_page_config(
 with st.sidebar:
     st.markdown("---")
     st.markdown(
-        '<p style="font-family: \'Kanit\', sans-serif;">'
         '<span style="color: grey;">By PAO1 </span><br>'
         '<span style="font-size: 16px; letter-spacing: 0.5px;">'
         '<span style="color: red; font-weight: bold;">A</span>udit '
@@ -99,7 +98,7 @@ st.markdown(
     
     /* Style the ACTIVE page link */
     div[data-testid="stSidebarNav"] a[aria-current="page"] {
-        background-color: #26a69a;     /* Sky Blue for active page */
+        background-color: #80cbc4;     /* Sky Blue for active page */
         color: #FFFFFF !important;     /* White text for the selected page */
         font-weight: bold;
     }
