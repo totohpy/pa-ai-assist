@@ -274,74 +274,74 @@ with tab_plan:
         st.markdown("##### 🚀 สร้าง 6W2H อัตโนมัติด้วย AI")
         st.write("คัดลอกข้อความมาวางในช่องด้านล่างนี้ หรือ อัปโหลดไฟล์เพื่อดึงข้อความมาใส่ในช่องด้านล่าง")
        
-# --- เริ่มส่วนโค้dใหม่ (สำหรับแทนที่) ---
-
-# Initialize session state to store the extracted text
-if 'uploaded_text' not in st.session_state:
-    st.session_state.uploaded_text = ""
-
-st.write("อัปโหลดไฟล์ .docx หรือ .pdf")
-
-# 1. สร้าง File Uploader
-uploaded_file = st.file_uploader(
-    "เลือกไฟล์เอกสาร...",
-    type=['docx', 'pdf'],
-    label_visibility="collapsed"
-)
-
-# 2. ตรวจสอบและประมวลผลไฟล์ที่อัปโหลด
-if uploaded_file is not None:
-    text = ""
-    try:
-        # ถ้าเป็นไฟล์ PDF
-        if uploaded_file.name.endswith('.pdf'):
-            reader = PdfReader(uploaded_file)
-            for page in reader.pages:
-                text += page.extract_text() or ""
-        
-        # ถ้าเป็นไฟล์ DOCX
-        elif uploaded_file.name.endswith('.docx'):
-            doc = docx.Document(uploaded_file)
-            for para in doc.paragraphs:
-                text += para.text + "\n"
-        
-        # อัปเดตข้อความใน session state
-        st.session_state.uploaded_text = text
-        st.success("ดึงข้อความจากไฟล์สำเร็จ!")
-
-    except Exception as e:
-        st.error(f"เกิดข้อผิดพลาดในการอ่านไฟล์: {e}")
-
-# 3. แสดงผลข้อความใน Text Area
-st.text_area(
-    "ระบุข้อความเพื่อให้ AI ช่วยสรุป 6W2H",
-    key="uploaded_text", # เชื่อมกับ session state
-    height=250
-)
-
-# --- จบส่วนโค้ดใหม่ (สำหรับแทนที่) ---
-
-
-# --- จบส่วนโค้ดใหม่ ---
-if st.button("🚀 สร้าง 6W2H จากข้อความ", type="primary", key="6w2h_button"):
-    # ดึงค่าจาก session_state มาใช้แทน
-    uploaded_text_from_file = st.session_state.uploaded_text
-
-    if not uploaded_text_from_file:
-        st.error("กรุณาอัปโหลดไฟล์ หรือวางข้อความในช่องก่อน")
-    elif not st.session_state.api_key_global:
-        st.error("ยังไม่ได้ตั้งค่า API Key, กรุณาติดต่อผู้ดูแลระบบ หรือตั้งค่าใน Streamlit Cloud Secrets")
-    else:
-        with st.spinner("กำลังประมวลผล..."):
-            try:
-                # แก้ไขตรงนี้ให้ใช้ตัวแปรใหม่
-                user_prompt = f"จากข้อความด้านล่างนี้ กรุณาสรุปและแยกแยะข้อมูลให้เป็น 6W2H ...\nข้อความ:\n---\n{uploaded_text_from_file}\n---\n..."
-                client = OpenAI(api_key=st.session_state.api_key_global, base_url="https://api.opentyphoon.ai/v1")
-                response = client.chat.completions.create(model="typhoon-v2.1-12b-instruct", messages=[{"role": "user", "content": user_prompt}], temperature=0.7, max_tokens=1024, top_p=0.9)
-                st.session_state["6w2h_output"] = response.choices[0].message.content
-                st.success("สร้าง 6W2H เรียบร้อยแล้ว! ผลลัพธ์แสดงอยู่ด้านล่าง"); st.balloons(); st.rerun()
-            except Exception as e:
-                st.error(f"เกิดข้อผิดพลาดในการเรียกใช้ AI: {e}")
+    # --- เริ่มส่วนโค้dใหม่ (สำหรับแทนที่) ---
+    
+    # Initialize session state to store the extracted text
+    if 'uploaded_text' not in st.session_state:
+        st.session_state.uploaded_text = ""
+    
+    st.write("อัปโหลดไฟล์ .docx หรือ .pdf")
+    
+    # 1. สร้าง File Uploader
+    uploaded_file = st.file_uploader(
+        "เลือกไฟล์เอกสาร...",
+        type=['docx', 'pdf'],
+        label_visibility="collapsed"
+    )
+    
+    # 2. ตรวจสอบและประมวลผลไฟล์ที่อัปโหลด
+    if uploaded_file is not None:
+        text = ""
+        try:
+            # ถ้าเป็นไฟล์ PDF
+            if uploaded_file.name.endswith('.pdf'):
+                reader = PdfReader(uploaded_file)
+                for page in reader.pages:
+                    text += page.extract_text() or ""
+            
+            # ถ้าเป็นไฟล์ DOCX
+            elif uploaded_file.name.endswith('.docx'):
+                doc = docx.Document(uploaded_file)
+                for para in doc.paragraphs:
+                    text += para.text + "\n"
+            
+            # อัปเดตข้อความใน session state
+            st.session_state.uploaded_text = text
+            st.success("ดึงข้อความจากไฟล์สำเร็จ!")
+    
+        except Exception as e:
+            st.error(f"เกิดข้อผิดพลาดในการอ่านไฟล์: {e}")
+    
+    # 3. แสดงผลข้อความใน Text Area
+    st.text_area(
+        "ระบุข้อความเพื่อให้ AI ช่วยสรุป 6W2H",
+        key="uploaded_text", # เชื่อมกับ session state
+        height=250
+    )
+    
+    # --- จบส่วนโค้ดใหม่ (สำหรับแทนที่) ---
+    
+    
+    # --- จบส่วนโค้ดใหม่ ---
+    if st.button("🚀 สร้าง 6W2H จากข้อความ", type="primary", key="6w2h_button"):
+        # ดึงค่าจาก session_state มาใช้แทน
+        uploaded_text_from_file = st.session_state.uploaded_text
+    
+        if not uploaded_text_from_file:
+            st.error("กรุณาอัปโหลดไฟล์ หรือวางข้อความในช่องก่อน")
+        elif not st.session_state.api_key_global:
+            st.error("ยังไม่ได้ตั้งค่า API Key, กรุณาติดต่อผู้ดูแลระบบ หรือตั้งค่าใน Streamlit Cloud Secrets")
+        else:
+            with st.spinner("กำลังประมวลผล..."):
+                try:
+                    # แก้ไขตรงนี้ให้ใช้ตัวแปรใหม่
+                    user_prompt = f"จากข้อความด้านล่างนี้ กรุณาสรุปและแยกแยะข้อมูลให้เป็น 6W2H ...\nข้อความ:\n---\n{uploaded_text_from_file}\n---\n..."
+                    client = OpenAI(api_key=st.session_state.api_key_global, base_url="https://api.opentyphoon.ai/v1")
+                    response = client.chat.completions.create(model="typhoon-v2.1-12b-instruct", messages=[{"role": "user", "content": user_prompt}], temperature=0.7, max_tokens=1024, top_p=0.9)
+                    st.session_state["6w2h_output"] = response.choices[0].message.content
+                    st.success("สร้าง 6W2H เรียบร้อยแล้ว! ผลลัพธ์แสดงอยู่ด้านล่าง"); st.balloons(); st.rerun()
+                except Exception as e:
+                    st.error(f"เกิดข้อผิดพลาดในการเรียกใช้ AI: {e}")
 
 if st.session_state.get("6w2h_output"):
     st.markdown("---")
