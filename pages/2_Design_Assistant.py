@@ -17,8 +17,6 @@ st.set_page_config(page_title="Design Assistant", page_icon="✨", layout="wide"
 
 # --- Sidebar Configuration (Updated to match Home.py) ---
 with st.sidebar:
-
-with st.sidebar:
 # --- ย้ายโค้ดทั้งหมดมาไว้ที่นี่ ---
 st.title("✨ Design Assistant Menu") # อาจจะเปลี่ยน Title ให้เป็นเมนู
 
