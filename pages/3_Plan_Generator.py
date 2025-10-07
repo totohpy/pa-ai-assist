@@ -186,7 +186,7 @@ def run_ai_for_field(obj_index, path, field_name):
             context += f"แหล่งข้อมูล: {target_issue['details'].get('source', '')}\n"
             context += f"วิธีการรวบรวมหลักฐาน: {target_issue['details'].get('collection_method', '')}\n"
             prompt_instruction = "จาก context ข้างต้น จงระบุ 'วิธีการวิเคราะห์หลักฐาน' ที่จะใช้ในการประมวลผล"
-        full_prompt = f"คุณคือผู้เชี่ยวชาญด้านการตรวจสอบภาครัฐ\n{context}\n**คำสั่ง:**\n{prompt_instruction}\nตอบกลับเป็นข้อความธรรมดาในรูปแบบรายการ (bullet points) เท่านั้น"
+        full_prompt = f"คุณคือผู้เชี่ยวชาญด้านการตรวจสอบภาครัฐด้าน Performance Audit \n{context}\n**คำสั่ง:**\n{prompt_instruction}\nตอบกลับเป็นข้อความธรรมดาในรูปแบบรายการ (bullet points) เท่านั้น"
         messages = [{"role": "user", "content": full_prompt}]
         response = client.chat.completions.create(model="typhoon-v2.1-12b-instruct", messages=messages, temperature=0.5)
         generated_text = response.choices[0].message.content.strip()
@@ -326,7 +326,7 @@ for i, obj in enumerate(st.session_state.plan_gen_data["objectives"]):
                         st.markdown('<div class="ai-expander">', unsafe_allow_html=True)
                         with st.expander("Click เพิ่มรายละเอียดแนวการตรวจสอบ (💡ให้ AI ช่วย)"):
                             details = target_issue.get('details', {})
-                            field_map = { "criteria": "เกณฑ์การตรวจสอบ", "info_needed": "ข้อมูลที่ต้องการ", "source": "แหล่งข้อมูล", "collection_method": "วิธีการรวบรวมหลักฐาน", "analysis_method": "วิธีการวิเคราะห์หลักฐาน" }
+                            field_map = { "criteria": "เกณฑ์การตรวจสอบ (แก้ไขได้)", "info_needed": "ข้อมูลที่ต้องการ (แก้ไขได้)", "source": "แหล่งข้อมูล (แก้ไขได้)", "collection_method": "วิธีการรวบรวมหลักฐาน (แก้ไขได้)", "analysis_method": "วิธีการวิเคราะห์หลักฐาน (แก้ไขได้)" }
                             for field, label in field_map.items():
                                 col1, col2 = st.columns([4, 1])
                                 with col1:
