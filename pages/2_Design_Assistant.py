@@ -210,7 +210,7 @@ risks_df = st.session_state["risks"]
 audit_issues_df = st.session_state["audit_issues"]
 
 # --- Main App UI ---
-st.title("✨ Design Assistant")
+st.title("✨ Audit Design Assistant")
 
 with st.expander("💡 คำแนะนำการใช้งาน"):
     st.info("กรุณาระบุข้อมูล อย่างน้อย **ระบุ แผน & 6W2H** ส่วนใดส่วนหนึ่ง เพื่อค้นหาข้อตรวจพบที่ผ่านมาและให้ PA Assistant แนะนำ ได้แม่นยำที่สุด")
@@ -218,7 +218,6 @@ with st.expander("💡 คำแนะนำการใช้งาน"):
 st.markdown("""
 <style> 
     h1 { font-size: 36px !important; }
-    body { font-family: 'Kanit', sans-serif; } 
     button[data-baseweb="tab"] { border-radius: 2px; padding: 8px 6px; margin: 0px; font-size: 16px; letter-spacing: 0.3px; font-weight: normal; color: white !important; border: none; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.2s ease-in-out; }
     button[data-baseweb="tab"][aria-selected="true"] { box-shadow: 0 4px 12px rgba(0,0,0,0.25); transform: translateY(-2px); opacity: 1; }
     button[data-baseweb="tab"]:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,0.15); }
