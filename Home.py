@@ -63,7 +63,7 @@ st.markdown(
     .feature-link:hover { text-decoration: none !important; color: inherit !important; }
     .feature-box {
         background-color: #e0f2f1;
-        padding: 1rem 1rem;
+        padding: 2rem 1rem;
         border-radius: 20px;
         text-align: center;
         transition: transform 0.3s, box-shadow 0.3s;
