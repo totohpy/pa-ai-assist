@@ -229,7 +229,7 @@ audit_issues_df = st.session_state["audit_issues"]
 
 # --- Main App UI ---
 st.title("✨ Audit Design Assistant")
-
+st.markdown("เครื่องมือช่วยสรุปข้อมูลและกำหนดประเด็นการตรวจสอบ")
 with st.expander("💡 คำแนะนำการใช้งาน"):
     st.info("กรุณาระบุข้อมูล อย่างน้อย **ระบุ แผน & 6W2H** ส่วนใดส่วนหนึ่ง เพื่อค้นหาข้อตรวจพบที่ผ่านมาและให้ PA Assistant แนะนำ ได้แม่นยำที่สุด")
 
