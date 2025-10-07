@@ -51,7 +51,7 @@ st.markdown(
 
     /* Clickable Feature Box Styling */
     .feature-box {
-        background-color: #b2dfdb;
+        background-color: #e0f2f1;
         padding: 2.5rem 2rem;
         border-radius: 10px;
         text-align: center;
