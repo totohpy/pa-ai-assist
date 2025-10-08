@@ -1,5 +1,5 @@
 import streamlit as st
-from style import load_css # 1. Import ฟังก์ชันจากไฟล์ style.py
+from style import load_css
 
 # --- Page Configuration ---
 st.set_page_config(
@@ -9,16 +9,44 @@ st.set_page_config(
 )
 
 # --- Load CSS ---
-load_css() # 2. เรียกใช้ฟังก์ชันเพื่อโหลดสไตล์ทั้งหมด
+load_css()
 
 # --- Sidebar Content ---
 with st.sidebar:
+    # --- ย้าย Tabs มาไว้ในนี้ ---
+    st.title("เมนูหลัก")
+    
+    tab1, tab2, tab3 = st.tabs([
+        "🏳️ Design Assistant",
+        "🧾 Plan Generator",
+        "💬 PA Assistant Chat"
+    ])
+
+    with tab1:
+        st.write("### Audit Design Assistant")
+        st.caption("แนะนำประเด็นตรวจสอบที่น่าสนใจ")
+        if st.button("ไปที่หน้า Design Assistant", key="btn_design"):
+            st.switch_page("pages/2_Design_Assistant.py")
+
+    with tab2:
+        st.write("### Audit Plan Generator")
+        st.caption("ช่วยร่างแผนและแนวการตรวจสอบ")
+        if st.button("ไปที่หน้า Plan Generator", key="btn_plan"):
+            st.switch_page("pages/3_Plan_Generator.py")
+    
+    with tab3:
+        st.write("### PA Assistant Chat")
+        st.caption("ผู้ช่วยอัจฉริยะ ถาม-ตอบ")
+        if st.button("ไปที่หน้า PA Assistant Chat", key="btn_chat"):
+            st.switch_page("pages/4_PA_Assistant_Chat.py")
+            
+    # --- Footer remains at the bottom ---
     st.markdown("""
         <div class="sidebar-footer">
             <p>
                 <span style="color: grey;">By PAO1 </span><br>
                 <span style="font-size: 16px; letter-spacing: 0.5px;">
-                    <span style="color: red; font-weight: bold;">A</span>udit
+                    <span style="color: red; font-weight: bold;">A</span>udit 
                     <span style="color: red; font-weight: bold;">I</span>ntelligence
                     <span style="color: red; font-weight: bold;">T</span>eam
                 </span>
@@ -26,66 +54,11 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
 
+
 # --- Homepage Layout ---
 st.title("🧭 Planning Studio – Performance Audit")
 st.markdown(
     "<h3 class='subtitle'>⚒ Achieve More, Faster. Your Intelligent Efficiency Tools ᯓ★</h3>",
     unsafe_allow_html=True
 )
-st.write("")
-
-# --- Create Tabs ---
-tab1, tab2, tab3 = st.tabs([
-    "🏳️ Audit Design Assistant",
-    "🧾 Audit Plan Generator",
-    "💬 PA Assistant Chat"
-])
-
-# --- Content for Tab 1 ---
-with tab1:
-    st.markdown(
-        """
-        <a href="Design_Assistant" target="_self" class="feature-link">
-            <div class="feature-box">
-                <span class="emoji">🏳️</span>
-                <h3>Audit Design Assistant</h3>
-                <p>แนะนำประเด็นตรวจสอบที่น่าสนใจ จากการวิเคราะห์ข้อมูลแผน, 6W2H, Flowchart Logic Model และฐานข้อมูลข้อตรวจพบในอดีต</p>
-            </div>
-        </a>
-        """,
-        unsafe_allow_html=True
-    )
-
-# --- Content for Tab 2 ---
-with tab2:
-    st.markdown(
-        """
-        <a href="Plan_Generator" target="_self" class="feature-link">
-            <div class="feature-box">
-                <span class="emoji">🧾</span>
-                <h3>Audit Plan Generator</h3>
-                <p>ช่วยร่างแผนและแนวการตรวจสอบ พร้อมระบบ AI ช่วยสร้างเนื้อหาในแต่ละส่วน และส่งออกเป็นเอกสารได้</p>
-            </div>
-        </a>
-        """,
-        unsafe_allow_html=True
-    )
-
-# --- Content for Tab 3 ---
-with tab3:
-    st.markdown(
-        """
-        <a href="PA_Assistant_Chat" target="_self" class="feature-link">
-            <div class="feature-box">
-                <span class="emoji">💬</span>
-                <h3>PA Assistant Chat</h3>
-                <p>ผู้ช่วยอัจฉริยะที่สามารถถาม-ตอบข้อสงสัยจากคลังข้อมูลการตรวจสอบต่างๆ ช่วยสนับสนุนการทำงาน</p>
-            </div>
-        </a>
-        """,
-        unsafe_allow_html=True
-    )
-
-# --- Footer Information ---
-st.markdown("---")
-st.info("⚙️ การใช้ฟีเจอร์ AI อาจผิดพลาดได้ โปรดตรวจสอบคำตอบอีกครั้ง และระบบจะแสดงข้อมูลขณะใช้งานเท่านั้นไม่มีการจัดเก็บข้อมูลไว้")
+st.info("กรุณาเลือกเมนูจากแถบด้านข้างเพื่อเริ่มต้นใช้งาน")
