@@ -1,5 +1,5 @@
 import streamlit as st
-from style import load_css # <-- 1. เพิ่มบรรทัดนี้
+from style import load_css # 1. Import ฟังก์ชันจากไฟล์ style.py
 
 # --- Page Configuration ---
 st.set_page_config(
@@ -8,8 +8,8 @@ st.set_page_config(
     layout="wide"
 )
 
-load_css() # <-- 2. เพิ่มบรรทัดนี้
-
+# --- Load CSS ---
+load_css() # 2. เรียกใช้ฟังก์ชันเพื่อโหลดสไตล์ทั้งหมด
 
 # --- Sidebar Content ---
 with st.sidebar:
@@ -18,7 +18,7 @@ with st.sidebar:
             <p>
                 <span style="color: grey;">By PAO1 </span><br>
                 <span style="font-size: 16px; letter-spacing: 0.5px;">
-                    <span style="color: red; font-weight: bold;">A</span>udit 
+                    <span style="color: red; font-weight: bold;">A</span>udit
                     <span style="color: red; font-weight: bold;">I</span>ntelligence
                     <span style="color: red; font-weight: bold;">T</span>eam
                 </span>
