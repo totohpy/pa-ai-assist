@@ -30,7 +30,7 @@ st.markdown(
     [data-testid="stAppViewContainer"] > .main {
         background-color: #e0f2f1;
     }
-    h1 { font-size: 36px !important; }
+    h1 { font-size: 38px !important; }
     
     [data-testid="stSidebar"] {
         background-color: #e0f2f1;
