@@ -8,6 +8,23 @@ st.set_page_config(
 
 # --- Add the credit to the bottom of the sidebar ---
 with st.sidebar:
+     # --- สร้างปุ่มเมนู ---
+    # ปุ่มจะเปลี่ยนเป็น type="primary" (สีเข้ม) เมื่อ active
+    if st.button("หน้าหลัก (Home)", use_container_width=True, type="primary" if st.session_state.current_page == "Home" else "secondary"):
+        st.session_state.current_page = "Home"
+        st.rerun() # สั่งให้โหลดหน้าใหม่เพื่ออัปเดตสถานะปุ่ม
+
+    if st.button("Audit Design Assistant", use_container_width=True, type="primary" if st.session_state.current_page == "Design Assistant" else "secondary"):
+        st.session_state.current_page = "Design Assistant"
+        st.switch_page("pages/2_Design_Assistant.py")
+
+    if st.button("Audit Plan Generator", use_container_width=True, type="primary" if st.session_state.current_page == "Plan Generator" else "secondary"):
+        st.session_state.current_page = "Plan Generator"
+        st.switch_page("pages/3_Plan_Generator.py")
+
+    if st.button("PA Assistant Chat", use_container_width=True, type="primary" if st.session_state.current_page == "Chat" else "secondary"):
+        st.session_state.current_page = "Chat"
+        st.switch_page("pages/4_PA_Assistant_Chat.py")
     st.markdown("""
         <div class="sidebar-footer">
             <p>
