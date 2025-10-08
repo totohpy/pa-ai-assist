@@ -27,18 +27,18 @@ with st.sidebar:
 
     # --- Footer ---
 
-    st.markdown("""
-        <div class="sidebar-footer">
-            <p>
-                <span style="color: grey;">By PAO1 </span><br>
-                <span style="font-size: 16px; letter-spacing: 0.5px;">
-                    <span style="color: red; font-weight: bold;">A</span>udit 
-                    <span style="color: red; font-weight: bold;">I</span>ntelligence
-                    <span style="color: red; font-weight: bold;">T</span>eam
-                </span>
-            </p>
-        </div>
-    """, unsafe_allow_html=True)
+st.markdown("""
+    <div class="sidebar-footer">
+        <p>
+            <span style="color: grey;">By PAO1 </span><br>
+            <span style="font-size: 16px; letter-spacing: 0.5px;">
+                <span style="color: red; font-weight: bold;">A</span>udit 
+                <span style="color: red; font-weight: bold;">I</span>ntelligence
+                <span style="color: red; font-weight: bold;">T</span>eam
+            </span>
+        </p>
+    </div>
+""", unsafe_allow_html=True)
 
 
 # --- Enhanced CSS for homepage and sidebar ---
