@@ -102,3 +102,31 @@ def load_css():
         """,
         unsafe_allow_html=True
     )
+# ในไฟล์ style.py
+
+# ... (โค้ด CSS เดิม) ...
+
+/* --- Feature Box Styling --- */
+.feature-link { text-decoration: none !important; color: inherit !important; }
+.feature-box {
+    /* ... */
+}
+
+/* --- 🎯 ADD THIS SECTION for Sidebar Buttons 🎯 --- */
+div[data-testid="stSidebarContent"] .stButton > button {
+    width: 100%;
+    border: 1px solid #b2dfdb;
+    border-radius: 8px;
+    background-color: transparent;
+    color: #263238;
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    transition: all 0.2s ease-in-out;
+}
+
+div[data-testid="stSidebarContent"] .stButton > button:hover {
+    border-color: #00796b;
+    background-color: #80cbc4;
+    color: white;
+}
