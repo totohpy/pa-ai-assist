@@ -11,39 +11,18 @@ from docx.shared import Pt
 import base64
 import json
 import streamlit.components.v1 as components
-from style import load_css  # 1. Import ฟังก์ชันจาก style.py
 
 # --- Page Configuration ---
 st.set_page_config(layout="wide", page_title="AI Plan Generator")
 
-# --- Load CSS and Set Page State ---
-load_css()  # 2. เรียกใช้ฟังก์ชันเพื่อโหลดสไตล์
-st.session_state.current_page = "Plan Generator"  # 3. บอกแอปว่าตอนนี้อยู่ที่หน้าไหน
-
-# --- Sidebar ---
+# --- ADDED: Sidebar Configuration (to match Home.py) ---
 with st.sidebar:
-    st.title("เมนูหลัก")
-
-    # --- สร้างปุ่มเมนู ---
-    if st.button("หน้าหลัก (Home)", use_container_width=True, type="primary" if st.session_state.get("current_page") == "Home" else "secondary"):
-        st.switch_page("Home.py")
-
-    if st.button("Audit Design Assistant", use_container_width=True, type="primary" if st.session_state.get("current_page") == "Design Assistant" else "secondary"):
-        st.switch_page("pages/2_Design_Assistant.py")
-
-    if st.button("Audit Plan Generator", use_container_width=True, type="primary" if st.session_state.get("current_page") == "Plan Generator" else "secondary"):
-        st.rerun() # อยู่หน้าตัวเอง ใช้ rerun
-
-    if st.button("PA Assistant Chat", use_container_width=True, type="primary" if st.session_state.get("current_page") == "Chat" else "secondary"):
-        st.switch_page("pages/4_PA_Assistant_Chat.py")
-
-    # --- Footer ---
     st.markdown("""
         <div class="sidebar-footer">
             <p>
                 <span style="color: grey;">By PAO1 </span><br>
                 <span style="font-size: 16px; letter-spacing: 0.5px;">
-                    <span style="color: red; font-weight: bold;">A</span>udit
+                    <span style="color: red; font-weight: bold;">A</span>udit 
                     <span style="color: red; font-weight: bold;">I</span>ntelligence
                     <span style="color: red; font-weight: bold;">T</span>eam
                 </span>
@@ -51,27 +30,103 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
 
-# --- ❌ ไม่ต้องมี st.markdown("<style>...</style>") บล็อกใหญ่อีกต่อไป ---
 
-
-# --- Main Page Content ---
-st.title("🔮 Plan Generator")
+st.title("🔮 Audit Plan Generator")
 st.markdown("เครื่องมือช่วยสร้างแผนและแนวการตรวจสอบ พร้อมระบบ AI ช่วยร่างเนื้อหา")
 
-# --- State Initialization and Helper Functions ---
+# --- Custom CSS for Styling App Interface ---
+st.markdown("""
+<style>
+    /* --- Overall App Color Theme --- */
+    [data-testid="stAppViewContainer"] > .main {
+        background-color: #e0f2f1;
+    }
+    h1 { font-size: 36px !important; }
+    [data-testid="stSidebar"] {
+        background-color: #e0f2f1;
+        width: 250px !important;
+    }
+    
+    /* --- Flexbox layout for Sidebar --- */
+    /* This targets the inner container of the sidebar */
+    [data-testid="stSidebar"] > div:first-child {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+    /* This makes the navigation take up all available space, pushing the footer down */
+    [data-testid="stSidebarNav"] {
+        flex-grow: 1;
+        margin-top: 10px; /* Move navigation down */
+    }
+    .sidebar-footer {
+        width: 100%;
+        padding: 1rem;
+        text-align: center; /* Center the footer content */
+    }
+
+    /* Remove Streamlit's default top padding */
+    .block-container {
+        padding-top: 2.5rem;
+    }
+    
+/* --- Style the sidebar navigation --- */
+div[data-testid="stSidebarNav"] > ul > li > a {
+    padding: 18px 40px !important; /* Increased padding for more height */
+    font-size: 20px !important;    /* Larger font size */
+    margin-bottom: 10px;
+    border-radius: 8px;
+    color: #263238 !important;     /* Darker text for inactive links */
+    background-color: #b2dfdb;     /* Light teal for inactive links */
+    border: 1px solid #9dbdb9;
+    font-weight: 500;
+}
+
+/* Style the ACTIVE page link */
+div[data-testid="stSidebarNav"] a[aria-current="page"] {
+    background-color: #80cbc4;     /* Dark teal for active link */
+    color: #FFFFFF !important;     /* White text for active link */
+    font-weight: 600;
+    border: 1px solid #00796b;
+}
+
+
+/* General expander button text */
+div[data-testid="stExpander"] div[role="button"] p { font-size: 1.1rem; }
+
+/* CSS for the AI expander (Blue color) using a stable selector */
+.ai-expander [data-testid="stExpander"] > div:first-of-type { 
+    background-color: #D1E8FF; !important /* Light blue background */
+    border: 1px solid #007BFF; /* Blue border */
+    border-radius: 0.5rem; 
+}
+.ai-expander [data-testid="stExpander"] p { 
+    color: #004085; /* Dark blue text */
+    font-weight: bold; 
+}
+
+/* CSS for AI button */
+.ai-button-container .stButton > button { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; font-weight: bold; border-radius: 0.5rem; width: 100%; }
+.ai-button-container .stButton > button:hover { background-color: #c3e6cb; color: #155724; border-color: #b1dfbb; }
+</style>
+""", unsafe_allow_html=True)
+
+
+# --- State Initialization and Helper Functions (Unchanged) ---
 def init_plan_state():
     ss = st.session_state
     if "plan_gen_data" not in ss:
         ss.plan_gen_data = { "general_info": {"office": "", "topic": "", "agency": "", "ministry": ""}, "objectives": [], "estimates": {"cost": "", "effort": ""}, "signatures": { "maker": {"name": "", "position": "", "date": None, "comment": ""}, "reviewer": {"name": "", "position": "", "date": None, "comment": ""}, "approver": {"name": "", "position": "", "date": None, "comment": ""}, } }
     if "ui_feedback_message" not in ss:
         ss.ui_feedback_message = None
-    # Load API Key from secrets
+        
+    # --- ADDED: API Key loader for Streamlit Cloud ---
     if 'api_key_global' not in ss:
         try:
             ss['api_key_global'] = st.secrets["api_key"]
         except (KeyError, FileNotFoundError):
-            ss['api_key_global'] = ""
-
+            ss['api_key_global'] = "" # Set as empty string if not found
+            
 init_plan_state()
 
 def add_objective():
@@ -94,21 +149,21 @@ def add_issue(obj_index, parent_issue_path=None):
     st.session_state.ui_feedback_message = None
 
 
-# --- AI Function ---
+# --- AI Function (Updated to use Session State API Key) ---
 def run_ai_for_field(obj_index, path, field_name):
     st.session_state.ui_feedback_message = None
     try:
-        api_key = st.session_state.get("api_key_global")
+        api_key = st.session_state.get("api_key_global") # Get key from session state
         if not api_key:
             st.session_state.ui_feedback_message = ("error", "ไม่พบ API Key กรุณาตั้งค่าใน Streamlit Cloud Secrets")
             return
-
+            
         client = OpenAI(api_key=api_key, base_url="https://api.opentyphoon.ai/v1")
         obj = st.session_state.plan_gen_data["objectives"][obj_index]
         target_issue = obj
         for index in path:
             target_issue = target_issue["issues"][index]
-        context = f"เรื่องที่ตรวจสอบ: {st.session_state.plan_gen_data['general_info']['topic']}\n"
+        context = f"เรื่องที่ตรวจสอบ: {st.session_state.plan_gen_data['general_info']['topic']['agency']['ministry']}\n"
         context += f"วัตถุประสงค์: {obj.get('text', '')}\n"
         context += f"ประเด็นการตรวจสอบ: {target_issue.get('text', '')}\n"
         prompt_instruction = ""
@@ -132,13 +187,11 @@ def run_ai_for_field(obj_index, path, field_name):
             context += f"แหล่งข้อมูล: {target_issue['details'].get('source', '')}\n"
             context += f"วิธีการรวบรวมหลักฐาน: {target_issue['details'].get('collection_method', '')}\n"
             prompt_instruction = "จาก context ข้างต้น จงระบุ 'วิธีการวิเคราะห์หลักฐาน' ที่จะใช้ในการประมวลผล"
-
-        full_prompt = f"คุณคือผู้เชี่ยวชาญด้านการตรวจสอบภาครัฐ\n{context}\n**คำสั่ง:**\n{prompt_instruction}\nตอบกลับเป็นข้อความธรรมดาในรูปแบบรายการ (bullet points) เท่านั้น"
+        full_prompt = f"คุณคือผู้เชี่ยวชาญด้านการตรวจสอบภาครัฐด้าน Performance Audit \n{context}\n**คำสั่ง:**\n{prompt_instruction}\nตอบกลับเป็นข้อความธรรมดาในรูปแบบรายการ (bullet points) เท่านั้น"
         messages = [{"role": "user", "content": full_prompt}]
         response = client.chat.completions.create(model="typhoon-v2.1-12b-instruct", messages=messages, temperature=0.5)
         generated_text = response.choices[0].message.content.strip()
         cleaned_text = generated_text.replace("**", "")
-
         if cleaned_text:
             target_issue['details'][field_name] = cleaned_text
             key_suffix = f"{obj_index}_{'_'.join(map(str, path))}"
@@ -150,8 +203,9 @@ def run_ai_for_field(obj_index, path, field_name):
     except Exception as e:
         st.session_state.ui_feedback_message = ("error", f"เกิดข้อผิดพลาดในการเรียก AI: {e}")
 
-
-# --- Functions to generate reports ---
+# ... (ส่วนที่เหลือของโค้ดเหมือนเดิมทุกประการ) ...
+# The rest of the file content from generate_html_report onwards remains unchanged.
+# I will append the rest of the original file content here to be complete.
 @st.cache_data
 def load_font_as_base64(font_path):
     try:
@@ -162,7 +216,6 @@ def load_font_as_base64(font_path):
         return None
 
 def generate_html_report(data):
-    # This function remains unchanged from your original file
     sarabun_regular_b64 = load_font_as_base64("Sarabun-Regular.ttf")
     sarabun_bold_b64 = load_font_as_base64("Sarabun-Bold.ttf")
     sarabun_italic_b64 = load_font_as_base64("Sarabun-Italic.ttf")
@@ -185,7 +238,7 @@ def generate_html_report(data):
         .header-info p, .objective-info p {{ margin: 0; padding: 2px 0; }}
         .signature-table td {{ height: 120px; }}
         .print-button-container {{ text-align: center; margin: 15px 0; }}
-        .print-button {{ padding: 10px 20px; font-size: 16px; cursor: pointer; border-radius: 5px; border: 1px solid #007bff; background-color: #007bff; color: white; font-family: 'Sarabun', sans-serif;}}
+        .print-button {{ padding: 10px 20px; font-size: 16px; cursor: pointer; border-radius: 5px; border: 1px solid #007bff; background-color: #81d4fa; color: #000000; font-family: 'Sarabun', sans-serif;}}
         thead th {{ position: -webkit-sticky; position: sticky; top: -1px; background-color: #f2f2f2; z-index: 2; }}
         @media print {{ .no-print {{ display: none; }} @page {{ size: A4 landscape; margin: 1.5cm; }} body {{ margin: 0; }} }}
     </style></head><body>
@@ -214,7 +267,6 @@ def generate_html_report(data):
     return html_template
 
 def generate_docx_report(data):
-    # This function remains unchanged from your original file
     doc = docx.Document()
     current_section = doc.sections[-1]
     new_width, new_height = current_section.page_height, current_section.page_width
@@ -240,8 +292,6 @@ def generate_docx_report(data):
     buffer = io.BytesIO(); doc.save(buffer); buffer.seek(0)
     return buffer
 
-
-# --- UI Rendering ---
 if st.session_state.get("ui_feedback_message"):
     msg_type, msg_content = st.session_state.ui_feedback_message
     if msg_type == "success": st.success(msg_content)
@@ -263,7 +313,7 @@ for i, obj in enumerate(st.session_state.plan_gen_data["objectives"]):
         c1, c2 = st.columns([5, 1])
         st.session_state.plan_gen_data["objectives"][i]['text'] = c1.text_area(f"วัตถุประสงค์ที่ {i+1}", obj.get('text', ''), key=f"obj_text_{i}")
         c2.button("🗑️ ลบ", key=f"del_obj_{i}", on_click=remove_objective, args=(i,), use_container_width=True)
-
+        
         def display_issues(issues_list, obj_index, path):
             for j, issue in enumerate(issues_list):
                 current_path = path + [j]
@@ -274,20 +324,24 @@ for i, obj in enumerate(st.session_state.plan_gen_data["objectives"]):
                     target_issue = issue
                     target_issue['text'] = st.text_area(f"ประเด็นการตรวจสอบที่ {prefix}", value=target_issue.get('text', ''), key=f"issue_text_{key_suffix}")
                     if not target_issue.get('issues'):
-                        with st.expander("เพิ่มรายละเอียดแนวการตรวจสอบ (🪄 AI ช่วย)"):
+                        st.markdown('<div class="ai-expander">', unsafe_allow_html=True)
+                        with st.expander("Click เพิ่มรายละเอียดแนวการตรวจสอบ (💡ให้ AI ช่วย)"):
                             details = target_issue.get('details', {})
-                            field_map = { "criteria": "เกณฑ์การตรวจสอบ", "info_needed": "ข้อมูลที่ต้องการ", "source": "แหล่งข้อมูล", "collection_method": "วิธีการรวบรวมหลักฐาน", "analysis_method": "วิธีการวิเคราะห์หลักฐาน" }
+                            field_map = { "criteria": "เกณฑ์การตรวจสอบ (แก้ไขได้)", "info_needed": "ข้อมูลที่ต้องการ (แก้ไขได้)", "source": "แหล่งข้อมูล (แก้ไขได้)", "collection_method": "วิธีการรวบรวมหลักฐาน (แก้ไขได้)", "analysis_method": "วิธีการวิเคราะห์หลักฐาน (แก้ไขได้)" }
                             for field, label in field_map.items():
                                 col1, col2 = st.columns([4, 1])
                                 with col1:
                                     details[field] = st.text_area(label, value=details.get(field, ''), key=f"{field}_{key_suffix}")
                                 with col2:
-                                    st.button(f"✨สร้าง", key=f"ai_btn_{field}_{key_suffix}", on_click=run_ai_for_field, args=(i, current_path, field), use_container_width=True)
+                                    st.markdown('<div class="ai-button-container">', unsafe_allow_html=True)
+                                    st.button(f"✨สร้าง", key=f"ai_btn_{field}_{key_suffix}", on_click=run_ai_for_field, args=(i, current_path, field))
+                                    st.markdown('</div>', unsafe_allow_html=True)
+                        st.markdown('</div>', unsafe_allow_html=True)
                     st.button(f"➕ เพิ่มประเด็นย่อย (สำหรับ {prefix})", key=f"add_sub_issue_{key_suffix}", on_click=add_issue, args=(obj_index, current_path))
                     if target_issue.get('issues'):
                         display_issues(target_issue['issues'], obj_index, current_path)
                     st.markdown("</div>", unsafe_allow_html=True)
-
+        
         if obj.get('issues'):
             display_issues(obj['issues'], i, [])
         st.button("➕ เพิ่มประเด็นการตรวจสอบหลัก", key=f"add_issue_{i}", on_click=add_issue, args=(i, None))
@@ -320,17 +374,13 @@ with st.form("estimates_signatures_form"):
         sig_data["approver"]["comment"] = st.text_area("ความเห็นเพิ่มเติม", value=sig_data["approver"].get("comment", ""), key="approver_comment")
     st.form_submit_button("บันทึกข้อมูลผู้จัดทำ", use_container_width=True)
 
-
-# --- Section for direct HTML preview ---
 st.divider()
 
 with st.container(border=True):
     st.subheader("4. แสดงผลและส่งออกเอกสาร")
     html_report = generate_html_report(st.session_state.plan_gen_data)
     components.html(html_report, height=800, scrolling=True)
-
     st.markdown("---")
-
     st.markdown("##### หรือดาวน์โหลดเป็นไฟล์ Word")
     docx_buffer = generate_docx_report(st.session_state.plan_gen_data)
     st.download_button(
@@ -340,4 +390,3 @@ with st.container(border=True):
         mime='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         use_container_width=True
     )
-
