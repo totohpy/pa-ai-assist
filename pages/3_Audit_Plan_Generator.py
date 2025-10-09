@@ -13,7 +13,7 @@ import json
 import streamlit.components.v1 as components
 
 # --- Page Configuration ---
-st.set_page_config(layout="wide", page_title="AI Plan Generator")
+st.set_page_config(layout="wide", page_title="AI Audit Plan Generator")
 
 # --- ADDED: Sidebar Configuration (to match Home.py) ---
 with st.sidebar:
