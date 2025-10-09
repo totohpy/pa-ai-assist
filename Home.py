@@ -11,12 +11,14 @@ with st.sidebar:
    # --- 🎯 คอนเทนเนอร์สำหรับรูปภาพ (จะถูกดันไปอยู่ตรงกลาง) ---
     st.markdown('<div class="sidebar-image-container">', unsafe_allow_html=True)
     try:
-        st.image("ai.png", width=250) # 🎯 เพิ่มรูปภาพ
+        st.image("ai.png") # 🎯 เพิ่มรูปภาพ
     except Exception as e:
         # แสดงข้อความเตือนเล็กๆ แทน error หากหาไฟล์ไม่เจอ
         st.caption("Image not found: ai.png")
     st.markdown('</div>', unsafe_allow_html=True)
     st.markdown("""
+    st.markdown("""
+                
             <div class="sidebar-footer">
                 <p>
                     <span style="color: grey;">By PAO1 </span><br>
