@@ -506,7 +506,7 @@ with tab_issue:
             st.success(f"พบประเด็นที่เกี่ยวข้อง {len(st.session_state['issue_results'])} รายการ")
         results = st.session_state.get("issue_results", pd.DataFrame())
         if not results.empty:
-            st.divider(); st.subheader("ผลลัพธ์การค้นหา")
+            st.divider(); st.subheader("ผลลัพธ์การค้นหา 🗃️")
             for i, row in results.reset_index(drop=True).iterrows():
                 with st.container(border=True):
                     title_txt = row.get("issue_title", "(ไม่มีชื่อประเด็น)")
@@ -527,7 +527,7 @@ with tab_issue:
                             st.session_state["audit_issues"] = pd.concat([audit_issues_df, new_row], ignore_index=True)
                             st.success("เพิ่มประเด็นเข้าแผนแล้ว ✅"); st.rerun()
         if not st.session_state.get("issue_results", pd.DataFrame()).empty: st.divider()
-        st.markdown("### ประเด็นที่เพิ่มเข้าแผน"); st.dataframe(st.session_state["audit_issues"], use_container_width=True, hide_index=True)
+        st.markdown("### ประเด็นที่เพิ่มเข้าแผน 🛒 "); st.dataframe(st.session_state["audit_issues"], use_container_width=True, hide_index=True)
 
 with tab_preview:
     st.subheader("สรุปแผน (Preview)")
