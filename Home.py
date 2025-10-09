@@ -8,8 +8,8 @@ st.set_page_config(
 
 # --- Add the credit to the bottom of the sidebar ---
 with st.sidebar:
-     st.title("Menu")  # 🎯 เพิ่มหัวข้อ Menu
-     st.markdown("""
+    st.title("Menu")  # 🎯 เพิ่มหัวข้อ Menu
+    st.markdown("""
         <div class="sidebar-footer">
             <p>
                 <span style="color: grey;">By PAO1 </span><br>
