@@ -16,9 +16,7 @@ with st.sidebar:
         # แสดงข้อความเตือนเล็กๆ แทน error หากหาไฟล์ไม่เจอ
         st.caption("Image not found: ai.png")
     st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown("""
-    st.markdown("""
-                
+    st.markdown("""     
             <div class="sidebar-footer">
                 <p>
                     <span style="color: grey;">By PAO1 </span><br>
