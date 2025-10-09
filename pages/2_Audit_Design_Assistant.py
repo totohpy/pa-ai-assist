@@ -13,7 +13,7 @@ from PyPDF2 import PdfReader
 from streamlit_agraph import agraph, Node, Edge, Config
 
 # Page config
-st.set_page_config(page_title="Design Assistant", page_icon="✨", layout="wide")
+st.set_page_config(page_title="Audit Design Assistant", page_icon="✨", layout="wide")
 
 # --- Sidebar Configuration (Updated to match Home.py) ---
 with st.sidebar:
