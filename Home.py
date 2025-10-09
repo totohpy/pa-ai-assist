@@ -63,6 +63,32 @@ st.markdown(
         margin-top: auto;
     }
 
+/* --- 🎯 Footer ใน Sidebar (อัปเดตใหม่) 🎯 --- */
+    .sidebar-footer {
+        width: 100%;
+        padding: 1rem 0;
+        margin-top: auto; /* ผลัก Footer ลงไปล่างสุด */
+        
+        /* --- จัดวางรูปและข้อความให้อยู่ข้างกัน --- */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 15px; /* ระยะห่างระหว่างรูปกับข้อความ */
+    }
+    
+    .footer-image {
+         width: 55px; /* ปรับขนาดรูป */
+         height: 55px;
+    }
+
+    .footer-text p {
+        margin: 0;
+        line-height: 1.2;
+        text-align: left;
+    }
+
+
+
     /* Remove Streamlit's default top padding */
     .block-container {
         padding-top: 2rem;
