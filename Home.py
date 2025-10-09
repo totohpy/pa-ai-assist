@@ -60,6 +60,7 @@ st.markdown(
         width: 100%;
         padding: 1rem;
         text-align: center; /* Center the footer content */
+        margin-top: auto;
     }
 
     /* Remove Streamlit's default top padding */
