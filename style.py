@@ -65,6 +65,9 @@ def load_css():
             justify-content: center; align-items: center; border: 1px solid #d0e0df;
         }
         .feature-box:hover { transform: translateY(-10px); box-shadow: 0 8px 30px rgba(0,0,0,0.12); }
+        .feature-box .emoji { font-size: 2.5rem; line-height: 1.5; }
+        .feature-box h3 { margin-top: 0.5rem; margin-bottom: 0.5rem; font-size: 1.4rem; }
+        .feature-box p { color: #6c757d; font-size: 1rem; }
         </style>
         """,
         unsafe_allow_html=True
