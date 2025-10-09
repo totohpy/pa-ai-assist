@@ -8,12 +8,10 @@ st.set_page_config(
 
 # --- Add the credit to the bottom of the sidebar ---
 with st.sidebar:
-    st.title("Menu")  # 🎯 เพิ่มหัวข้อ Menu
-   
-# --- 🎯 คอนเทนเนอร์สำหรับรูปภาพ (จะถูกดันไปอยู่ตรงกลาง) ---
+   # --- 🎯 คอนเทนเนอร์สำหรับรูปภาพ (จะถูกดันไปอยู่ตรงกลาง) ---
     st.markdown('<div class="sidebar-image-container">', unsafe_allow_html=True)
     try:
-        st.image("ai.png", width=150) # 🎯 เพิ่มรูปภาพ
+        st.image("ai.png", width=250) # 🎯 เพิ่มรูปภาพ
     except Exception as e:
         # แสดงข้อความเตือนเล็กๆ แทน error หากหาไฟล์ไม่เจอ
         st.caption("Image not found: ai.png")
