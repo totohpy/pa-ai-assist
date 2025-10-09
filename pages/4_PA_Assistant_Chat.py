@@ -3,39 +3,18 @@ import pandas as pd
 from openai import OpenAI
 import os
 from PyPDF2 import PdfReader
-from style import load_css  # 1. Import ฟังก์ชันจาก style.py
 
 # --- Page Configuration ---
 st.set_page_config(page_title="PA Assistant Chat", page_icon="💬", layout="wide")
 
-# --- Load CSS and Set Page State ---
-load_css()  # 2. เรียกใช้ฟังก์ชันเพื่อโหลดสไตล์
-st.session_state.current_page = "Chat"  # 3. บอกแอปว่าตอนนี้อยู่ที่หน้าไหน
-
-# --- Sidebar ---
+# --- Sidebar Configuration (Updated to match Home.py) ---
 with st.sidebar:
-    st.title("เมนูหลัก")
-
-    # --- สร้างปุ่มเมนู ---
-    if st.button("หน้าหลัก (Home)", use_container_width=True, type="primary" if st.session_state.get("current_page") == "Home" else "secondary"):
-        st.switch_page("Home.py")
-
-    if st.button("Audit Design Assistant", use_container_width=True, type="primary" if st.session_state.get("current_page") == "Design Assistant" else "secondary"):
-        st.switch_page("pages/2_Design_Assistant.py")
-
-    if st.button("Audit Plan Generator", use_container_width=True, type="primary" if st.session_state.get("current_page") == "Plan Generator" else "secondary"):
-        st.switch_page("pages/3_Plan_Generator.py")
-
-    if st.button("PA Assistant Chat", use_container_width=True, type="primary" if st.session_state.get("current_page") == "Chat" else "secondary"):
-        st.rerun() # อยู่หน้าตัวเอง ใช้ rerun
-
-    # --- Footer ---
     st.markdown("""
         <div class="sidebar-footer">
             <p>
                 <span style="color: grey;">By PAO1 </span><br>
                 <span style="font-size: 16px; letter-spacing: 0.5px;">
-                    <span style="color: red; font-weight: bold;">A</span>udit
+                    <span style="color: red; font-weight: bold;">A</span>udit 
                     <span style="color: red; font-weight: bold;">I</span>ntelligence
                     <span style="color: red; font-weight: bold;">T</span>eam
                 </span>
@@ -43,11 +22,92 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
 
+# --- Apply Consistent Styling ---
+st.markdown(
+    """
+     <style>
+    /* --- Overall App Color Theme --- */
+    [data-testid="stAppViewContainer"] > .main {
+        background-color: #e0f2f1;
+    }
+    h1 { font-size: 36px !important; }
+    [data-testid="stSidebar"] {
+        background-color: #e0f2f1;
+        width: 250px !important;
+    }
+    
+    /* --- Flexbox layout for Sidebar --- */
+    /* This targets the inner container of the sidebar */
+    [data-testid="stSidebar"] > div:first-child {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+    /* This makes the navigation take up all available space, pushing the footer down */
+    [data-testid="stSidebarNav"] {
+        flex-grow: 1;
+        margin-top: 20px; /* Move navigation down */
+    }
+    .sidebar-footer {
+        width: 100%;
+        padding: 1rem;
+        text-align: center; /* Center the footer content */
+    }
 
-# --- ❌ ไม่ต้องมี st.markdown("<style>...</style>") บล็อกใหญ่อีกต่อไป ---
+    /* Remove Streamlit's default top padding */
+    .block-container {
+        padding-top: 2rem;
+    }
+
+    /* --- Feature Box Styling (Main Page) --- */
+    .feature-link { text-decoration: none !important; color: inherit !important; }
+    .feature-link:hover { text-decoration: none !important; color: inherit !important; }
+    .feature-box {
+        background-color: #e0f2f1;
+        padding: 1rem 1rem;
+        border-radius: 20px;
+        text-align: center;
+        transition: transform 0.3s, box-shadow 0.3s;
+        height: 200px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        border: 1px solid #d0e0df;
+    }
+    .feature-box:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+    }
+    .feature-box .emoji { font-size: 1.6rem; line-height: 1; }
+    .feature-box h3 { margin-top: 0.7rem; margin-bottom: 0.4rem; font-size: 1.2rem; }
+    .feature-box p { color: #6c757d; font-size: 0.85rem; }
+    
+    /* --- Style the sidebar navigation --- */
+    div[data-testid="stSidebarNav"] > ul > li > a {
+        padding: 18px 40px !important; /* Increased padding for more height */
+        font-size: 20px !important;    /* Larger font size */
+        margin-bottom: 10px;
+        border-radius: 8px;
+        color: #263238 !important;     /* Darker text for inactive links */
+        background-color: #b2dfdb;     /* Light teal for inactive links */
+        border: 1px solid #9dbdb9;
+        font-weight: 500;
+    }
+    
+    /* Style the ACTIVE page link */
+    div[data-testid="stSidebarNav"] a[aria-current="page"] {
+        background-color: #80cbc4;     /* Dark teal for active link */
+        color: #FFFFFF !important;     /* White text for active link */
+        font-weight: 600;
+        border: 1px solid #00796b;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 
-# --- Main Page Content ---
 st.title("💬 PA Assistant Chat")
 st.markdown("ถาม-ตอบผู้ช่วยอัจฉริยะด้านการตรวจสอบ")
 
@@ -59,16 +119,17 @@ def load_local_documents(folder_path="Doc"):
     """Reads all files from the local document library."""
     text = ""
     if not os.path.isdir(folder_path):
-        return text
+        return text 
 
     try:
         files_in_doc = os.listdir(folder_path)
+        # Use a temporary placeholder for progress bar if sidebar is not always visible
         progress_placeholder = st.empty()
         for i, filename in enumerate(files_in_doc):
             if len(text) >= MAX_CHARS_LIMIT:
                 st.warning(f"ถึงขีดจำกัดข้อมูลแล้ว ({MAX_CHARS_LIMIT:,} ตัวอักษร)")
                 break
-
+            
             file_path = os.path.join(folder_path, filename)
             try:
                 if filename.endswith('.pdf'):
@@ -84,16 +145,16 @@ def load_local_documents(folder_path="Doc"):
                     text += df.head(15).to_string()
             except Exception as e:
                 print(f"Could not read file {filename}: {e}")
-
+            
             progress_placeholder.progress((i + 1) / len(files_in_doc), text=f"กำลังโหลดเอกสาร... ({i+1}/{len(files_in_doc)})")
         progress_placeholder.empty()
-
+                
     except Exception as e:
         st.error(f"เกิดข้อผิดพลาดในการเข้าถึงคลังข้อมูล: {e}")
-
+    
     return text[:MAX_CHARS_LIMIT]
 
-def process_documents(files, limit, current_len=0):
+def process_documents(files, source_type, limit, current_len=0):
     """Function to read text from uploaded files."""
     text = ""
     for file in files:
@@ -112,7 +173,7 @@ def process_documents(files, limit, current_len=0):
                 text += df.head(15).to_string()
         except Exception as e:
             st.error(f"เกิดข้อผิดพลาดในการอ่านไฟล์ {file.name}: {e}")
-    return text[:limit - current_len]
+    return text[:limit - current_len], [f.name for f in files]
 
 # ----------------- Session Init (for Chatbot only) -----------------
 def init_chat_state():
@@ -121,12 +182,14 @@ def init_chat_state():
     ss.setdefault('doc_context_uploaded', "")
     ss.setdefault('last_uploaded_files', set())
 
-    # Load API Key from secrets
+    # --- UPDATED: API Key loader for Streamlit Cloud (Cleaner Logic) ---
+    # Load API Key from secrets only once per session
     if 'api_key_global' not in ss:
         try:
             ss['api_key_global'] = st.secrets["api_key"]
         except (KeyError, FileNotFoundError):
-            ss['api_key_global'] = ""
+            ss['api_key_global'] = "" # Set as empty string if not found
+            # A warning will be shown in the main UI if key is missing
 
     # Load local documents only once
     if 'doc_context_local' not in ss:
@@ -150,7 +213,7 @@ with st.expander("อัปโหลดเอกสารเพิ่มเต�
 current_uploaded_file_names = {f.name for f in uploaded_files}
 if uploaded_files and st.session_state.get('last_uploaded_files') != current_uploaded_file_names:
     with st.spinner("กำลังประมวลผลเอกสาร..."):
-        st.session_state.doc_context_uploaded = process_documents(uploaded_files, MAX_CHARS_LIMIT, len(st.session_state.get('doc_context_local', '')))
+        st.session_state.doc_context_uploaded, _ = process_documents(uploaded_files, 'uploaded', MAX_CHARS_LIMIT, len(st.session_state.get('doc_context_local', '')))
         st.session_state.last_uploaded_files = current_uploaded_file_names
         st.session_state.chatbot_messages.append({"role": "assistant", "content": "อัปเดตเอกสารใหม่แล้ว"})
         st.rerun()
@@ -170,7 +233,7 @@ with st.expander("ดูรายละเอียด Context"):
         st.info(f"📤 เนื้อหาจากไฟล์ที่อัปโหลด: {uploaded_len:,} ตัวอักษร")
     st.success(f"✅ เนื้อหารวมทั้งหมด: {(local_len + uploaded_len):,} ตัวอักษร (สูงสุด: {MAX_CHARS_LIMIT:,})")
 
-chat_container = st.container(height=500, border=True)
+chat_container = st.container(height=320, border=True)
 with chat_container:
     for message in st.session_state.chatbot_messages:
         with st.chat_message(message["role"]):
@@ -178,12 +241,12 @@ with chat_container:
 
 if prompt := st.chat_input("พิมพ์คำถามของคุณ...", key="chat_input_main"):
     st.session_state.chatbot_messages.append({"role": "user", "content": prompt})
-
+    
     with chat_container:
         with st.chat_message("user"): st.markdown(prompt)
         with st.chat_message("assistant"):
             message_placeholder = st.empty()
-
+            
             api_key = st.session_state.api_key_global
             if not api_key:
                 error_message = "เกิดข้อผิดพลาด: ไม่พบ API Key กรุณาติดต่อผู้ดูแลระบบ หรือตั้งค่าใน Streamlit Cloud Secrets"
@@ -192,7 +255,7 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณ..."
             else:
                 try:
                     doc_context = st.session_state.get('doc_context_local', '') + st.session_state.get('doc_context_uploaded', '')
-
+                    
                     system_prompt = f"""
 คุณคือผู้ช่วย AI อัจฉริยะ หน้าที่ของคุณคือตอบคำถามของผู้ใช้ให้ถูกต้อง โดยใช้ข้อมูลจากสองแหล่ง:
 1.  **เอกสารภายใน (Primary Source):** เนื้อหาจากไฟล์ในระบบ ให้ยึดข้อมูลนี้เป็นหลักเสมอ
@@ -213,10 +276,10 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณ..."
 
                     client = OpenAI(api_key=api_key, base_url="https://api.opentyphoon.ai/v1")
                     response_stream = client.chat.completions.create(
-                        model="typhoon-v2.1-12b-instruct",
-                        messages=messages_for_api,
-                        temperature=0.5,
-                        max_tokens=3072,
+                        model="typhoon-v2.1-12b-instruct", 
+                        messages=messages_for_api, 
+                        temperature=0.5, 
+                        max_tokens=3072, 
                         stream=True
                     )
                     response = message_placeholder.write_stream(response_stream)
@@ -226,4 +289,3 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณ..."
                     error_message = f"เกิดข้อผิดพลาดขณะประมวลผล: {e}"
                     message_placeholder.error(error_message)
                     st.session_state.chatbot_messages.append({"role": "assistant", "content": error_message})
-
