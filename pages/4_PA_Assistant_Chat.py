@@ -112,7 +112,7 @@ st.title("💬 PA Assistant Chat")
 st.markdown("ถาม-ตอบผู้ช่วยอัจฉริยะด้านการตรวจสอบ")
 
 # ----------------- Functions for Chatbot -----------------
-MAX_CHARS_LIMIT = 300000
+MAX_CHARS_LIMIT = 750000
 
 @st.cache_data(show_spinner=False)
 def load_local_documents(folder_path="Doc"):
