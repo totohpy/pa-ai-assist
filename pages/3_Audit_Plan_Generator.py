@@ -103,11 +103,30 @@ div[data-testid="stExpander"] div[role="button"] p { font-size: 1.1rem; }
 .ai-expander [data-testid="stExpander"] p { 
     color: #004085; /* Dark blue text */
     font-weight: bold; 
+
 }
 
 /* CSS for AI button */
 .ai-button-container .stButton > button { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; font-weight: bold; border-radius: 0.5rem; width: 100%; }
 .ai-button-container .stButton > button:hover { background-color: #c3e6cb; color: #155724; border-color: #b1dfbb; }
+
+/* --- Style for Form Submit Button (Green) --- */
+    [data-testid="stForm"] [data-testid="stButton"] > button {
+        background-color: #4CAF50; /* สีพื้นหลัง (เขียว) */
+        color: white;              /* สีตัวอักษร (ขาว) */
+        border: 1px solid #45a049; /* สีขอบ */
+        border-radius: 0.5rem;     /* ความโค้งของขอบ */
+        font-weight: bold;         /* ทำให้ตัวอักษรหนา */
+        width: 100%;               /* ทำให้ปุ่มเต็มความกว้าง */
+    }
+
+    /* --- Style for Form Submit Button on Hover --- */
+    [data-testid="stForm"] [data-testid="stButton"] > button:hover {
+        background-color: #45a049; /* สีพื้นหลังเมื่อเมาส์ชี้ */
+        border-color: #3e8e41;     /* สีขอบเมื่อเมาส์ชี้ */
+    }
+
+
 </style>
 """, unsafe_allow_html=True)
 
