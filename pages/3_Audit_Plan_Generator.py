@@ -110,23 +110,6 @@ div[data-testid="stExpander"] div[role="button"] p { font-size: 1.1rem; }
 .ai-button-container .stButton > button { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; font-weight: bold; border-radius: 0.5rem; width: 100%; }
 .ai-button-container .stButton > button:hover { background-color: #c3e6cb; color: #155724; border-color: #b1dfbb; }
 
-/* --- Style for Form Submit Button (Green) --- */
-    [data-testid="stForm"] [data-testid="stButton"] > button {
-        background-color: #4CAF50; /* สีพื้นหลัง (เขียว) */
-        color: white;              /* สีตัวอักษร (ขาว) */
-        border: 1px solid #45a049; /* สีขอบ */
-        border-radius: 0.5rem;     /* ความโค้งของขอบ */
-        font-weight: bold;         /* ทำให้ตัวอักษรหนา */
-        width: 100%;               /* ทำให้ปุ่มเต็มความกว้าง */
-    }
-
-    /* --- Style for Form Submit Button on Hover --- */
-    [data-testid="stForm"] [data-testid="stButton"] > button:hover {
-        background-color: #45a049; /* สีพื้นหลังเมื่อเมาส์ชี้ */
-        border-color: #3e8e41;     /* สีขอบเมื่อเมาส์ชี้ */
-    }
-
-
 </style>
 """, unsafe_allow_html=True)
 
@@ -324,7 +307,7 @@ with st.form("general_info_form"):
     st.session_state.plan_gen_data["general_info"]["topic"] = c1.text_input("เรื่องที่ตรวจสอบ", st.session_state.plan_gen_data["general_info"]["topic"])
     st.session_state.plan_gen_data["general_info"]["agency"] = c2.text_input("หน่วยงาน", st.session_state.plan_gen_data["general_info"]["agency"])
     st.session_state.plan_gen_data["general_info"]["ministry"] = c2.text_input("กระทรวง", st.session_state.plan_gen_data["general_info"]["ministry"])
-    st.form_submit_button("บันทึกข้อมูลทั่วไป", use_container_width=True)
+    st.form_submit_button("💾บันทึกข้อมูลทั่วไป", use_container_width=True)
 
 st.subheader("2. วัตถุประสงค์และประเด็นการตรวจสอบ")
 for i, obj in enumerate(st.session_state.plan_gen_data["objectives"]):
@@ -391,7 +374,7 @@ with st.form("estimates_signatures_form"):
         sig_data["approver"]["position"] = st.text_input("ตำแหน่ง", value=sig_data["approver"].get("position", ""), key="approver_pos")
         sig_data["approver"]["date"] = st.date_input("วันที่", value=sig_data["approver"].get("date"), key="approver_date")
         sig_data["approver"]["comment"] = st.text_area("ความเห็นเพิ่มเติม", value=sig_data["approver"].get("comment", ""), key="approver_comment")
-    st.form_submit_button("บันทึกข้อมูลผู้จัดทำ", use_container_width=True)
+    st.form_submit_button("💾บันทึกข้อมูลผู้จัดทำ", use_container_width=True)
 
 st.divider()
 
