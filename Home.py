@@ -124,7 +124,7 @@ col1, col2, col3 = st.columns(3, gap="medium")
 with col1:
     st.markdown(
         """
-        <a href="Design_Assistant" target="_self" class="feature-link">
+        <a href="pages/Design_Assistant" target="_self" class="feature-link">
             <div class="feature-box box-1">
                 <span class="emoji">🏳️</span>
                 <h3>Audit Design Assistant</h3>
