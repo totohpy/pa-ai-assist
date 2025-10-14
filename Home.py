@@ -124,7 +124,7 @@ col1, col2, col3 = st.columns(3, gap="medium")
 with col1:
     st.markdown(
         """
-        <a href="pages/Design_Assistant" target="_self" class="feature-link">
+        <a href="Audit_Design_Assistant" target="_self" class="feature-link">
             <div class="feature-box box-1">
                 <span class="emoji">🏳️</span>
                 <h3>Audit Design Assistant</h3>
@@ -138,7 +138,7 @@ with col1:
 with col2:
     st.markdown(
         """
-        <a href="Plan_Generator" target="_self" class="feature-link">
+        <a href="Audit_Plan_Generator" target="_self" class="feature-link">
             <div class="feature-box box-2">
                 <span class="emoji">🧾</span>
                 <h3>Audit Plan Generator</h3>
