@@ -519,7 +519,7 @@ with tab_issue:
                         st.caption("💡 **คำอธิบาย:** คะแนนความเกี่ยวข้อง = ความคล้ายคลึงข้อความ + ความรุนแรง + ความใหม่")
                     c1, c2 = st.columns([3,1])
                     with c1:
-                        st.text_area("เหตุผลที่ควรตรวจ", key=f"rat_{i}", value=f"อ้างอิงกรณีเดิม ปี {year_txt} | หน่วย: {row.get('unit', '-')}")
+                        st.text_area("เหตุผลที่ควรตรวจ", key=f"rat_{i}", value=f"อ้างอิงกรณีเดิม ปี {year_txt} | ")
                         st.text_input("KPI ที่เกี่ยว (ถ้ามี)", key=f"kpi_{i}"); st.text_input("วิธีเก็บข้อมูลที่เสนอ", key=f"mth_{i}", value="สัมภาษณ์/สังเกต/ตรวจเอกสาร")
                     with c2:
                         if st.button("➕ เพิ่มเป็นประเด็นตรวจสอบ", key=f"add_{i}", type="secondary"):
