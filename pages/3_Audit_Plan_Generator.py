@@ -310,6 +310,7 @@ with st.form("general_info_form"):
     st.form_submit_button("💾บันทึกข้อมูลทั่วไป", use_container_width=True)
 
 st.subheader("2. วัตถุประสงค์และประเด็นการตรวจสอบ")
+    st.markdown("**ผู้จัดทำ**")
 for i, obj in enumerate(st.session_state.plan_gen_data["objectives"]):
     with st.container(border=True):
         c1, c2 = st.columns([5, 1])
