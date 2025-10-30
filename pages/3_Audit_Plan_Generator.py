@@ -310,7 +310,7 @@ with st.form("general_info_form"):
     st.form_submit_button("💾บันทึกข้อมูลทั่วไป", use_container_width=True)
 
 st.subheader("2. วัตถุประสงค์และประเด็นการตรวจสอบ")
-st.write("โปรดระบุวัตถุประสงค์การตรวจสอบและเพิ่มประเด็นการตรวจสอบย่อยที่เกี่ยวข้อง  ก่อนให้ AI ช่วยสร้างรายละเอียดส่วนอื่นๆ)")
+st.write("โปรดระบุวัตถุประสงค์การตรวจสอบและเพิ่มประเด็นการตรวจสอบย่อยที่เกี่ยวข้อง เพื่อให้ AI สร้างรายละเอียดส่วนอื่นๆ ได้อย่างแม่นยำ")
 for i, obj in enumerate(st.session_state.plan_gen_data["objectives"]):
     with st.container(border=True):
         c1, c2 = st.columns([5, 1])
