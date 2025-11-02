@@ -11,6 +11,7 @@ import io
 import docx
 from PyPDF2 import PdfReader
 from streamlit_agraph import agraph, Node, Edge, Config
+import re # <<<--- เพิ่ม import re สำหรับการแยกส่วนข้อความ AI
 
 # Page config
 st.set_page_config(page_title="Audit Design Assistant", page_icon="✨", layout="wide")
@@ -217,6 +218,64 @@ def create_interactive_flowchart(df: pd.DataFrame):
             edges.append(Edge(source=nodes_exist[i], target=nodes_exist[i+1], dashes=False, color="#000000"))
     config = Config(width='100%', height=600, directed=True, physics=False, hierarchical={"enabled": True, "direction": "LR", "sortMethod": "directed"})
     return nodes, edges, config
+    
+# <<<--- NEW: ฟังก์ชันสำหรับแยกส่วนข้อความ 6W2H และอัปเดตค่าในช่อง input --->>>
+def parse_and_update_6w2h(ai_text: str):
+    """
+    แยกส่วนข้อความ 6W2H ที่ได้จาก AI และนำไปอัปเดตใน session state/plan
+    สมมติรูปแบบการตอบกลับที่มีหัวข้อ 6W2H นำหน้า
+    """
+    ss = st.session_state
+    
+    # รูปแบบการค้นหา: หัวข้อ (เช่น Who, What, ...) ตามด้วยเครื่องหมาย : หรือ | หรือ - 
+    # และเนื้อหา จนกว่าจะเจอหัวข้อถัดไป หรือจบข้อความ
+    # ปรับปรุงให้รองรับการค้นหาที่ขึ้นต้นด้วยบรรทัดใหม่ หรือจุดเริ่มต้น
+    patterns = {
+        "who": r"(?:Who|ใคร)\s*[:\|\-]\s*(.*?)(?=\n*(?:Whom|เพื่อใคร)\s*[:\|\-]|$\Z)",
+        "whom": r"(?:Whom|เพื่อใคร)\s*[:\|\-]\s*(.*?)(?=\n*(?:What|ทำอะไร)\s*[:\|\-]|$\Z)",
+        "what": r"(?:What|ทำอะไร)\s*[:\|\-]\s*(.*?)(?=\n*(?:Where|ที่ไหน)\s*[:\|\-]|$\Z)",
+        "where": r"(?:Where|ที่ไหน)\s*[:\|\-]\s*(.*?)(?=\n*(?:When|เมื่อใด)\s*[:\|\-]|$\Z)",
+        "when": r"(?:When|เมื่อใด)\s*[:\|\-]\s*(.*?)(?=\n*(?:Why|ทำไม)\s*[:\|\-]|$\Z)",
+        "why": r"(?:Why|ทำไม)\s*[:\|\-]\s*(.*?)(?=\n*(?:How|อย่างไร)\s*[:\|\-]|$\Z)",
+        "how": r"(?:How|อย่างไร)\s*[:\|\-]\s*(.*?)(?=\n*(?:How much|เท่าไร)\s*[:\|\-]|$\Z)",
+        "how_much": r"(?:How much|เท่าไร)\s*[:\|\-]\s*(.*)",
+    }
+    
+    # โค้ดสำหรับดึงข้อความจาก AI
+    extracted_data = {}
+    
+    # ปรับรูปแบบข้อความก่อนค้นหาเพื่อให้ Regex ทำงานง่ายขึ้น
+    # ลบเครื่องหมาย * และเว้นวรรคไม่จำเป็น, แทนที่ \n ด้วย | เพื่อให้ Regex จับเป็นบรรทัดเดียวได้
+    ai_text_processed = ai_text.strip().replace(":", ": ").replace("|", ": ").replace("-", ": ")
+    
+    # ทดลองค้นหาแบบกว้างด้วย re.DOTALL และ MULTILINE
+    for key, pattern_str in patterns.items():
+        # เพิ่ม ^ ในกรณีที่หัวข้ออยู่ต้นบรรทัด/ข้อความ, และใช้ re.DOTALL เพื่อให้ . match newline
+        # ปรับ Regex ให้ค้นหาตั้งแต่เริ่มต้นข้อความ หรือหลังเครื่องหมายขึ้นบรรทัดใหม่
+        match = re.search(r"^(?:\s*|.*?\n)\s*" + pattern_str, ai_text_processed, re.IGNORECASE | re.DOTALL)
+        if match:
+            content = match.group(1).strip()
+            # ทำความสะอาดข้อความ: ลบ •, - หรือเว้นวรรคที่อยู่ต้นบรรทัด
+            content = re.sub(r"^\s*[\•\-\s]*", "", content, flags=re.MULTILINE).strip()
+            # ตัดเครื่องหมาย | หรือ ; ที่อาจถูกใช้แบ่งข้อมูลออก
+            content = re.sub(r"[\;\|]$", "", content).strip()
+            extracted_data[key] = content
+            
+    # อัปเดตค่าใน session state/plan
+    for key, value in extracted_data.items():
+        if key in ss.plan:
+            # อัปเดต plan dictionary ซึ่งถูกใช้เป็นค่าเริ่มต้นของ widget
+            ss.plan[key] = value
+        
+        # อัปเดต session state key ของ widget โดยตรง (เช่น who_input) 
+        # เพื่อบังคับให้ widget แสดงค่าใหม่ทันทีที่ rerun
+        widget_key = f"{key}_input"
+        if widget_key in ss:
+            ss[widget_key] = value
+    
+    return extracted_data
+# <<<--- END NEW FUNCTION --->>>
+
 
 # Initialize session state and variables
 init_state()
@@ -274,8 +333,6 @@ with tab_plan:
         st.markdown("##### 🚀 สร้าง 6W2H อัตโนมัติด้วย AI")
         st.write("คัดลอกข้อความมาวางในช่องด้านล่างนี้ หรือ อัปโหลดไฟล์เพื่อดึงข้อความมาใส่ในช่องด้านล่าง")
        
-    # --- เริ่มส่วนโค้dใหม่ (สำหรับแทนที่) ---
-    
     # Initialize session state to store the extracted text
     if 'uploaded_text' not in st.session_state:
         st.session_state.uploaded_text = ""
@@ -319,12 +376,8 @@ with tab_plan:
         height=250
     )
     
-    # --- จบส่วนโค้ดใหม่ (สำหรับแทนที่) ---
-    
-    
-    # --- จบส่วนโค้ดใหม่ ---
+    # <<<--- ปรับปรุงส่วนการเรียกใช้ AI เพื่อให้ใส่ค่าอัตโนมัติ --->>>
     if st.button("🚀 สร้าง 6W2H จากข้อความ", type="primary", key="6w2h_button"):
-        # ดึงค่าจาก session_state มาใช้แทน
         uploaded_text_from_file = st.session_state.uploaded_text
     
         if not uploaded_text_from_file:
@@ -334,26 +387,33 @@ with tab_plan:
         else:
             with st.spinner("กำลังประมวลผล..."):
                 try:
-                    # แก้ไขตรงนี้ให้ใช้ตัวแปรใหม่
-                    user_prompt = f"จากข้อความด้านล่างนี้ กรุณาสรุปและแยกแยะข้อมูลให้เป็น 6W2H ...\nข้อความ:\n---\n{uploaded_text_from_file}\n---\n..."
+                    # ปรับ prompt ให้ AI ตอบกลับในรูปแบบที่มีหัวข้อ 6W2H ชัดเจน
+                    user_prompt = f"จากข้อความด้านล่างนี้ กรุณาสรุปและแยกแยะข้อมูลให้เป็น 6W2H โดยระบุหัวข้อ (Who, What, Where, When, Why, How, How much, Whom) และใช้เครื่องหมาย : คั่นให้ชัดเจน ในแต่ละส่วน ...\nข้อความ:\n---\n{uploaded_text_from_file}\n---\n..."
                     client = OpenAI(api_key=st.session_state.api_key_global, base_url="https://api.opentyphoon.ai/v1")
                     response = client.chat.completions.create(model="typhoon-v2.1-12b-instruct", messages=[{"role": "user", "content": user_prompt}], temperature=0.7, max_tokens=1024, top_p=0.9)
-                    st.session_state["6w2h_output"] = response.choices[0].message.content
-                    st.success("สร้าง 6W2H เรียบร้อยแล้ว! ผลลัพธ์แสดงอยู่ด้านล่าง"); st.balloons(); st.rerun()
+                    full_ai_response = response.choices[0].message.content
+                    st.session_state["6w2h_output"] = full_ai_response
+                    
+                    # เรียกใช้ฟังก์ชันเพื่อแยกส่วนข้อความและอัปเดตค่าใน plan และ widget keys
+                    parse_and_update_6w2h(full_ai_response)
+                    
+                    st.success("สร้าง 6W2H เรียบร้อยแล้ว! ข้อมูลถูกเติมลงในช่องแล้ว กรุณาตรวจสอบและแก้ไข"); st.balloons(); st.rerun()
                 except Exception as e:
                     st.error(f"เกิดข้อผิดพลาดในการเรียกใช้ AI: {e}")
 
     if st.session_state.get("6w2h_output"):
         st.markdown("---")
-        with st.expander("คลิกเพื่อดู/ซ่อนผลลัพธ์จาก AI ล่าสุด", expanded=True):
-            st.info("ตรวจสอบและคัดลอกข้อมูลด้านล่างนี้ไปวางในช่องที่เกี่ยวข้อง:")
+        # เปลี่ยน expanded=True เป็น False หรือนำออกไป ถ้าต้องการให้ยุบโดยปกติ
+        with st.expander("คลิกเพื่อดู/ซ่อนผลลัพธ์จาก AI ล่าสุด (ต้นฉบับ)", expanded=False): 
+            st.info("ผลลัพธ์จาก AI ถูกเติมลงในช่อง 6W2H ด้านล่างแล้ว")
             with st.container(border=True):
                 st.markdown(st.session_state["6w2h_output"])
     
-    st.markdown("##### ⭐กรุณาระบุข้อมูล เพื่อนำไปใช้ประมวลผล")
+    st.markdown("##### ⭐กรุณาระบุข้อมูล เพื่อนำไปใช้ประมวลผล (ตรวจสอบ/แก้ไข ข้อมูลที่ AI เติมให้)")
     with st.container(border=True):
         cc1, cc2, cc3 = st.columns(3)
         with cc1:
+            # ใช้ plan["who"] เป็น value และ key="who_input" เป็นตัวอ้างอิงของ widget
             plan["who"] = st.text_input("Who (ใคร)", plan["who"], key="who_input")
             plan["whom"] = st.text_input("Whom (เพื่อใคร)", plan["whom"], key="whom_input")
             plan["what"] = st.text_input("What (ทำอะไร)", plan["what"], key="what_input")
@@ -364,10 +424,7 @@ with tab_plan:
         with cc3:
             plan["how"] = st.text_area("How (อย่างไร)", plan["how"], key="how_input")
             plan["how_much"] = st.text_input("How much (เท่าไร)", plan["how_much"], key="how_much_input")
-    
-    # ... (ส่วนที่เหลือของโค้ดเหมือนเดิมทุกประการ) ...
-    # The rest of the file content from tab_logic onwards remains unchanged.
-    # I will append the rest of the original file content here to be complete.
+    # <<<--- สิ้นสุดการแก้ไขส่วน 6W2H ใน tab_plan --->>>
 
 with tab_logic:
     st.subheader("ระบุ Logic Model")
