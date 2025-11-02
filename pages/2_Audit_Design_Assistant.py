@@ -219,17 +219,16 @@ def create_interactive_flowchart(df: pd.DataFrame):
     config = Config(width='100%', height=600, directed=True, physics=False, hierarchical={"enabled": True, "direction": "LR", "sortMethod": "directed"})
     return nodes, edges, config
 
-# <<<--- 2. NEW: ฟังก์ชันสำหรับแยกส่วนข้อความ 6W2H (ฉบับแก้ไข) --->>>
+# <<<--- 2. NEW: ฟังก์ชันสำหรับแยกส่วนข้อความ 6W2H (ฉบับแก้ไข V4 - ลบ Markdown) --->>>
 def parse_and_update_6w2h(ai_text: str):
     """
-    แยกส่วนข้อความ 6W2H ที่ได้จาก AI และนำไปอัปเดตใน session state/plan (V3)
-    ปรับปรุง Regex ให้รองรับการตอบกลับแบบ "in-line" (ไม่มีการขึ้นบรรทัดใหม่ระหว่าง key)
+    แยกส่วนข้อความ 6W2H ที่ได้จาก AI และนำไปอัปเดตใน session state/plan (V4)
+    ปรับปรุง Regex ให้รองรับการตอบกลับแบบ "in-line" และลบ Markdown (**) ออก
     """
     ss = st.session_state
     
     # รูปแบบการค้นหา: หัวข้อ (เช่น Who, What, ...) ตามด้วยเครื่องหมาย :
     # และเนื้อหา (.*?) จนกว่าจะเจอ "หัวข้อถัดไป:" (lookahead) หรือจบข้อความ
-    # (Thai keys are removed for simplicity, as AI is prompted in English keys)
     all_keys = r"Who:|Whom:|What:|Where:|When:|Why:|How:|How much:"
     
     patterns = {
@@ -246,8 +245,7 @@ def parse_and_update_6w2h(ai_text: str):
     # โค้ดสำหรับดึงข้อความจาก AI
     extracted_data = {}
     
-    # ใช้ re.DOTALL เพื่อให้ . match newline (สำคัญสำหรับ
-    # "How" ที่มี bullet points)
+    # ใช้ re.DOTALL เพื่อให้ . match newline (สำคัญสำหรับ "How" ที่มี bullet points)
     # ใช้ re.IGNORECASE เพื่อรองรับ who: หรือ Who:
     flags = re.DOTALL | re.IGNORECASE
     
@@ -263,6 +261,13 @@ def parse_and_update_6w2h(ai_text: str):
             content = re.sub(r"^\s*[\•\-\s]*", "", content, flags=re.MULTILINE).strip()
             # ทำความสะอาดเพิ่มเติม: ลบ "แน่นอนครับ..." ถ้ามันติดมา
             content = re.sub(r"^แน่นอนครับ.*?:\s*", "", content).strip()
+            
+            # <<<--- (แก้ไข) เพิ่มการลบ ** (Markdown) ออกจากข้อความ ---
+            # 1. ลบจากข้างหน้า
+            content = re.sub(r"^\s*\*\*", "", content).strip()
+            # 2. ลบจากข้างหลัง
+            content = re.sub(r"\*\*\s*$", "", content).strip()
+            # <<<--- สิ้นสุดการแก้ไข ---
             
             extracted_data[key] = content
             
@@ -379,7 +384,7 @@ with tab_plan:
         height=250
     )
     
-    # <<<--- 3. แก้ไขส่วนการเรียกใช้ AI เพื่อให้ใส่ค่าอัตโนมัติ --->>>
+    # <<<--- 3. แก้ไขส่วนการเรียกใช้ AI (เหมือนเดิม) --->>>
     if st.button("🚀 สร้าง 6W2H จากข้อความ", type="primary", key="6w2h_button"):
         uploaded_text_from_file = st.session_state.uploaded_text
     
@@ -406,7 +411,7 @@ with tab_plan:
 
     if st.session_state.get("6w2h_output"):
         st.markdown("---")
-        with st.expander("คลิกเพื่อดู/ซ่อนผลลัพธ์จาก AI ล่าสุด (ต้นฉบับ)", expanded=True): # << เปลี่ยนเป็น True เพื่อให้แสดงผลลัพธ์
+        with st.expander("คลิกเพื่อดู/ซ่อนผลลัพธ์จาก AI ล่าสุด (ต้นฉบับ)", expanded=True): 
             st.info("ผลลัพธ์จาก AI (ด้านล่าง) ถูกเติมลงในช่อง 6W2H แล้ว กรุณาตรวจสอบและแก้ไข")
             with st.container(border=True):
                 st.markdown(st.session_state["6w2h_output"])
@@ -594,7 +599,7 @@ with tab_preview:
         st.markdown(f"**Plan ID:** {plan['plan_id']}  \n**ชื่อแผน:** {plan['plan_title']}  \n**โครงการ:** {plan['program_name']}  \n**หน่วยรับตรวจ:** {plan['who']}")
     st.markdown("### สรุปเรื่องที่ตรวจสอบ (จาก 6W2H)")
     with st.container(border=True):
-        st.markdown(f"- **Who**: {plan['who']}\n- **Whom**: {plan['whom']}\n- **What**: {plan['what']}\n- **Where**: {plan['where']}\n- **When**: {plan['when']}\n- **Why**: {plan['why']}\n- **How**: {plan['how']}\n- **How much**: {plan['how_much']}")
+        st.markdown(f"- **Who**: {plan['who']}\n- **Whom**: {plan['whom']}\n- **What**: {plan['what']}\n- **Where**: {plan['where']}\n- **When**: {plan['when']}\n- **Why**: {plan['why']}\n- **How**: {plan.get('how','')}\n- **How much**: {plan.get('how_much','')}")
     c1, c2 = st.columns(2)
     with c1:
         st.markdown("### Logic Model"); st.dataframe(st.session_state["logic_items"], use_container_width=True, hide_index=True)
@@ -635,7 +640,7 @@ with tab_assist:
                     full_response = response.choices[0].message.content
                     issue_start = full_response.find("<ประเด็นตรวจสอบที่ควรให้ความสำคัญ>") + len("<ประเด็นตรวจสอบที่ควรให้ความสำคัญ>"); issue_end = full_response.find("</ประเด็นตรวจสอบที่ควรให้ความสำคัญ>"); st.session_state["gen_issues"] = full_response[issue_start:issue_end].strip()
                     finding_start = full_response.find("<ข้อตรวจพบที่คาดว่าจะพบ>") + len("<ข้อตรวจพบที่คาดว่าจะพบ>"); finding_end = full_response.find("</ข้อตรวจพบที่คาดว่าจะพบ>"); st.session_state["gen_findings"] = full_response[finding_start:finding_end].strip()
-                    report_start = full_response.find("<ร่างรายงานตรวจสอบ>") + len("<ร่างรายงานตรวจสอบ>"); report_end = full_response.find("</Rร่างรายงานตรวจสอบ>"); st.session_state["gen_report"] = full_response[report_start:report_end].strip()
+                    report_start = full_response.find("<ร่างรายงานตรวจสอบ>") + len("<ร่างรายงานตรวจสอบ>"); report_end = full_response.find("</ร่างรายงานตรวจสอบ>"); st.session_state["gen_report"] = full_response[report_start:report_end].strip()
                     st.success("สร้างคำแนะนำจาก AI เรียบร้อยแล้ว ✅")
                 except Exception as e:
                     st.error(f"เกิดข้อผิดพลาดในการเรียกใช้ AI: {e}"); st.session_state["gen_issues"] = ""; st.session_state["gen_findings"] = ""; st.session_state["gen_report"] = ""
