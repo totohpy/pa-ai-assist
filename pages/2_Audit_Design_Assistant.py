@@ -11,7 +11,7 @@ import io
 import docx
 from PyPDF2 import PdfReader
 from streamlit_agraph import agraph, Node, Edge, Config
-import re # <<<--- 1. เพิ่ม import re สำหรับการแยกส่วนข้อความ AI
+import re # เพิ่ม import re
 
 # Page config
 st.set_page_config(page_title="Audit Design Assistant", page_icon="✨", layout="wide")
@@ -218,58 +218,63 @@ def create_interactive_flowchart(df: pd.DataFrame):
             edges.append(Edge(source=nodes_exist[i], target=nodes_exist[i+1], dashes=False, color="#000000"))
     config = Config(width='100%', height=600, directed=True, physics=False, hierarchical={"enabled": True, "direction": "LR", "sortMethod": "directed"})
     return nodes, edges, config
-    
-# <<<--- 2. NEW: ฟังก์ชันสำหรับแยกส่วนข้อความ 6W2H และอัปเดตค่าในช่อง input --->>>
+
+# <<<--- 2. NEW: ฟังก์ชันสำหรับแยกส่วนข้อความ 6W2H (ฉบับแก้ไข) --->>>
 def parse_and_update_6w2h(ai_text: str):
     """
-    แยกส่วนข้อความ 6W2H ที่ได้จาก AI และนำไปอัปเดตใน session state/plan
-    สมมติรูปแบบการตอบกลับที่มีหัวข้อ 6W2H นำหน้าและมีเครื่องหมายคั่น (เช่น :)
+    แยกส่วนข้อความ 6W2H ที่ได้จาก AI และนำไปอัปเดตใน session state/plan (V3)
+    ปรับปรุง Regex ให้รองรับการตอบกลับแบบ "in-line" (ไม่มีการขึ้นบรรทัดใหม่ระหว่าง key)
     """
     ss = st.session_state
     
-    # รูปแบบการค้นหา: หัวข้อ (เช่น Who, What, ...) ตามด้วยเครื่องหมาย : หรือ | หรือ - 
-    # และเนื้อหา จนกว่าจะเจอหัวข้อถัดไป หรือจบข้อความ
-    # ใช้ Regex ที่ยืดหยุ่นและใช้ re.DOTALL เพื่อให้ . match newline ได้
+    # รูปแบบการค้นหา: หัวข้อ (เช่น Who, What, ...) ตามด้วยเครื่องหมาย :
+    # และเนื้อหา (.*?) จนกว่าจะเจอ "หัวข้อถัดไป:" (lookahead) หรือจบข้อความ
+    # (Thai keys are removed for simplicity, as AI is prompted in English keys)
+    all_keys = r"Who:|Whom:|What:|Where:|When:|Why:|How:|How much:"
+    
     patterns = {
-        "who": r"(?:Who|ใคร)\s*[:\|\-]\s*(.*?)(?=\n*(?:Whom|เพื่อใคร)\s*[:\|\-]|$\Z)",
-        "whom": r"(?:Whom|เพื่อใคร)\s*[:\|\-]\s*(.*?)(?=\n*(?:What|ทำอะไร)\s*[:\|\-]|$\Z)",
-        "what": r"(?:What|ทำอะไร)\s*[:\|\-]\s*(.*?)(?=\n*(?:Where|ที่ไหน)\s*[:\|\-]|$\Z)",
-        "where": r"(?:Where|ที่ไหน)\s*[:\|\-]\s*(.*?)(?=\n*(?:When|เมื่อใด)\s*[:\|\-]|$\Z)",
-        "when": r"(?:When|เมื่อใด)\s*[:\|\-]\s*(.*?)(?=\n*(?:Why|ทำไม)\s*[:\|\-]|$\Z)",
-        "why": r"(?:Why|ทำไม)\s*[:\|\-]\s*(.*?)(?=\n*(?:How|อย่างไร)\s*[:\|\-]|$\Z)",
-        "how": r"(?:How|อย่างไร)\s*[:\|\-]\s*(.*?)(?=\n*(?:How much|เท่าไร)\s*[:\|\-]|$\Z)",
-        "how_much": r"(?:How much|เท่าไร)\s*[:\|\-]\s*(.*)",
+        "who": rf"Who\s*:\s*(.*?)(?={all_keys}|\Z)",
+        "whom": rf"Whom\s*:\s*(.*?)(?={all_keys}|\Z)",
+        "what": rf"What\s*:\s*(.*?)(?={all_keys}|\Z)",
+        "where": rf"Where\s*:\s*(.*?)(?={all_keys}|\Z)",
+        "when": rf"When\s*:\s*(.*?)(?={all_keys}|\Z)",
+        "why": rf"Why\s*:\s*(.*?)(?={all_keys}|\Z)",
+        "how": rf"How\s*:\s*(.*?)(?={all_keys}|\Z)",
+        "how_much": rf"How much\s*:\s*(.*?)(?={all_keys}|\Z)",
     }
     
     # โค้ดสำหรับดึงข้อความจาก AI
     extracted_data = {}
     
-    # ปรับรูปแบบข้อความก่อนค้นหาเพื่อให้ Regex ทำงานง่ายขึ้น
-    ai_text_processed = ai_text.strip()
+    # ใช้ re.DOTALL เพื่อให้ . match newline (สำคัญสำหรับ
+    # "How" ที่มี bullet points)
+    # ใช้ re.IGNORECASE เพื่อรองรับ who: หรือ Who:
+    flags = re.DOTALL | re.IGNORECASE
     
-    # ทดลองค้นหาแบบกว้างด้วย re.DOTALL และ MULTILINE
     for key, pattern_str in patterns.items():
-        # ปรับ Regex ให้ค้นหาตั้งแต่เริ่มต้นข้อความ หรือหลังเครื่องหมายขึ้นบรรทัดใหม่
-        match = re.search(r"^(?:\s*|.*?\n)\s*" + pattern_str, ai_text_processed, re.IGNORECASE | re.DOTALL)
+        # ค้นหา pattern ที่ใดก็ได้ในข้อความ
+        match = re.search(pattern_str, ai_text, flags)
+        
         if match:
+            # group(1) คือ (.*?)
             content = match.group(1).strip()
-            # ทำความสะอาดข้อความ: ลบ •, - หรือเว้นวรรคที่อยู่ต้นบรรทัด
+            
+            # ทำความสะอาดข้อความ: ลบ •, - หรือเว้นวรรคที่อยู่ต้นบรรทัด (กรณีมี bullet)
             content = re.sub(r"^\s*[\•\-\s]*", "", content, flags=re.MULTILINE).strip()
-            # ตัดเครื่องหมาย | หรือ ; ที่อาจถูกใช้แบ่งข้อมูลออก
-            content = re.sub(r"[\;\|]$", "", content).strip()
+            # ทำความสะอาดเพิ่มเติม: ลบ "แน่นอนครับ..." ถ้ามันติดมา
+            content = re.sub(r"^แน่นอนครับ.*?:\s*", "", content).strip()
+            
             extracted_data[key] = content
             
     # อัปเดตค่าใน session state/plan
     for key, value in extracted_data.items():
-        if key in ss.plan:
-            # อัปเดต plan dictionary ซึ่งถูกใช้เป็นค่าเริ่มต้นของ widget
-            ss.plan[key] = value
-        
-        # อัปเดต session state key ของ widget โดยตรง (เช่น who_input) 
-        # เพื่อบังคับให้ widget แสดงค่าใหม่ทันทีที่ rerun
-        widget_key = f"{key}_input"
-        if widget_key in ss:
-            ss[widget_key] = value
+        if value: # อัปเดตเฉพาะเมื่อมีค่าที่ดึงมาได้
+            if key in ss.plan:
+                ss.plan[key] = value
+            
+            widget_key = f"{key}_input"
+            if widget_key in ss:
+                ss[widget_key] = value
     
     return extracted_data
 # <<<--- END NEW FUNCTION --->>>
@@ -401,8 +406,8 @@ with tab_plan:
 
     if st.session_state.get("6w2h_output"):
         st.markdown("---")
-        with st.expander("คลิกเพื่อดู/ซ่อนผลลัพธ์จาก AI ล่าสุด (ต้นฉบับ)", expanded=False): 
-            st.info("ผลลัพธ์จาก AI ถูกเติมลงในช่อง 6W2H ด้านล่างแล้ว")
+        with st.expander("คลิกเพื่อดู/ซ่อนผลลัพธ์จาก AI ล่าสุด (ต้นฉบับ)", expanded=True): # << เปลี่ยนเป็น True เพื่อให้แสดงผลลัพธ์
+            st.info("ผลลัพธ์จาก AI (ด้านล่าง) ถูกเติมลงในช่อง 6W2H แล้ว กรุณาตรวจสอบและแก้ไข")
             with st.container(border=True):
                 st.markdown(st.session_state["6w2h_output"])
     
@@ -630,7 +635,7 @@ with tab_assist:
                     full_response = response.choices[0].message.content
                     issue_start = full_response.find("<ประเด็นตรวจสอบที่ควรให้ความสำคัญ>") + len("<ประเด็นตรวจสอบที่ควรให้ความสำคัญ>"); issue_end = full_response.find("</ประเด็นตรวจสอบที่ควรให้ความสำคัญ>"); st.session_state["gen_issues"] = full_response[issue_start:issue_end].strip()
                     finding_start = full_response.find("<ข้อตรวจพบที่คาดว่าจะพบ>") + len("<ข้อตรวจพบที่คาดว่าจะพบ>"); finding_end = full_response.find("</ข้อตรวจพบที่คาดว่าจะพบ>"); st.session_state["gen_findings"] = full_response[finding_start:finding_end].strip()
-                    report_start = full_response.find("<ร่างรายงานตรวจสอบ>") + len("<ร่างรายงานตรวจสอบ>"); report_end = full_response.find("</ร่างรายงานตรวจสอบ>"); st.session_state["gen_report"] = full_response[report_start:report_end].strip()
+                    report_start = full_response.find("<ร่างรายงานตรวจสอบ>") + len("<ร่างรายงานตรวจสอบ>"); report_end = full_response.find("</Rร่างรายงานตรวจสอบ>"); st.session_state["gen_report"] = full_response[report_start:report_end].strip()
                     st.success("สร้างคำแนะนำจาก AI เรียบร้อยแล้ว ✅")
                 except Exception as e:
                     st.error(f"เกิดข้อผิดพลาดในการเรียกใช้ AI: {e}"); st.session_state["gen_issues"] = ""; st.session_state["gen_findings"] = ""; st.session_state["gen_report"] = ""
