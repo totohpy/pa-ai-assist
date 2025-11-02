@@ -22,6 +22,8 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
 
+# ... (โค้ดส่วนบนสุดของ Home.py เหมือนเดิม) ...
+
 # --- Enhanced CSS for homepage and sidebar ---
 st.markdown(
     """
@@ -65,14 +67,14 @@ st.markdown(
     .feature-link:hover { text-decoration: none !important; color: inherit !important; }
     .feature-box {
         background-color: #e0f2f1;
-        padding: 2rem 1rem;
+        padding: 1rem 1rem; /* ลด padding แนวตั้งลง */
         border-radius: 20px;
         text-align: center;
         transition: transform 0.3s, box-shadow 0.3s;
-        height: 220px;
+        min-height: 220px; /* ใช้ min-height แทน height เพื่อให้ยืดหยุ่น */
         display: flex;
         flex-direction: column;
-        justify-content: center;
+        justify-content: flex-start; /* จัดเรียงจากบนลงล่าง */
         align-items: center;
         border: 2px solid #d0e0df;
     }
@@ -80,9 +82,22 @@ st.markdown(
         transform: translateY(-10px);
         box-shadow: 0 8px 30px rgba(0,0,0,0.12);
     }
-    .feature-box .emoji { font-size: 2.5rem; line-height: 1.5; }
-    .feature-box h3 { margin-top: 0.1rem; margin-bottom: 0.1rem; font-size: 1.2rem; }
-    .feature-box p { color: #6c757d; font-size: 1rem; }
+    .feature-box .emoji { 
+        font-size: 2.2rem; /* ลดขนาด Emoji เล็กน้อย */
+        margin-bottom: 0.5rem; /* เพิ่มระยะห่างด้านล่างของ Emoji */
+        line-height: 1.2; /* ปรับ line-height ให้กระชับ */
+    }
+    .feature-box h3 { 
+        margin-top: 0.1rem; 
+        margin-bottom: 0.4rem; /* เพิ่มระยะห่างด้านล่างของหัวข้อ */
+        font-size: 1.2rem; 
+    }
+    .feature-box p { 
+        color: #6c757d; 
+        font-size: 1rem; 
+        flex-grow: 1; /* ให้ข้อความรายละเอียดกินพื้นที่ที่เหลือ */
+        margin-bottom: 0; /* ลบ margin ล่างของ P */
+    }
     
     /* --- Style the sidebar navigation --- */
     div[data-testid="stSidebarNav"] > ul > li > a {
@@ -107,7 +122,7 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-
+# ... (โค้ดส่วนล่างของ Home.py เหมือนเดิม) ...
 
 # --- Homepage Layout ---
 st.title("🧭 Planning Studio – Performance Audit")
