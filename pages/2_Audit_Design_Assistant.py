@@ -586,7 +586,7 @@ with tab_issue:
                         st.text_area("เหตุผลที่ควรตรวจ", key=f"rat_{i}", value=f"อ้างอิงกรณีเดิม ปี {year_txt} | ")
                         st.text_input("KPI ที่เกี่ยว (ถ้ามี)", key=f"kpi_{i}"); st.text_input("วิธีเก็บข้อมูลที่เสนอ", key=f"mth_{i}", value="สัมภาษณ์/สังเกต/ตรวจเอกสาร")
                     with c2:
-                        if st.button("➕ เพิ่มเป็นประเด็นตรวจสอบ", key=f"add_{i}", type="secondary"):
+                        if st.button("➕ เพิ่มเป็นประเด็นการตรวจสอบ", key=f"add_{i}", type="secondary"):
                             new_row = pd.DataFrame([{"issue_id": next_id("ISS", audit_issues_df, "issue_id"),"plan_id": plan.get("plan_id",""),"title": title_txt,"rationale": st.session_state.get(f"rat_{i}", ""),"linked_kpi": st.session_state.get(f"kpi_{i}", ""),"proposed_methods": st.session_state.get(f"mth_{i}", ""),"source_finding_id": row.get("finding_id", ""),"issue_detail": row.get("issue_detail", ""),"recommendation": row.get("recommendation", "")}])
                             st.session_state["audit_issues"] = pd.concat([audit_issues_df, new_row], ignore_index=True)
                             st.success("เพิ่มประเด็นเข้าแผนแล้ว ✅"); st.rerun()
@@ -614,18 +614,18 @@ with tab_preview:
     with c4:
         st.markdown("### Risks"); st.dataframe(st.session_state["risks"], use_container_width=True, hide_index=True)
         df_download_link(st.session_state["risks"], "risks.csv", "⬇️ ดาวน์โหลด Risks (CSV)")
-    st.markdown("### ประเด็นตรวจสอบที่เพิ่มเข้ามา")
+    st.markdown("### ประเด็นการตรวจสอบที่เพิ่มเข้ามา")
     if not st.session_state["audit_issues"].empty:
         display_issues_df = st.session_state["audit_issues"].copy().rename(columns={"issue_id": "รหัสประเด็น", "title": "ชื่อประเด็น","rationale": "เหตุผล", "issue_detail": "รายละเอียด","recommendation": "ข้อเสนอแนะ"})
         st.dataframe(display_issues_df[["รหัสประเด็น", "ชื่อประเด็น", "เหตุผล", "รายละเอียด", "ข้อเสนอแนะ"]], use_container_width=True, hide_index=True)
-    else: st.info("ยังไม่มีประเด็นตรวจสอบที่เพิ่มเข้ามาในแผน")
+    else: st.info("ยังไม่มีประเด็นการตรวจสอบที่เพิ่มเข้ามาในแผน")
     if not st.session_state["audit_issues"].empty: df_download_link(st.session_state["audit_issues"], "audit_issues.csv", "⬇️ ดาวน์โหลด Audit Issues (CSV)")
     st.divider(); plan_df = pd.DataFrame([plan]); df_download_link(plan_df, "plan.csv", "⬇️ ดาวน์โหลด Plan (CSV)")
-    st.success("พร้อมเชื่อมต่อ 🤖 PA Assistant เพื่อแนะนำประเด็นตรวจสอบ ✨✨")
+    st.success("พร้อมเชื่อมต่อ 🤖 PA Assistant เพื่อแนะนำประเด็นที่ควรตรวจสอบ ✨✨")
 
 with tab_assist:
     st.subheader("💡 PA Assistant (AI/LLM)")
-    st.write("🤖 สร้างคำแนะนำประเด็นตรวจสอบจาก AI")
+    st.write("🤖 สร้างคำแนะนำประเด็นที่ควรตรวจสอบจาก AI")
     if st.button("🚀 สร้างคำแนะนำจาก AI", type="primary", key="llm_assist_button"):
         if not st.session_state.api_key_global: st.error("กรุณาตั้งค่า API Key ใน Streamlit Cloud Secrets ก่อน")
         else:
@@ -633,19 +633,19 @@ with tab_assist:
                 try:
                     issues_for_llm = st.session_state['audit_issues'][['title', 'rationale']]
                     plan_summary = f"ชื่อแผน/เรื่องที่จะตรวจ: {plan['plan_title']}\nชื่อโครงการ/แผนงาน: {plan['program_name']}\nวัตถุประสงค์: {plan['objectives']}\nขอบเขต: {plan['scope']}\nสมมติฐาน/ข้อจำกัด: {plan['assumptions']}\n---\n6W2H:\nใคร (Who): {plan['who']}\nถึงใคร (Whom): {plan['whom']}\nทำอะไร (What): {plan['what']}\nที่ไหน (Where): {plan['where']}\nเมื่อใด (When): {plan['when']}\nทำไม (Why): {plan['why']}\nอย่างไร (How): {plan['how']}\nเท่าไร (How much): {plan['how_much']}\n---\nLogic Model:\n{st.session_state['logic_items'].to_string()}\n---\nประเด็นจากรายงานเก่า:\n{issues_for_llm.to_string()}"
-                    user_prompt = f"จากข้อมูลแผนการตรวจสอบด้านล่างนี้ กรุณาช่วยสร้างคำแนะนำ 3 อย่าง:\n1. ประเด็นตรวจสอบที่ควรให้ความสำคัญ อาจอ้างอิงถึงประเด็นเก่า, ข้อตรวจพบ, หรือสถานการณ์ปัจจุบัน พร้อมเหตุผล\n2. ข้อตรวจพบที่คาดว่าจะพบ (พร้อมระบุโอกาสที่จะเจอ: สูง/กลาง/ต่ำ) พร้อมเหตุผล\n3. ร่างรายงานตรวจสอบ วิเคราะห์ผลกระทบและสาเหตุของข้อตรวจพบที่คาดว่าจะพบ\n---\n{plan_summary}\n---\nกรุณาสร้างคำตอบตามรูปแบบนี้เท่านั้น:\n<ประเด็นตรวจสอบที่ควรให้ความสำคัญ>\n[ข้อความส่วนที่ 1]\n</ประเด็นตรวจสอบที่ควรให้ความสำคัญ>\n\n<ข้อตรวจพบที่คาดว่าจะพบ>\n[ข้อความส่วนที่ 2]\n</ข้อตรวจพบที่คาดว่าจะพบ>\n\n<ร่างรายงานตรวจสอบ>\n[ข้อความส่วนที่ 3]\n</ร่างรายงานตรวจสอบ>"
+                    user_prompt = f"จากข้อมูลแผนการตรวจสอบด้านล่างนี้ กรุณาช่วยสร้างคำแนะนำ 3 อย่าง:\n1. ประเด็นที่ควรตรวจสอบ อาจอ้างอิงถึงประเด็นเก่า, ข้อตรวจพบ, หรือสถานการณ์ปัจจุบัน พร้อมเหตุผล\n2. ข้อตรวจพบที่คาดว่าจะพบ (พร้อมระบุโอกาสที่จะเจอ: สูง/กลาง/ต่ำ) พร้อมเหตุผล\n3. ร่างรายงานตรวจสอบ วิเคราะห์ผลกระทบและสาเหตุของข้อตรวจพบที่คาดว่าจะพบ\n---\n{plan_summary}\n---\nกรุณาสร้างคำตอบตามรูปแบบนี้เท่านั้น:\n<ประเด็นที่ควรตรวจสอบ>\n[ข้อความส่วนที่ 1]\n</ประเด็นที่ควรตรวจสอบ>\n\n<ข้อตรวจพบที่คาดว่าจะพบ>\n[ข้อความส่วนที่ 2]\n</ข้อตรวจพบที่คาดว่าจะพบ>\n\n<ร่างรายงานตรวจสอบ>\n[ข้อความส่วนที่ 3]\n</ร่างรายงานตรวจสอบ>"
                     client = OpenAI(api_key=st.session_state.api_key_global, base_url="https://api.opentyphoon.ai/v1")
                     messages = [{"role": "system", "content": "คุณคือผู้เชี่ยวชาญด้านการตรวจสอบผลสัมฤทธิ์และประสิทธิภาพการดำเนินงาน (Performance Auditing)"}, {"role": "user", "content": user_prompt}]
                     response = client.chat.completions.create(model="typhoon-v2.1-12b-instruct", messages=messages, temperature=0.7, max_tokens=2048)
                     full_response = response.choices[0].message.content
-                    issue_start = full_response.find("<ประเด็นตรวจสอบที่ควรให้ความสำคัญ>") + len("<ประเด็นตรวจสอบที่ควรให้ความสำคัญ>"); issue_end = full_response.find("</ประเด็นตรวจสอบที่ควรให้ความสำคัญ>"); st.session_state["gen_issues"] = full_response[issue_start:issue_end].strip()
+                    issue_start = full_response.find("<ประเด็นที่ควรตรวจสอบ>") + len("<ประเด็นที่ควรตรวจสอบ>"); issue_end = full_response.find("</ประเด็นที่ควรตรวจสอบ>"); st.session_state["gen_issues"] = full_response[issue_start:issue_end].strip()
                     finding_start = full_response.find("<ข้อตรวจพบที่คาดว่าจะพบ>") + len("<ข้อตรวจพบที่คาดว่าจะพบ>"); finding_end = full_response.find("</ข้อตรวจพบที่คาดว่าจะพบ>"); st.session_state["gen_findings"] = full_response[finding_start:finding_end].strip()
                     report_start = full_response.find("<ร่างรายงานตรวจสอบ>") + len("<ร่างรายงานตรวจสอบ>"); report_end = full_response.find("</ร่างรายงานตรวจสอบ>"); st.session_state["gen_report"] = full_response[report_start:report_end].strip()
                     st.success("สร้างคำแนะนำจาก AI เรียบร้อยแล้ว ✅")
                 except Exception as e:
                     st.error(f"เกิดข้อผิดพลาดในการเรียกใช้ AI: {e}"); st.session_state["gen_issues"] = ""; st.session_state["gen_findings"] = ""; st.session_state["gen_report"] = ""
     st.subheader("ผลลัพธ์จาก AI")
-    with st.expander("1. ประเด็นตรวจสอบที่ควรให้ความสำคัญ", expanded=True):
+    with st.expander("1. ประเด็นที่ควรตรวจสอบ", expanded=True):
         st.write(st.session_state.get('gen_issues', "ยังไม่มีข้อมูล กด 'สร้างคำแนะนำจาก AI' เพื่อเริ่มต้น"))
     with st.expander("2. ข้อตรวจพบที่คาดว่าจะพบ"):
         st.write(st.session_state.get('gen_findings', "ยังไม่มีข้อมูล"))
