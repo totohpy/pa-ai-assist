@@ -276,7 +276,7 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณ..."
 
                     client = OpenAI(api_key=api_key, base_url="https://api.opentyphoon.ai/v1")
                     response_stream = client.chat.completions.create(
-                        model="typhoon-v2.1-12b-instruct", 
+                        model="typhoon-v2.5-30b-a3b-instruct", 
                         messages=messages_for_api, 
                         temperature=0.5, 
                         max_tokens=3072, 
