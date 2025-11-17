@@ -398,7 +398,7 @@ with tab_plan:
                     # ปรับ prompt ให้ AI ตอบกลับในรูปแบบที่มีหัวข้อ 6W2H ชัดเจนและใช้เครื่องหมาย : คั่น
                     user_prompt = f"จากข้อความด้านล่างนี้ กรุณาสรุปและแยกแยะข้อมูลให้เป็น 6W2H โดยระบุหัวข้อ (Who, Whom, What, Where, When, Why, How, How much) และใช้เครื่องหมาย : คั่นให้ชัดเจน ในแต่ละส่วน ดังตัวอย่าง Who: [คำตอบ] ...\nข้อความ:\n---\n{uploaded_text_from_file}\n---\n"
                     client = OpenAI(api_key=st.session_state.api_key_global, base_url="https://api.opentyphoon.ai/v1")
-                    response = client.chat.completions.create(model="typhoon-v2.1-12b-instruct", messages=[{"role": "user", "content": user_prompt}], temperature=0.7, max_tokens=1024, top_p=0.9)
+                    response = client.chat.completions.create(model="typhoon-v2.5-30b-a3b-instruct", messages=[{"role": "user", "content": user_prompt}], temperature=0.7, max_tokens=1024, top_p=0.9)
                     full_ai_response = response.choices[0].message.content
                     st.session_state["6w2h_output"] = full_ai_response
                     
@@ -636,7 +636,7 @@ with tab_assist:
                     user_prompt = f"จากข้อมูลแผนการตรวจสอบด้านล่างนี้ กรุณาช่วยสร้างคำแนะนำ 3 อย่าง:\n1. ประเด็นที่ควรตรวจสอบ อาจอ้างอิงถึงประเด็นเก่า, ข้อตรวจพบ, หรือสถานการณ์ปัจจุบัน พร้อมเหตุผล\n2. ข้อตรวจพบที่คาดว่าจะพบ (พร้อมระบุโอกาสที่จะเจอ: สูง/กลาง/ต่ำ) พร้อมเหตุผล\n3. ร่างรายงานตรวจสอบ วิเคราะห์ผลกระทบและสาเหตุของข้อตรวจพบที่คาดว่าจะพบ\n---\n{plan_summary}\n---\nกรุณาสร้างคำตอบตามรูปแบบนี้เท่านั้น:\n<ประเด็นที่ควรตรวจสอบ>\n[ข้อความส่วนที่ 1]\n</ประเด็นที่ควรตรวจสอบ>\n\n<ข้อตรวจพบที่คาดว่าจะพบ>\n[ข้อความส่วนที่ 2]\n</ข้อตรวจพบที่คาดว่าจะพบ>\n\n<ร่างรายงานตรวจสอบ>\n[ข้อความส่วนที่ 3]\n</ร่างรายงานตรวจสอบ>"
                     client = OpenAI(api_key=st.session_state.api_key_global, base_url="https://api.opentyphoon.ai/v1")
                     messages = [{"role": "system", "content": "คุณคือผู้เชี่ยวชาญด้านการตรวจสอบผลสัมฤทธิ์และประสิทธิภาพการดำเนินงาน (Performance Auditing)"}, {"role": "user", "content": user_prompt}]
-                    response = client.chat.completions.create(model="typhoon-v2.1-12b-instruct", messages=messages, temperature=0.7, max_tokens=2048)
+                    response = client.chat.completions.create(model="typhoon-v2.5-30b-a3b-instruct", messages=messages, temperature=0.7, max_tokens=2048)
                     full_response = response.choices[0].message.content
                     issue_start = full_response.find("<ประเด็นที่ควรตรวจสอบ>") + len("<ประเด็นที่ควรตรวจสอบ>"); issue_end = full_response.find("</ประเด็นที่ควรตรวจสอบ>"); st.session_state["gen_issues"] = full_response[issue_start:issue_end].strip()
                     finding_start = full_response.find("<ข้อตรวจพบที่คาดว่าจะพบ>") + len("<ข้อตรวจพบที่คาดว่าจะพบ>"); finding_end = full_response.find("</ข้อตรวจพบที่คาดว่าจะพบ>"); st.session_state["gen_findings"] = full_response[finding_start:finding_end].strip()
