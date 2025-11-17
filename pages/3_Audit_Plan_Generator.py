@@ -192,7 +192,7 @@ def run_ai_for_field(obj_index, path, field_name):
             prompt_instruction = "จาก context ข้างต้น จงระบุ 'วิธีการวิเคราะห์หลักฐาน' ที่จะใช้ในการประมวลผล"
         full_prompt = f"คุณคือผู้เชี่ยวชาญด้านการตรวจสอบภาครัฐด้าน Performance Audit \n{context}\n**คำสั่ง:**\n{prompt_instruction}\nตอบกลับเป็นข้อความธรรมดาในรูปแบบรายการ (bullet points) เท่านั้น"
         messages = [{"role": "user", "content": full_prompt}]
-        response = client.chat.completions.create(model="typhoon-v2.1-12b-instruct", messages=messages, temperature=0.5)
+        response = client.chat.completions.create(model="typhoon-v2.5-30b-a3b-instruct", messages=messages, temperature=0.5)
         generated_text = response.choices[0].message.content.strip()
         cleaned_text = generated_text.replace("**", "")
         if cleaned_text:
