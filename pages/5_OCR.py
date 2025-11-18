@@ -4,7 +4,6 @@ import json
 from PIL import Image
 
 # --- 1. ตั้งค่า Page Config ---
-# ใช้ config ตามที่ต้องการ แต่รักษา Page Title ให้ตรงกับฟังก์ชันของหน้า
 st.set_page_config(
     page_title="Typhoon OCR",
     page_icon="📄",
@@ -12,6 +11,7 @@ st.set_page_config(
 )
 
 # --- 2. Custom CSS (Styles) ---
+# การตั้งค่าสไตล์ทั้งหมดตามธีม PA Assistant Chat (Sarabun, สีเขียวอ่อน)
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;700&display=swap');
@@ -29,7 +29,7 @@ st.markdown("""
     /* ปรับหัวข้อ Header */
     h1 { 
         font-size: 36px !important; 
-        color: #263238; /* สีเข้มเพื่อให้เข้ากับธีม */
+        color: #263238; 
         font-weight: 700;
     }
     h2, h3 {
@@ -41,7 +41,7 @@ st.markdown("""
     [data-testid="stSidebar"] {
         background-color: #e0f2f1;
         width: 250px !important;
-        border-right: 1px solid #b2dfdb; /* เพิ่มเส้นขอบเพื่อให้ดูดีขึ้น */
+        border-right: 1px solid #b2dfdb;
     }
 
     /* --- Flexbox layout for Sidebar --- */
@@ -51,23 +51,66 @@ st.markdown("""
         flex-direction: column;
         height: 100%;
     }
-    /* This makes the navigation/widgets take up all available space, pushing the footer down */
+    /* This makes the navigation take up all available space, pushing the footer down */
     [data-testid="stSidebarNav"] {
         flex-grow: 1;
-        margin-top: 20px;
+        margin-top: 20px; /* Move navigation down */
     }
     .sidebar-footer {
         width: 100%;
         padding: 1rem;
-        text-align: center; 
-        /* Ensure it stays at the bottom or is styled correctly */
+        text-align: center; /* Center the footer content */
     }
 
     /* Remove Streamlit's default top padding */
     .block-container {
         padding-top: 2rem;
     }
-    
+
+    /* --- Feature Box Styling (Main Page) - included for consistency across app --- */
+    .feature-link { text-decoration: none !important; color: inherit !important; }
+    .feature-link:hover { text-decoration: none !important; color: inherit !important; }
+    .feature-box {
+        background-color: #e0f2f1;
+        padding: 1rem 1rem;
+        border-radius: 20px;
+        text-align: center;
+        transition: transform 0.3s, box-shadow 0.3s;
+        height: 200px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        border: 1px solid #d0e0df;
+    }
+    .feature-box:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+    }
+    .feature-box .emoji { font-size: 1.6rem; line-height: 1; }
+    .feature-box h3 { margin-top: 0.7rem; margin-bottom: 0.4rem; font-size: 1.2rem; }
+    .feature-box p { color: #6c757d; font-size: 0.85rem; }
+     
+    /* --- Style the sidebar navigation --- */
+    div[data-testid="stSidebarNav"] > ul > li > a {
+        padding: 18px 40px !important; /* Increased padding for more height */
+        font-size: 20px !important;    /* Larger font size */
+        margin-bottom: 10px;
+        border-radius: 8px;
+        color: #263238 !important;      /* Darker text for inactive links */
+        background-color: #b2dfdb;      /* Light teal for inactive links */
+        border: 1px solid #9dbdb9;
+        font-weight: 500;
+    }
+     
+    /* Style the ACTIVE page link */
+    div[data-testid="stSidebarNav"] a[aria-current="page"] {
+        background-color: #80cbc4;      /* Dark teal for active link */
+        color: #FFFFFF !important;      /* White text for active link */
+        font-weight: 600;
+        border: 1px solid #00796b;
+    }
+
     /* ปรับแต่งปุ่ม Primary (Start OCR) - คงสีน้ำเงินเพื่อให้โดดเด่น */
     .stButton > button {
         background-color: #2563EB; /* สีน้ำเงิน Typhoon */
@@ -101,8 +144,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. ฟังก์ชัน Logic การเรียก API (ไม่มีการเปลี่ยนแปลงในส่วนนี้) ---
+# --- 3. ฟังก์ชัน Logic การเรียก API ---
 def extract_text_from_image(uploaded_file, api_key, model, task_type, max_tokens, temperature, top_p, repetition_penalty, pages=None):
+    # Endpoint สำหรับ Typhoon OCR
     url = "https://api.opentyphoon.ai/v1/ocr"
     
     # เตรียมไฟล์ (Streamlit ส่งมาเป็น BytesIO)
@@ -126,32 +170,33 @@ def extract_text_from_image(uploaded_file, api_key, model, task_type, max_tokens
     }
 
     try:
-        # ส่ง Request
+        # ส่ง Request ไปยัง API
         response = requests.post(url, files=files, data=data, headers=headers)
         
         if response.status_code == 200:
             result = response.json()
             extracted_texts = []
             
-            # แกะ JSON Response ตามโครงสร้างของ Typhoon API
+            # แกะ JSON Response เพื่อดึงข้อความที่ได้จาก OCR
             for page_result in result.get('results', []):
                 if page_result.get('success') and page_result.get('message'):
                     content = page_result['message']['choices'][0]['message']['content']
                     try:
-                        # พยายามแปลง String JSON กลับเป็น Object เพื่อดึงเฉพาะ natural_text
+                        # พยายามแปลง String JSON กลับเป็น Object เพื่อดึงเฉพาะ natural_text (ข้อความดิบ)
                         parsed_content = json.loads(content)
                         text = parsed_content.get('natural_text', content)
-                        # ถ้า text ยังเป็น dict/list ให้แปลงเป็น string
+                        # จัดการกรณีที่ข้อความเป็น dict/list
                         if isinstance(text, (dict, list)):
                             text = json.dumps(text, ensure_ascii=False)
                     except json.JSONDecodeError:
-                        # ถ้าไม่ใช่ JSON ให้ใช้ content ดิบเลย
+                        # ถ้าไม่ใช่ JSON ให้ใช้ content ดิบ
                         text = content
                     extracted_texts.append(text)
                 elif not page_result.get('success'):
                     error_msg = f"Error: {page_result.get('error', 'Unknown error')}"
                     extracted_texts.append(f"[{error_msg}]")
             
+            # รวมข้อความจากทุกหน้าเข้าด้วยกัน
             return '\n\n---\n\n'.join(extracted_texts)
         else:
             return f"API Error: {response.status_code}\n{response.text}"
@@ -159,59 +204,43 @@ def extract_text_from_image(uploaded_file, api_key, model, task_type, max_tokens
     except Exception as e:
         return f"Connection Error: {str(e)}"
 
-# --- ADDED: API Key loader for Streamlit Cloud ---
-# ตรวจสอบว่ามี API key ใน session state แล้วหรือยัง ถ้ายังให้ลองโหลดจาก st.secrets
+# --- API Key loader for Streamlit Cloud ---
 if 'api_key' not in st.session_state:
     try:
-        # โหลดจาก st.secrets["api_key"]
-        st.session_state['api_key'] = st.secrets["api_key"]
-    except (KeyError, FileNotFoundError):
-        # ถ้าไม่มี secret, ตั้งค่าเป็น empty string เพื่อให้ผู้ใช้กรอกเอง
+        # โหลดจาก st.secrets["api_key"] (สำหรับ Streamlit Cloud)
+        # ใช้ .get() เพื่อป้องกัน KeyError หากไม่มี secrets.toml
+        st.session_state['api_key'] = st.secrets.get("api_key", "")
+    except Exception:
+        # ถ้าไม่มี secret, ตั้งค่าเป็น empty string
         st.session_state['api_key'] = "" 
-# -------------------------------------------------
+# ------------------------------------------
 
-# --- 4. ส่วน Sidebar (Settings) ---
+# --- 4. Hardcoded Parameters ---
+# กำหนดค่าพารามิเตอร์คงที่ เนื่องจากผู้ใช้ได้นำส่วนปรับแต่งออกจาก Sidebar
+max_tokens = 16000
+temperature = 0.1
+top_p = 0.6
+repetition_penalty = 1.1
+model = "typhoon-ocr"
+task_type = "v1.5"
+
+# --- 5. ส่วน Sidebar (Footer Only) ---
 with st.sidebar:
-    # Logo (อ้างอิงจากไฟล์ที่คุณเคยอัปโหลด ถ้าหาไม่เจอจะแสดงข้อความแทน)
-    try:
-        st.image("image_e05e9c.png", use_column_width=True)
-    except:
-        st.markdown("## 🌀 Typhoon OCR")
+    # --- Sidebar Footer ---
+    st.markdown("""
+        <div class="sidebar-footer">
+            <p>
+                <span style="color: grey;">By PAO1 </span><br>
+                <span style="font-size: 16px; letter-spacing: 0.5px;">
+                    <span style="color: red; font-weight: bold;">A</span>udit 
+                    <span style="color: red; font-weight: bold;">I</span>ntelligence
+                    <span style="color: red; font-weight: bold;">T</span>eam
+                </span>
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
 
-    st.markdown("---")
-    
-    # API Key Management
-    # ดึงค่า key ที่ถูกโหลดจาก secrets หรือที่ผู้ใช้เคยกรอกไว้
-    api_key = st.session_state.get("api_key", "")
-    
-    if not api_key:
-        # หากยังไม่มี key (ทั้งจาก secrets และการกรอกก่อนหน้า) ให้แสดงช่องกรอก
-        api_key_input = st.text_input("API Key", type="password", help="ใส่ API Key ของ Typhoon AI")
-        if api_key_input:
-            st.session_state["api_key"] = api_key_input
-            st.rerun()
-    else:
-        st.success("✅ API Key เชื่อมต่อแล้ว")
-        # ปุ่ม Logout เล็กๆ
-        if st.button("Logout / Clear Key"):
-            st.session_state["api_key"] = ""
-            st.rerun()
-
-    st.markdown("### ⚙️ การตั้งค่า (Advanced)")
-    
-    with st.expander("ปรับแต่งค่า Parameter", expanded=False):
-        max_tokens = st.slider("Max Tokens", 1000, 16000, 16000, 100)
-        temperature = st.slider("Temperature", 0.0, 1.0, 0.1, 0.1)
-        top_p = st.slider("Top P", 0.0, 1.0, 0.6, 0.1)
-        repetition_penalty = st.slider("Repetition Penalty", 1.0, 2.0, 1.1, 0.1)
-        
-        # Hidden fields (Fixed for this app)
-        model = "typhoon-ocr"
-        task_type = "v1.5"
-    
-    # *** ส่วน Sidebar Footer ถูกลบออกแล้วตามคำขอ ***
-
-# --- 5. ส่วน Main Content ---
+# --- 6. ส่วน Main Content ---
 st.title("📄 ระบบแปลงภาพเป็นข้อความ (OCR)")
 st.markdown("##### เครื่องมือช่วยดึงข้อความจากเอกสารภาษาไทยและอังกฤษด้วย AI")
 
@@ -229,7 +258,7 @@ if uploaded_file:
     with col1:
         st.info("🖼️ **ไฟล์ต้นฉบับ**")
         
-        # แสดง Preview
+        # แสดง Preview หรือคำเตือนสำหรับ PDF
         if uploaded_file.type == "application/pdf":
             st.warning("⚠️ ไฟล์ PDF จะไม่แสดงตัวอย่าง แต่สามารถประมวลผลได้ปกติ")
         else:
@@ -237,16 +266,15 @@ if uploaded_file:
         
         st.markdown("---")
         
-        # ตัวเลือกเสริม (อยู่ในตำแหน่งก่อนปุ่ม Start OCR)
+        # ตัวเลือกเสริม (อยู่ในตำแหน่งก่อนปุ่ม)
         pages_input = st.text_input("ระบุหน้า (สำหรับ PDF)", placeholder="เช่น 1, 2 หรือ 1-5 (เว้นว่างเพื่อทำทั้งหมด)")
         
         # ปุ่ม Action
-        # ต้องอัปเดตค่า api_key อีกครั้งก่อนใช้ในปุ่ม เพื่อให้ใช้ค่าล่าสุดจาก session state (ที่อาจถูกโหลดจาก secrets)
         current_api_key = st.session_state.get("api_key", "")
 
         if st.button("🚀 เริ่มประมวลผล (Start OCR)", type="primary", use_container_width=True):
             if not current_api_key:
-                st.error("❌ กรุณากรอก API Key ที่แถบด้านซ้ายก่อน")
+                st.error("❌ กรุณาตั้งค่า API Key ใน Streamlit Secrets หรือติดต่อผู้ดูแลระบบเพื่อเข้าถึงฟังก์ชันนี้")
             else:
                 with st.spinner("🌀 AI กำลังอ่านเอกสาร... โปรดรอสักครู่"):
                     # เรียกฟังก์ชันประมวลผล
@@ -254,7 +282,6 @@ if uploaded_file:
                         uploaded_file, current_api_key, model, task_type, 
                         max_tokens, temperature, top_p, repetition_penalty, pages_input
                     )
-                    # เก็บผลลัพธ์ลง Session State เพื่อไม่ให้หายเวลารีเฟรช
                     st.session_state["ocr_result"] = result_text
                     st.success("✅ เสร็จสิ้น!")
 
@@ -262,7 +289,6 @@ if uploaded_file:
     with col2:
         st.info("📝 **ผลลัพธ์ข้อความ**")
         
-        # ดึงผลลัพธ์จาก Session
         result_text = st.session_state.get("ocr_result", "")
         
         # Text Area สำหรับแสดงผล
