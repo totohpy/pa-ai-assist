@@ -208,22 +208,8 @@ with st.sidebar:
         # Hidden fields (Fixed for this app)
         model = "typhoon-ocr"
         task_type = "v1.5"
-
-    # --- Sidebar Footer (New) ---
-    st.markdown("---")
-    st.markdown("""
-        <div class="sidebar-footer">
-            <p>
-                <span style="color: grey;">By PAO1 </span><br>
-                <span style="font-size: 16px; letter-spacing: 0.5px;">
-                    <span style="color: red; font-weight: bold;">A</span>udit 
-                    <span style="color: red; font-weight: bold;">I</span>ntelligence
-                    <span style="color: red; font-weight: bold;">T</span>eam
-                </span>
-            </p>
-        </div>
-    """, unsafe_allow_html=True)
-    # ----------------------------
+    
+    # *** ส่วน Sidebar Footer ถูกลบออกแล้วตามคำขอ ***
 
 # --- 5. ส่วน Main Content ---
 st.title("📄 ระบบแปลงภาพเป็นข้อความ (OCR)")
@@ -251,7 +237,7 @@ if uploaded_file:
         
         st.markdown("---")
         
-        # ตัวเลือกเสริม
+        # ตัวเลือกเสริม (อยู่ในตำแหน่งก่อนปุ่ม Start OCR)
         pages_input = st.text_input("ระบุหน้า (สำหรับ PDF)", placeholder="เช่น 1, 2 หรือ 1-5 (เว้นว่างเพื่อทำทั้งหมด)")
         
         # ปุ่ม Action
