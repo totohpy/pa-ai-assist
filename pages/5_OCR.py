@@ -215,14 +215,11 @@ if 'api_key' not in st.session_state:
         st.session_state['api_key'] = "" 
 # ------------------------------------------
 
-# --- 4. Hardcoded Parameters ---
-# กำหนดค่าพารามิเตอร์คงที่ เนื่องจากผู้ใช้ได้นำส่วนปรับแต่งออกจาก Sidebar
-max_tokens = 16000
-temperature = 0.1
-top_p = 0.6
-repetition_penalty = 1.1
+# --- 4. Fixed Parameters ---
+# กำหนดค่าพารามิเตอร์คงที่ของโมเดล
 model = "typhoon-ocr"
 task_type = "v1.5"
+# ค่าพารามิเตอร์ Max Tokens, Temperature, Top P, Repetition Penalty ถูกย้ายไปกำหนดด้วย Slider ในส่วน Main Content
 
 # --- 5. ส่วน Sidebar (Footer Only) ---
 with st.sidebar:
@@ -264,11 +261,22 @@ if uploaded_file:
         else:
             st.image(uploaded_file, use_column_width=True)
         
-        st.markdown("---")
-        
-        # ตัวเลือกเสริม (อยู่ในตำแหน่งก่อนปุ่ม)
+        # ย้าย pages_input มาไว้เป็นลำดับแรกสุดในส่วนควบคุมตามคำขอ
         pages_input = st.text_input("ระบุหน้า (สำหรับ PDF)", placeholder="เช่น 1, 2 หรือ 1-5 (เว้นว่างเพื่อทำทั้งหมด)")
         
+        st.markdown("---") # เพิ่มเส้นแบ่งระหว่าง Input หลัก กับ Advanced Settings
+        
+        # --- Advanced Settings (ตามที่ร้องขอ) ---
+        st.markdown("### ⚙️ การตั้งค่า (Advanced)")
+        with st.expander("ปรับแต่งค่า Parameter", expanded=False):
+            # ใช้ st.session_state.get เพื่อกำหนดค่าเริ่มต้นและเก็บค่าที่ผู้ใช้ปรับ
+            max_tokens = st.slider("Max Tokens", 1000, 16000, st.session_state.get("max_tokens", 16000), 100, key="max_tokens_slider")
+            temperature = st.slider("Temperature", 0.0, 1.0, st.session_state.get("temperature", 0.1), 0.1, key="temperature_slider")
+            top_p = st.slider("Top P", 0.0, 1.0, st.session_state.get("top_p", 0.6), 0.1, key="top_p_slider")
+            repetition_penalty = st.slider("Repetition Penalty", 1.0, 2.0, st.session_state.get("repetition_penalty", 1.1), 0.1, key="repetition_penalty_slider")
+        
+        st.markdown("---") # เพิ่มเส้นแบ่งก่อนปุ่ม
+
         # ปุ่ม Action
         current_api_key = st.session_state.get("api_key", "")
 
@@ -276,8 +284,14 @@ if uploaded_file:
             if not current_api_key:
                 st.error("❌ กรุณาตั้งค่า API Key ใน Streamlit Secrets หรือติดต่อผู้ดูแลระบบเพื่อเข้าถึงฟังก์ชันนี้")
             else:
+                # บันทึกค่าพารามิเตอร์ลงใน session state ก่อนเรียก API เพื่อให้ค่าคงที่
+                st.session_state["max_tokens"] = max_tokens
+                st.session_state["temperature"] = temperature
+                st.session_state["top_p"] = top_p
+                st.session_state["repetition_penalty"] = repetition_penalty
+
                 with st.spinner("🌀 AI กำลังอ่านเอกสาร... โปรดรอสักครู่"):
-                    # เรียกฟังก์ชันประมวลผล
+                    # เรียกฟังก์ชันประมวลผล โดยใช้ค่าจาก slider
                     result_text = extract_text_from_image(
                         uploaded_file, current_api_key, model, task_type, 
                         max_tokens, temperature, top_p, repetition_penalty, pages_input
