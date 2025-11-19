@@ -255,33 +255,35 @@ with st.sidebar:
 st.title("📄 ระบบแปลงภาพเป็นข้อความ (OCR)")
 st.markdown("##### เครื่องมือช่วยดึงข้อความจากเอกสารภาษาไทยและอังกฤษด้วย AI")
 
-# --- Input Selection Tabs (Upload vs Camera) ---
-tab_upload, tab_camera = st.tabs(["📁 อัปโหลดไฟล์", "📸 ถ่ายภาพ (Camera)"])
+# --- Input Selection (ใช้ Radio แทน Tabs เพื่อควบคุมการเปิด/ปิดกล้อง) ---
+st.write("")
+input_method = st.radio(
+    "เลือกวิธีการนำเข้าข้อมูล:",
+    options=["📁 อัปโหลดไฟล์", "📸 ถ่ายภาพ (Camera)"],
+    horizontal=True,
+    label_visibility="collapsed"
+)
 
 uploaded_file = None
 
-with tab_upload:
+if input_method == "📁 อัปโหลดไฟล์":
     file_upload = st.file_uploader(
         "เลือกไฟล์ภาพ (JPG, PNG) หรือเอกสาร (PDF)", 
         type=['png', 'jpg', 'jpeg', 'webp', 'pdf'],
         key="file_uploader"
     )
+    if file_upload:
+        uploaded_file = file_upload
 
-with tab_camera:
+elif input_method == "📸 ถ่ายภาพ (Camera)":
     camera_image = st.camera_input("ถ่ายภาพเอกสาร")
-
-# Logic เลือกไฟล์ที่จะนำไปประมวลผล
-if camera_image is not None:
-    uploaded_file = camera_image
-    # กำหนดชื่อและประเภทไฟล์จำลองเพื่อให้ฟังก์ชัน OCR ทำงานได้ (กรณี camera_input ไม่ได้ส่งค่ามาครบ)
-    # โดยปกติ Streamlit UploadedFile จะมี attribute เหล่านี้อยู่แล้ว
-    if not hasattr(uploaded_file, 'name'):
-        uploaded_file.name = "camera_capture.jpg"
-    if not hasattr(uploaded_file, 'type'):
-        uploaded_file.type = "image/jpeg"
-        
-elif file_upload is not None:
-    uploaded_file = file_upload
+    if camera_image:
+        uploaded_file = camera_image
+        # กำหนดค่าจำลองสำหรับไฟล์ภาพจากกล้อง
+        if not hasattr(uploaded_file, 'name'):
+            uploaded_file.name = "camera_capture.jpg"
+        if not hasattr(uploaded_file, 'type'):
+            uploaded_file.type = "image/jpeg"
 
 # Layout หลัก: 2 คอลัมน์
 if uploaded_file:
