@@ -2,10 +2,12 @@ import streamlit as st
 import requests
 import json
 from PIL import Image
+from io import BytesIO
+from docx import Document # ต้องติดตั้ง python-docx
 
 # --- 1. ตั้งค่า Page Config ---
 st.set_page_config(
-    page_title="Typhoon OCR",
+    page_title="OCR",
     page_icon="📄",
     layout="wide"
 )
@@ -204,6 +206,18 @@ def extract_text_from_image(uploaded_file, api_key, model, task_type, max_tokens
     except Exception as e:
         return f"Connection Error: {str(e)}"
 
+# ฟังก์ชันสำหรับสร้างไฟล์ docx
+def create_docx(text):
+    doc = Document()
+    # เพิ่มย่อหน้าข้อความที่ได้จากการ OCR
+    for paragraph in text.split('\n'):
+        doc.add_paragraph(paragraph)
+    
+    buffer = BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    return buffer
+
 # --- API Key loader for Streamlit Cloud ---
 if 'api_key' not in st.session_state:
     try:
@@ -314,23 +328,14 @@ if uploaded_file:
             label_visibility="collapsed"
         )
         
-        # ปุ่ม Download
+        # ปุ่ม Download (แก้ไขเป็น .docx)
         if result_text:
+            docx_file = create_docx(result_text)
             st.download_button(
-                label="💾 ดาวน์โหลดไฟล์ .txt",
-                data=result_text,
-                file_name="ocr_result.txt",
-                mime="text/plain"
+                label="💾 ดาวน์โหลดไฟล์ .docx",
+                data=docx_file,
+                file_name="ocr_result.docx",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             )
 
-else:
-    # หน้าจอว่างเปล่าเมื่อยังไม่ Upload
-    st.container(border=True).markdown(
-        """
-        <div style="text-align: center; padding: 40px; color: #64748B;">
-            <h3>👆 เริ่มต้นใช้งาน</h3>
-            <p>กรุณาอัปโหลดไฟล์ภาพหรือ PDF ที่ด้านบนเพื่อเริ่มการ OCR</p>
-        </div>
-        """, 
-        unsafe_allow_html=True
-    )
+# ส่วน else ถูกลบออกแล้ว
