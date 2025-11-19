@@ -3,6 +3,7 @@ import qrcode
 from io import BytesIO
 from PIL import Image
 import os
+import base64
 
 # --- 1. ตั้งค่า Page Config ---
 st.set_page_config(
@@ -14,7 +15,7 @@ st.set_page_config(
 # --- 2. Custom CSS (Styles) ---
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;700&display=swap');
+    @import url('[https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;700&display=swap](https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;700&display=swap)');
 
     html, body, [class*="css"] {
         font-family: 'Sarabun', sans-serif;
@@ -140,7 +141,7 @@ def generate_qr_code_with_logo(data, logo_file_name=None):
                 
                 # คำนวณขนาด Logo (ปรับให้ใหญ่ขึ้นเป็น ~30% ของความกว้าง QR Code)
                 width, height = img.size
-                logo_size = int(width / 3.3)  # ปรับตัวหารให้น้อยลงเพื่อให้โลโก้ใหญ่ขึ้น (เดิม 4)
+                logo_size = int(width / 3.3) 
                 logo = logo.resize((logo_size, logo_size))
                 
                 # คำนวณตำแหน่งวางตรงกลาง
@@ -158,6 +159,14 @@ def generate_qr_code_with_logo(data, logo_file_name=None):
     img.save(buf, format="PNG")
     buf.seek(0)
     return buf
+
+def get_image_base64(image_path):
+    """ฟังก์ชันช่วยแปลงรูปภาพเป็น Base64 สำหรับแสดงผลใน HTML"""
+    try:
+        with open(image_path, "rb") as img_file:
+            return base64.b64encode(img_file.read()).decode('utf-8')
+    except Exception:
+        return None
 
 # --- 4. Sidebar Section ---
 with st.sidebar:
@@ -189,7 +198,7 @@ col1, col2 = st.columns([1.2, 0.8], gap="large")
 with col1:
     st.info("✏️ **ข้อมูลสำหรับสร้าง QR**")
     
-    qr_data = st.text_input("ใส่ URL หรือข้อความที่ต้องการ:", placeholder="https://www.example.com")
+    qr_data = st.text_input("ใส่ URL หรือข้อความที่ต้องการ:", placeholder="[https://www.example.com](https://www.example.com)")
     
     st.write("")
     st.markdown("**เลือกรูปแบบโลโก้ (Click เพื่อเลือก):**")
@@ -216,16 +225,14 @@ with col1:
     with logo_cols[1]:
         st.markdown("<div style='text-align:center; margin-bottom:5px; font-weight:bold;'>2. ขาว-ดำ</div>", unsafe_allow_html=True)
         if os.path.exists("logoSAO-BW-TH_0.png"):
-            # แสดงรูปภาพให้อยู่ตรงกลาง
-            st.markdown(
-                f"""<div style='height:100px; display:flex; align-items:center; justify-content:center; margin-bottom:10px;'>
-                    <img src="data:image/png;base64,{
-                        import base64; 
-                        base64.b64encode(open("logoSAO-BW-TH_0.png", "rb").read()).decode()
-                    }" style="max-height:100px; max-width:100%;">
-                </div>""", 
-                unsafe_allow_html=True
-            )
+            img_b64 = get_image_base64("logoSAO-BW-TH_0.png")
+            if img_b64:
+                st.markdown(
+                    f"""<div style='height:100px; display:flex; align-items:center; justify-content:center; margin-bottom:10px;'>
+                        <img src="data:image/png;base64,{img_b64}" style="max-height:100px; max-width:100%;">
+                    </div>""", 
+                    unsafe_allow_html=True
+                )
         else:
             st.warning("ไม่พบไฟล์")
             
@@ -240,15 +247,14 @@ with col1:
     with logo_cols[2]:
         st.markdown("<div style='text-align:center; margin-bottom:5px; font-weight:bold;'>3. สี</div>", unsafe_allow_html=True)
         if os.path.exists("logoSAO-TH-02.png"):
-             st.markdown(
-                f"""<div style='height:100px; display:flex; align-items:center; justify-content:center; margin-bottom:10px;'>
-                    <img src="data:image/png;base64,{
-                        import base64; 
-                        base64.b64encode(open("logoSAO-TH-02.png", "rb").read()).decode()
-                    }" style="max-height:100px; max-width:100%;">
-                </div>""", 
-                unsafe_allow_html=True
-            )
+             img_b64 = get_image_base64("logoSAO-TH-02.png")
+             if img_b64:
+                st.markdown(
+                    f"""<div style='height:100px; display:flex; align-items:center; justify-content:center; margin-bottom:10px;'>
+                        <img src="data:image/png;base64,{img_b64}" style="max-height:100px; max-width:100%;">
+                    </div>""", 
+                    unsafe_allow_html=True
+                )
         else:
             st.warning("ไม่พบไฟล์")
             
