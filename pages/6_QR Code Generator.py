@@ -15,7 +15,7 @@ st.set_page_config(
 # --- 2. Custom CSS (Styles) ---
 st.markdown("""
 <style>
-    @import url('[https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;700&display=swap](https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;700&display=swap)');
+    @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;700&display=swap');
 
     html, body, [class*="css"] {
         font-family: 'Sarabun', sans-serif;
@@ -198,10 +198,10 @@ col1, col2 = st.columns([1.2, 0.8], gap="large")
 with col1:
     st.info("✏️ **ข้อมูลสำหรับสร้าง QR**")
     
-    qr_data = st.text_input("ใส่ URL หรือข้อความที่ต้องการ:", placeholder="[https://www.example.com](https://www.example.com)")
+    qr_data = st.text_input("ใส่ URL หรือข้อความที่ต้องการ:", placeholder="https://www.example.com")
     
     st.write("")
-    st.markdown("**เลือกรูปแบบโลโก้ (Click เพื่อเลือก):**")
+    st.markdown("**เลือกรูปแบบโลโก้:**")
 
     # --- Logo Selection UI แบบรูปภาพ ---
     # ใช้ Session State เพื่อเก็บค่าที่เลือก
@@ -210,60 +210,45 @@ with col1:
 
     logo_cols = st.columns([1, 1, 1])
     
+    # ฟังก์ชันช่วยแสดงผลตัวเลือก
+    def render_option(col, key, label, image_path=None, is_no_logo=False):
+        with col:
+            is_selected = (st.session_state['selected_logo_key'] == key)
+            
+            # ใช้สัญลักษณ์แทนตัวเลข
+            icon = "🔘" if is_selected else "⚪"
+            st.markdown(f"<div style='text-align:center; margin-bottom:5px; font-weight:bold; color: #263238;'>{icon} {label}</div>", unsafe_allow_html=True)
+            
+            if is_no_logo:
+                st.markdown("<div style='height:100px; border:1px dashed #ccc; display:flex; align-items:center; justify-content:center; color:#aaa; border-radius:8px; background:white; margin-bottom:10px;'>No Logo</div>", unsafe_allow_html=True)
+            elif image_path and os.path.exists(image_path):
+                img_b64 = get_image_base64(image_path)
+                if img_b64:
+                    st.markdown(
+                        f"""<div style='height:100px; display:flex; align-items:center; justify-content:center; margin-bottom:10px; background:white; border-radius:8px; border: 1px solid #eee;'>
+                            <img src="data:image/png;base64,{img_b64}" style="max-height:100px; max-width:100%;">
+                        </div>""", 
+                        unsafe_allow_html=True
+                    )
+            else:
+                 st.warning("ไม่พบไฟล์")
+
+            # ปุ่มเลือก (เปลี่ยนข้อความปุ่มเพื่อความเรียบง่าย)
+            if is_selected:
+                st.button("เลือกแล้ว", key=f"btn_{key}", type="primary", disabled=True, use_container_width=True)
+            else:
+                if st.button("เลือก", key=f"btn_{key}_select", use_container_width=True):
+                    st.session_state['selected_logo_key'] = key
+                    st.rerun()
+
     # 1. ไม่ใส่โลโก้
-    with logo_cols[0]:
-        st.markdown("<div style='text-align:center; margin-bottom:5px; font-weight:bold;'>1. ไม่ใส่โลโก้</div>", unsafe_allow_html=True)
-        st.markdown("<div style='height:100px; border:1px dashed #ccc; display:flex; align-items:center; justify-content:center; color:#aaa; border-radius:8px; background:white; margin-bottom:10px;'>No Logo</div>", unsafe_allow_html=True)
-        if st.session_state['selected_logo_key'] == 'none':
-            st.button("✅ เลือกแล้ว", key="btn_none", type="primary", disabled=True, use_container_width=True)
-        else:
-            if st.button("เลือก", key="btn_none_select", use_container_width=True):
-                st.session_state['selected_logo_key'] = 'none'
-                st.rerun()
+    render_option(logo_cols[0], 'none', 'ไม่ใส่โลโก้', is_no_logo=True)
 
     # 2. โลโก้ขาว-ดำ
-    with logo_cols[1]:
-        st.markdown("<div style='text-align:center; margin-bottom:5px; font-weight:bold;'>2. ขาว-ดำ</div>", unsafe_allow_html=True)
-        if os.path.exists("logoSAO-BW-TH_0.png"):
-            img_b64 = get_image_base64("logoSAO-BW-TH_0.png")
-            if img_b64:
-                st.markdown(
-                    f"""<div style='height:100px; display:flex; align-items:center; justify-content:center; margin-bottom:10px;'>
-                        <img src="data:image/png;base64,{img_b64}" style="max-height:100px; max-width:100%;">
-                    </div>""", 
-                    unsafe_allow_html=True
-                )
-        else:
-            st.warning("ไม่พบไฟล์")
-            
-        if st.session_state['selected_logo_key'] == 'bw':
-            st.button("✅ เลือกแล้ว", key="btn_bw", type="primary", disabled=True, use_container_width=True)
-        else:
-            if st.button("เลือก", key="btn_bw_select", use_container_width=True):
-                st.session_state['selected_logo_key'] = 'bw'
-                st.rerun()
+    render_option(logo_cols[1], 'bw', 'โลโก้ขาว-ดำ', image_path="logoSAO-BW-TH_0.png")
 
     # 3. โลโก้สี
-    with logo_cols[2]:
-        st.markdown("<div style='text-align:center; margin-bottom:5px; font-weight:bold;'>3. สี</div>", unsafe_allow_html=True)
-        if os.path.exists("logoSAO-TH-02.png"):
-             img_b64 = get_image_base64("logoSAO-TH-02.png")
-             if img_b64:
-                st.markdown(
-                    f"""<div style='height:100px; display:flex; align-items:center; justify-content:center; margin-bottom:10px;'>
-                        <img src="data:image/png;base64,{img_b64}" style="max-height:100px; max-width:100%;">
-                    </div>""", 
-                    unsafe_allow_html=True
-                )
-        else:
-            st.warning("ไม่พบไฟล์")
-            
-        if st.session_state['selected_logo_key'] == 'color':
-            st.button("✅ เลือกแล้ว", key="btn_color", type="primary", disabled=True, use_container_width=True)
-        else:
-            if st.button("เลือก", key="btn_color_select", use_container_width=True):
-                st.session_state['selected_logo_key'] = 'color'
-                st.rerun()
+    render_option(logo_cols[2], 'color', 'โลโก้สี', image_path="logoSAO-TH-02.png")
 
     # Map Key to Filename
     logo_file_map = {
