@@ -114,7 +114,7 @@ st.markdown("""
 # --- 3. Helper Functions ---
 
 def shorten_url(url):
-    """สร้าง Short Link โดยใช้ TinyURL API (ไม่ต้องใช้ Key)"""
+    """สร้าง Short Link โดยใช้ TinyURL API"""
     try:
         api_url = f"http://tinyurl.com/api-create.php?url={url}"
         response = requests.get(api_url)
@@ -125,21 +125,45 @@ def shorten_url(url):
     except Exception as e:
         return None
 
-def generate_qr_code(data):
-    """สร้าง QR Code image"""
+def generate_qr_code_with_logo(data, logo_file_name=None):
+    """สร้าง QR Code และใส่ Logo ตรงกลาง"""
+    # ใช้ Error Correction Level High (H) เพื่อรองรับการวาง Logo
     qr = qrcode.QRCode(
         version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        error_correction=qrcode.constants.ERROR_CORRECT_H,
         box_size=10,
         border=4,
     )
     qr.add_data(data)
     qr.make(fit=True)
-    img = qr.make_image(fill_color="black", back_color="white")
     
+    img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
+    
+    # ถ้ามีการเลือก Logo
+    if logo_file_name:
+        try:
+            # โหลดรูปภาพ Logo (สมมติว่าไฟล์อยู่ในโฟลเดอร์เดียวกับ script หรือระบุ path ให้ถูกต้อง)
+            logo = Image.open(logo_file_name)
+            
+            # คำนวณขนาด Logo (ประมาณ 20-25% ของ QR Code)
+            width, height = img.size
+            logo_size = int(width / 4) 
+            logo = logo.resize((logo_size, logo_size))
+            
+            # คำนวณตำแหน่งวางตรงกลาง
+            pos = ((width - logo_size) // 2, (height - logo_size) // 2)
+            
+            # วาง Logo ลงไป
+            img.paste(logo, pos)
+            
+        except Exception as e:
+            st.warning(f"ไม่สามารถโหลดโลโก้ {logo_file_name} ได้ (แสดง QR Code ปกติแทน)")
+            # อาจจะ print error หรือ log ไว้
+            print(e)
+
     # Convert to bytes for Streamlit
     buf = BytesIO()
-    img.save(buf)
+    img.save(buf, format="PNG")
     buf.seek(0)
     return buf
 
@@ -148,7 +172,7 @@ with st.sidebar:
     try:
         st.image("image_e05e9c.png", use_column_width=True) 
     except:
-        pass # ถ้าไม่มีรูปก็ไม่ต้องแสดงอะไร หรือแสดง Text แทน
+        pass 
 
     # Sidebar Footer
     st.markdown("""
@@ -166,15 +190,35 @@ with st.sidebar:
 
 # --- 5. Main Content ---
 st.title("🔗 Short Link & QR Code Generator")
-st.markdown("##### เครื่องมือสร้างลิงก์สั้นและคิวอาร์โค้ดอย่างรวดเร็ว")
+st.markdown("##### เครื่องมือสร้างลิงก์สั้นและคิวอาร์โค้ดพร้อมโลโก้")
 
 col1, col2 = st.columns([1.2, 0.8], gap="large")
 
 with col1:
-    st.info("✏️ **ใส่ลิงก์ที่ต้องการแปลง**")
+    st.info("✏️ **ข้อมูลสำหรับสร้าง QR**")
     
-    long_url = st.text_input("วาง URL ที่นี่ (เช่น https://www.example.com/very-long-url...)", placeholder="https://...")
+    long_url = st.text_input("วาง URL ที่นี่ (เช่น https://www.example.com)", placeholder="https://...")
     
+    st.write("")
+    st.markdown("**ตัวเลือกโลโก้ (Logo Options):**")
+    
+    # Radio Button สำหรับเลือก Logo
+    logo_option = st.radio(
+        "เลือกรูปแบบโลโก้:",
+        ("ไม่ใส่โลโก้", "logoSAO-BW-TH_0.png (ขาว-ดำ)", "logoSAO-TH-02.png (สี)"),
+        index=0,
+        horizontal=False
+    )
+    
+    # Map ตัวเลือกกับชื่อไฟล์จริง
+    logo_file_map = {
+        "ไม่ใส่โลโก้": None,
+        "logoSAO-BW-TH_0.png (ขาว-ดำ)": "logoSAO-BW-TH_0.png",
+        "logoSAO-TH-02.png (สี)": "logoSAO-TH-02.png"
+    }
+    selected_logo_file = logo_file_map[logo_option]
+
+    st.write("")
     if st.button("🚀 สร้าง Short Link & QR Code", type="primary", use_container_width=True):
         if long_url:
             with st.spinner("กำลังสร้าง..."):
@@ -183,7 +227,9 @@ with col1:
                 
                 # 2. Generate QR Code (ใช้ Short URL ถ้ามี, ถ้าไม่มีใช้ Long URL)
                 target_url_for_qr = short_url if short_url else long_url
-                qr_image = generate_qr_code(target_url_for_qr)
+                
+                # ส่งชื่อไฟล์โลโก้ไปที่ฟังก์ชัน
+                qr_image = generate_qr_code_with_logo(target_url_for_qr, selected_logo_file)
                 
                 # เก็บผลลัพธ์ลง Session State
                 st.session_state['gen_short_url'] = short_url
@@ -214,25 +260,25 @@ with col2:
         # แสดง QR Code
         st.markdown("**QR Code:**")
         if st.session_state['gen_qr_image']:
-            st.image(st.session_state['gen_qr_image'], caption="สแกนเพื่อไปยังลิงก์", width=200)
+            st.image(st.session_state['gen_qr_image'], caption="สแกนเพื่อไปยังลิงก์", width=250)
             
             # ปุ่มดาวน์โหลด QR Code
             st.download_button(
                 label="💾 ดาวน์โหลด QR Code (PNG)",
                 data=st.session_state['gen_qr_image'],
-                file_name="qrcode.png",
+                file_name="qrcode_with_logo.png",
                 mime="image/png"
             )
     
     elif 'gen_original_url' in st.session_state:
         # กรณี Shorten ไม่สำเร็จ แต่สร้าง QR จาก Original ได้
-        st.warning("ไม่สามารถสร้าง Short Link ได้ (อาจเกิดข้อผิดพลาดจากเครือข่าย) แต่สร้าง QR Code จากลิงก์เดิมให้แล้ว")
+        st.warning("ไม่สามารถสร้าง Short Link ได้ (ใช้ลิงก์เต็มแทน)")
         if st.session_state['gen_qr_image']:
-             st.image(st.session_state['gen_qr_image'], caption="QR Code (จากลิงก์เดิม)", width=200)
+             st.image(st.session_state['gen_qr_image'], caption="QR Code (จากลิงก์เต็ม)", width=250)
              st.download_button(
                 label="💾 ดาวน์โหลด QR Code",
                 data=st.session_state['gen_qr_image'],
-                file_name="qrcode.png",
+                file_name="qrcode_with_logo.png",
                 mime="image/png"
             )
 
@@ -242,7 +288,7 @@ with col2:
             """
             <div style="text-align: center; padding: 40px; color: #64748B;">
                 <h3>รอการสร้าง...</h3>
-                <p>ผลลัพธ์ Short Link และ QR Code จะแสดงที่นี่</p>
+                <p>ใส่ URL และเลือกโลโก้ จากนั้นกดปุ่มสร้างได้เลย</p>
             </div>
             """, 
             unsafe_allow_html=True
