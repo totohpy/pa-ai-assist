@@ -138,7 +138,7 @@ st.markdown("""
 def generate_qr_code_with_logo(data, logo_file_name=None, logo_size_factor=3.5):
     """
     สร้าง QR Code จากข้อมูลที่กำหนด และใส่ Logo ตรงกลาง (ถ้ามี)
-    logo_size_factor: ตัวหารขนาดโลโก้ ยิ่งน้อยโลโก้ยิ่งใหญ่ (เช่น 3 ใหญ่กว่า 4)
+    ปรับปรุง: รองรับไฟล์ PNG พื้นหลังโปร่งใส (RGBA)
     """
     qr = qrcode.QRCode(
         version=1,
@@ -149,25 +149,43 @@ def generate_qr_code_with_logo(data, logo_file_name=None, logo_size_factor=3.5):
     qr.add_data(data)
     qr.make(fit=True)
     
-    img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
+    # สร้างรูป QR Code พื้นฐาน (โหมด RGB)
+    img = qr.make_image(fill_color="black", back_color="white").convert('RGBA')
     
     if logo_file_name:
         try:
             if os.path.exists(logo_file_name):
+                # เปิดไฟล์โลโก้
                 logo = Image.open(logo_file_name)
-                width, height = img.size
                 
-                # คำนวณขนาด Logo ตาม factor ที่ได้รับ
-                # ป้องกันหารเป็น 0
+                # คำนวณขนาด
                 if logo_size_factor <= 0: logo_size_factor = 1
-                logo_size = int(width / logo_size_factor) 
+                width, height = img.size
+                logo_size = int(width / logo_size_factor)
+                logo = logo.resize((logo_size, logo_size), Image.Resampling.LANCZOS)
                 
-                logo = logo.resize((logo_size, logo_size))
-                pos = ((width - logo_size) // 2, (height - logo_size) // 2)
-                img.paste(logo, pos)
-        except Exception:
-            pass
+                # --- สร้างพื้นหลังสีขาวรองรับโลโก้ ---
+                # สร้างภาพสี่เหลี่ยมสีขาวขนาดเท่าโลโก้ (บวกขอบนิดหน่อยถ้าต้องการ)
+                bg_size = logo_size 
+                logo_bg = Image.new("RGBA", (bg_size, bg_size), "white")
+                
+                # คำนวณตำแหน่งวาง (กึ่งกลาง)
+                pos = ((width - bg_size) // 2, (height - bg_size) // 2)
+                
+                # วางพื้นหลังสีขาวลงไปก่อน
+                img.paste(logo_bg, pos)
+                
+                # วางโลโก้ทับลงไป โดยใช้ตัวเองเป็น Mask เพื่อรักษาความโปร่งใส
+                # ถ้าโลโก้เป็น RGBA ให้ใช้ mask
+                if logo.mode == 'RGBA':
+                    img.paste(logo, pos, mask=logo)
+                else:
+                    img.paste(logo, pos)
+                    
+        except Exception as e:
+            print(f"Logo Error: {e}")
 
+    # แปลงกลับเป็น RGB ก่อนเซฟ (ถ้าไม่ต้องการ Transparency ใน QR final result) หรือเซฟเป็น PNG ได้เลย
     buf = BytesIO()
     img.save(buf, format="PNG")
     buf.seek(0)
@@ -249,7 +267,6 @@ with st.container(border=True):
                 icon = "🔴" if is_selected else "⭕"
                 
                 # ใช้ type="secondary" เสมอสำหรับปุ่มเลือก เพื่อให้เป็นพื้นขาวตามที่ขอ
-                # ส่วนปุ่ม Generate ด้านล่างจะใช้ type="primary" เพื่อให้เป็นสี
                 if st.button(f"{icon} {label}", key=f"btn_{key}", type="secondary", use_container_width=True):
                     st.session_state['selected_logo_key'] = key
                     st.rerun()
@@ -272,22 +289,10 @@ with st.container(border=True):
             st.write("")
             st.markdown("**ปรับขนาดโลโก้:**")
             # ค่าตัวหาร: 5 (เล็ก) -> 2.5 (ใหญ่)
-            # เพื่อให้เข้าใจง่าย เราจะ mapping 1-100% (แต่จริงๆ คือ scale factor)
-            # ให้ slider เลือกค่า 2.0 (ใหญ่สุด 50%) ถึง 6.0 (เล็กสุด ~16%)
-            # แต่เพื่อให้ user เข้าใจง่าย ใช้ "เล็ก -> ใหญ่" 
-            # ดังนั้นเราจะใช้ค่า 1-5 แล้ว map กลับ
             logo_scale_input = st.slider("ขนาดโลโก้ (เล็ก - ใหญ่)", min_value=1, max_value=5, value=3, step=1)
-            
-            # Map ค่า Slider (1-5) ไปเป็นตัวหาร (Divisor)
-            # 1 (เล็กสุด) -> หาร 5
-            # 5 (ใหญ่สุด) -> หาร 2.5
-            # สูตร linear: y = mx + c
-            # (1, 5), (5, 2.5)
-            # m = (2.5 - 5) / (5 - 1) = -2.5 / 4 = -0.625
-            # c = 5 - (1 * -0.625) = 5.625
             logo_divisor = 5.625 + (logo_scale_input * -0.625)
         else:
-            logo_divisor = 3.5 # ค่า default (ไม่มีผลเพราะไม่มีโลโก้)
+            logo_divisor = 3.5
 
         st.markdown("---")
         
