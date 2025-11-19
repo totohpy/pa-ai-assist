@@ -174,28 +174,40 @@ with st.container(border=True):
         st.write("")
         st.subheader("2. เลือกโลโก้")
 
-        # --- เตรียมรูปภาพสำหรับแสดงใน Radio Button ---
-        # เราจะแสดงรูปภาพประกอบข้างบน Radio Button เพื่อให้ผู้ใช้เห็นภาพก่อนเลือก
-        
+        # --- แสดงรูปตัวอย่างโลโก้ ---
         cols_preview = st.columns(3)
-        with cols_preview[0]:
-            st.markdown("<div style='text-align:center; color:#888; border:1px dashed #ccc; padding:20px; border-radius:8px;'>ไม่ใส่โลโก้</div>", unsafe_allow_html=True)
-        with cols_preview[1]:
-            if os.path.exists("logoSAO-BW-TH_0.png"):
-                st.image("logoSAO-BW-TH_0.png", caption="โลโก้ขาว-ดำ", width=100)
-            else:
-                st.write("ไม่พบรูปขาว-ดำ")
-        with cols_preview[2]:
-            if os.path.exists("logoSAO-TH-02.png"):
-                st.image("logoSAO-TH-02.png", caption="โลโก้สี", width=100)
-            else:
-                st.write("ไม่พบรูปสี")
+        
+        # Helper function to render preview
+        def render_preview(col, label, image_path=None):
+            with col:
+                st.markdown(f"<div style='text-align:center; margin-bottom:5px; font-weight:bold; font-size:0.9rem;'>{label}</div>", unsafe_allow_html=True)
+                if image_path and os.path.exists(image_path):
+                    img_b64 = get_image_base64(image_path)
+                    if img_b64:
+                        st.markdown(f"""
+                            <div style='height:80px; display:flex; align-items:center; justify-content:center; 
+                            border:1px solid #eee; border-radius:8px; background:white; padding:5px;'>
+                                <img src="data:image/png;base64,{img_b64}" style="max-height:70px; max-width:100%;">
+                            </div>""", unsafe_allow_html=True)
+                else:
+                    # Placeholder for No Logo or Missing File
+                    st.markdown(f"""
+                        <div style='height:80px; display:flex; align-items:center; justify-content:center; 
+                        border:1px dashed #ccc; border-radius:8px; color:#aaa; background:#f9f9f9;'>
+                            {'No Logo' if not image_path else 'File Not Found'}
+                        </div>""", unsafe_allow_html=True)
 
-        # ใช้ st.radio ในการเลือก (ง่ายและตรงไปตรงมาที่สุด)
+        render_preview(cols_preview[0], "1. ไม่ใส่โลโก้", None)
+        render_preview(cols_preview[1], "2. ขาว-ดำ", "logoSAO-BW-TH_0.png")
+        render_preview(cols_preview[2], "3. สี", "logoSAO-TH-02.png")
+
+        st.write("")
+        # --- Radio Button สำหรับเลือก ---
         logo_option = st.radio(
-            "คลิกเลือกรูปแบบที่ต้องการ:",
+            "เลือกรูปแบบ:",
             ("ไม่ใส่โลโก้", "โลโก้ขาว-ดำ", "โลโก้สี"),
-            horizontal=True
+            horizontal=True,
+            label_visibility="collapsed" # ซ่อน Label เพราะมี header ด้านบนแล้ว
         )
 
         # Map ตัวเลือกกับชื่อไฟล์
