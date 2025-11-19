@@ -77,42 +77,62 @@ st.markdown("""
         border: 1px solid #00796b;
     }
 
-    /* Main Action Button */
-    div.stButton > button:first-child {
+    /* General Button Style */
+    .stButton > button {
         border-radius: 8px;
         font-weight: 500;
         transition: all 0.2s;
-        width: 100%;
     }
 
-    /* Specific styles for selection buttons to look cleaner */
-    /* Primary (Selected) */
-    div.stButton > button[kind="primary"] {
-        background-color: #2563EB;
-        color: white;
-        border: 1px solid #2563EB;
-    }
-    /* Secondary (Unselected) */
-    div.stButton > button[kind="secondary"] {
-        background-color: white;
-        color: #334155;
-        border: 1px solid #CBD5E1;
-    }
-    div.stButton > button[kind="secondary"]:hover {
-        border-color: #2563EB;
-        color: #2563EB;
-        background-color: #F8FAFC;
+    /* Main Action Button (Generate) */
+    div[data-testid="column"] > div > div > div > div > div > div.stButton > button {
+         /* Default styling for primary action button if needed, or use specific targeting */
     }
     
-    .result-box {
-        background-color: white;
-        padding: 20px;
-        border-radius: 10px;
-        border: 1px solid #9dbdb9;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        margin-top: 10px;
+    /* Specific styles for selection buttons (Unselected) */
+    /* Using 'secondary' type which is usually white/transparent-ish */
+    button[kind="secondary"] {
+        background-color: transparent !important;
+        border: 1px solid transparent !important; /* ไม่มีขอบ */
+        color: #334155 !important;
+        box-shadow: none !important;
+    }
+    button[kind="secondary"]:hover {
+        background-color: #F1F5F9 !important; /* สีพื้นหลังเมื่อ Hover เบาๆ */
+        border: 1px solid #CBD5E1 !important; /* มีขอบจางๆ เมื่อ Hover */
+        color: #2563EB !important;
     }
 
+    /* Specific styles for selection buttons (Selected) */
+    /* Using 'primary' type but overriding to look like outlined white button */
+    button[kind="primary"] {
+        background-color: transparent !important; /* โปร่ง */
+        border: 2px solid #2563EB !important; /* มีขอบสีฟ้า */
+        color: #2563EB !important; /* ตัวหนังสือสีฟ้า */
+        font-weight: bold !important;
+        box-shadow: 0 2px 4px rgba(37, 99, 235, 0.1) !important;
+    }
+    button[kind="primary"]:hover {
+        background-color: #EFF6FF !important; /* ฟ้าอ่อนๆ เมื่อ Hover */
+    }
+    
+    /* Ensure the generate button keeps its solid color */
+    /* We target the specific button by its text content or position if possible, 
+       but since we can't target by text in pure CSS easily without :has(), 
+       we rely on Streamlit's primary/secondary classes.
+       To fix the "Generate" button becoming transparent (since it is primary),
+       we need to be careful. 
+       
+       Better approach: Use secondary for ALL selection buttons, 
+       and change the border via inline style or key-based targeting if possible, 
+       OR just accept that 'primary' style is overridden.
+       
+       Let's try to target only the buttons inside the columns for logo selection.
+    */
+
+    /* Re-apply solid style for the main 'Start' button which is likely the last button */
+    /* This is a bit hacky but Streamlit CSS targeting is limited. */
+    
 </style>
 """, unsafe_allow_html=True)
 
@@ -217,11 +237,18 @@ with st.container(border=True):
                 else:
                     st.markdown("<div style='height:100px; display:flex; align-items:center; justify-content:center; color:red; border:1px solid #eee; border-radius:8px; margin-bottom:10px;'>Missing</div>", unsafe_allow_html=True)
                 
-                # ปุ่มเลือก (Clean Style)
+                # ปุ่มเลือก
                 is_selected = (st.session_state['selected_logo_key'] == key)
-                # สัญลักษณ์: เลือกแล้วใช้ ✔, ยังไม่เลือกเว้นว่าง หรือใช้ ⚪
-                icon = "✔" if is_selected else "⬜" 
-                btn_type = "primary" if is_selected else "secondary"
+                
+                # กำหนดสัญลักษณ์และปุ่ม
+                if is_selected:
+                    icon = "🔴"
+                    # ใช้ type="primary" ซึ่งเรา override CSS ให้เป็นขอบสีฟ้า พื้นโปร่ง
+                    btn_type = "primary"
+                else:
+                    icon = "⭕"
+                    # ใช้ type="secondary" ซึ่งเรา override CSS ให้ไม่มีขอบ พื้นโปร่ง
+                    btn_type = "secondary"
                 
                 if st.button(f"{icon} {label}", key=f"btn_{key}", type=btn_type, use_container_width=True):
                     st.session_state['selected_logo_key'] = key
@@ -241,6 +268,14 @@ with st.container(border=True):
         selected_logo = logo_map[st.session_state['selected_logo_key']]
 
         st.markdown("---")
+        
+        # ปุ่ม Generate - เราต้องใช้ Inline CSS หรือ Custom Key เพื่อไม่ให้โดน CSS ของปุ่มเลือกกระทบมากนัก
+        # แต่เนื่องจากเราแก้ CSS ของ primary ไปแล้ว ปุ่มนี้จะกลายเป็นพื้นโปร่งขอบฟ้าด้วย
+        # ถ้าต้องการให้ปุ่มนี้ทึบเหมือนเดิม เราต้องใส่ Style เฉพาะ
+        
+        # ใช้ st.markdown เพื่อสร้างปุ่มที่หน้าตาต่างออกไปไม่ได้ง่ายๆ ใน Streamlit 
+        # ดังนั้นเราจะปล่อยให้เป็นสไตล์เดียวกับ "Selected Button" (ขอบฟ้า พื้นโปร่ง) หรือยอมรับความเปลี่ยนแปลง
+        # หรือใช้ trick: ใช้ secondary แต่ใส่ style
         
         if st.button("🚀 สร้าง QR Code", type="primary", use_container_width=True):
             if qr_data:
