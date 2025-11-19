@@ -77,18 +77,31 @@ st.markdown("""
         border: 1px solid #00796b;
     }
 
-    .stButton > button {
-        background-color: #2563EB;
-        color: white;
-        border: none;
+    /* Main Action Button */
+    div.stButton > button:first-child {
         border-radius: 8px;
-        padding: 0.5rem 1rem;
         font-weight: 500;
         transition: all 0.2s;
+        width: 100%;
     }
-    .stButton > button:hover {
-        background-color: #1D4ED8;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+
+    /* Specific styles for selection buttons to look cleaner */
+    /* Primary (Selected) */
+    div.stButton > button[kind="primary"] {
+        background-color: #2563EB;
+        color: white;
+        border: 1px solid #2563EB;
+    }
+    /* Secondary (Unselected) */
+    div.stButton > button[kind="secondary"] {
+        background-color: white;
+        color: #334155;
+        border: 1px solid #CBD5E1;
+    }
+    div.stButton > button[kind="secondary"]:hover {
+        border-color: #2563EB;
+        color: #2563EB;
+        background-color: #F8FAFC;
     }
     
     .result-box {
@@ -98,18 +111,6 @@ st.markdown("""
         border: 1px solid #9dbdb9;
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         margin-top: 10px;
-    }
-    
-    /* Style เฉพาะสำหรับปุ่มเลือกโลโก้ให้ดูเหมือน Radio Option */
-    div[data-testid="column"] button[kind="secondary"] {
-        background-color: white;
-        color: #333;
-        border: 1px solid #ccc;
-    }
-    div[data-testid="column"] button[kind="primary"] {
-        background-color: #2563EB;
-        color: white;
-        border: 1px solid #2563EB;
     }
 
 </style>
@@ -196,58 +197,40 @@ with st.container(border=True):
         # Layout 3 คอลัมน์
         l1, l2, l3 = st.columns(3)
         
-        # --- Column 1: ไม่ใส่โลโก้ ---
-        with l1:
-            # แสดงรูป/Preview
-            st.markdown("""
-                <div style='height:100px; border:1px dashed #ccc; display:flex; align-items:center; justify-content:center; 
-                color:#aaa; border-radius:8px; background:white; margin-bottom:10px;'>No Logo</div>
-            """, unsafe_allow_html=True)
-            
-            # ปุ่มเลือก (จำลอง Radio)
-            is_selected = (st.session_state['selected_logo_key'] == 'none')
-            btn_label = "🔘 ไม่ใส่โลโก้" if is_selected else "⚪ ไม่ใส่โลโก้"
-            if st.button(btn_label, key="btn_none", type="primary" if is_selected else "secondary", use_container_width=True):
-                st.session_state['selected_logo_key'] = 'none'
-                st.rerun()
+        # --- Helper เพื่อสร้าง Card ---
+        def render_logo_selection(col, key, label, image_path=None, is_no_logo=False):
+            with col:
+                # แสดงรูป
+                if is_no_logo:
+                     st.markdown("""
+                        <div style='height:100px; border:1px dashed #ccc; display:flex; align-items:center; justify-content:center; 
+                        color:#aaa; border-radius:8px; background:white; margin-bottom:10px; font-size:0.8rem;'>No Logo</div>
+                    """, unsafe_allow_html=True)
+                elif image_path and os.path.exists(image_path):
+                    b64 = get_image_base64(image_path)
+                    if b64:
+                        st.markdown(f"""
+                            <div style='height:100px; display:flex; align-items:center; justify-content:center; 
+                            border:1px solid #eee; border-radius:8px; background:white; margin-bottom:10px;'>
+                                <img src="data:image/png;base64,{b64}" style="max-height:80px; max-width:100%;">
+                            </div>""", unsafe_allow_html=True)
+                else:
+                    st.markdown("<div style='height:100px; display:flex; align-items:center; justify-content:center; color:red; border:1px solid #eee; border-radius:8px; margin-bottom:10px;'>Missing</div>", unsafe_allow_html=True)
+                
+                # ปุ่มเลือก (Clean Style)
+                is_selected = (st.session_state['selected_logo_key'] == key)
+                # สัญลักษณ์: เลือกแล้วใช้ ✔, ยังไม่เลือกเว้นว่าง หรือใช้ ⚪
+                icon = "✔" if is_selected else "⬜" 
+                btn_type = "primary" if is_selected else "secondary"
+                
+                if st.button(f"{icon} {label}", key=f"btn_{key}", type=btn_type, use_container_width=True):
+                    st.session_state['selected_logo_key'] = key
+                    st.rerun()
 
-        # --- Column 2: โลโก้ขาว-ดำ ---
-        with l2:
-            if os.path.exists("logoSAO-BW-TH_0.png"):
-                b64 = get_image_base64("logoSAO-BW-TH_0.png")
-                if b64:
-                    st.markdown(f"""
-                        <div style='height:100px; display:flex; align-items:center; justify-content:center; 
-                        border:1px solid #eee; border-radius:8px; background:white; margin-bottom:10px;'>
-                            <img src="data:image/png;base64,{b64}" style="max-height:80px; max-width:100%;">
-                        </div>""", unsafe_allow_html=True)
-            else:
-                 st.markdown("<div style='height:100px; display:flex; align-items:center; justify-content:center; color:red;'>Missing File</div>", unsafe_allow_html=True)
-
-            is_selected = (st.session_state['selected_logo_key'] == 'bw')
-            btn_label = "🔘 โลโก้ขาว-ดำ" if is_selected else "⚪ โลโก้ขาว-ดำ"
-            if st.button(btn_label, key="btn_bw", type="primary" if is_selected else "secondary", use_container_width=True):
-                st.session_state['selected_logo_key'] = 'bw'
-                st.rerun()
-
-        # --- Column 3: โลโก้สี ---
-        with l3:
-            if os.path.exists("logoSAO-TH-02.png"):
-                b64 = get_image_base64("logoSAO-TH-02.png")
-                if b64:
-                    st.markdown(f"""
-                        <div style='height:100px; display:flex; align-items:center; justify-content:center; 
-                        border:1px solid #eee; border-radius:8px; background:white; margin-bottom:10px;'>
-                            <img src="data:image/png;base64,{b64}" style="max-height:80px; max-width:100%;">
-                        </div>""", unsafe_allow_html=True)
-            else:
-                 st.markdown("<div style='height:100px; display:flex; align-items:center; justify-content:center; color:red;'>Missing File</div>", unsafe_allow_html=True)
-
-            is_selected = (st.session_state['selected_logo_key'] == 'color')
-            btn_label = "🔘 โลโก้สี" if is_selected else "⚪ โลโก้สี"
-            if st.button(btn_label, key="btn_color", type="primary" if is_selected else "secondary", use_container_width=True):
-                st.session_state['selected_logo_key'] = 'color'
-                st.rerun()
+        # Render
+        render_logo_selection(l1, 'none', 'ไม่ใส่', is_no_logo=True)
+        render_logo_selection(l2, 'bw', 'ขาว-ดำ', image_path="logoSAO-BW-TH_0.png")
+        render_logo_selection(l3, 'color', 'สี', image_path="logoSAO-TH-02.png")
 
         # Map selection
         logo_map = {
