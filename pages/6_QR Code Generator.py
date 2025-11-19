@@ -1,14 +1,14 @@
 import streamlit as st
+import requests
 import qrcode
 from io import BytesIO
 from PIL import Image
 import os
-import base64
 
 # --- 1. ตั้งค่า Page Config ---
 st.set_page_config(
-    page_title="QR Code Generator",
-    page_icon="📱",
+    page_title="Short Link & QR Code",
+    page_icon="🔗",
     layout="wide"
 )
 
@@ -35,12 +35,12 @@ st.markdown("""
         font-weight: 700;
     }
     
-    /* Sidebar Styling */
     [data-testid="stSidebar"] {
         background-color: #e0f2f1;
         width: 250px !important;
         border-right: 1px solid #b2dfdb;
     }
+
     [data-testid="stSidebar"] > div:first-child {
         display: flex;
         flex-direction: column;
@@ -60,7 +60,6 @@ st.markdown("""
         padding-top: 2rem;
     }
     
-    /* Navigation Links */
     div[data-testid="stSidebarNav"] > ul > li > a {
         padding: 18px 40px !important;
         font-size: 20px !important;
@@ -78,7 +77,6 @@ st.markdown("""
         border: 1px solid #00796b;
     }
 
-    /* Buttons */
     .stButton > button {
         background-color: #2563EB;
         color: white;
@@ -92,105 +90,91 @@ st.markdown("""
         background-color: #1D4ED8;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
-
-    /* Logo Selection Card Style */
-    .logo-option-card {
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        padding: 15px;
-        text-align: center;
+    
+    .result-box {
         background-color: white;
-        transition: all 0.3s ease;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        align-items: center;
-    }
-    .logo-option-card:hover {
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-        border-color: #94a3b8;
-    }
-    .logo-selected {
-        border: 2px solid #2563EB;
-        background-color: #eff6ff;
+        padding: 20px;
+        border-radius: 10px;
+        border: 1px solid #9dbdb9;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        margin-top: 10px;
     }
     
-    /* Custom Radio Button Simulation */
-    .custom-radio {
+    /* กรอบ Preview Logo */
+    .logo-preview {
+        border: 1px dashed #9dbdb9;
+        padding: 10px;
+        border-radius: 8px;
         display: inline-block;
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        border: 2px solid #cbd5e1;
-        margin-right: 8px;
-        vertical-align: middle;
-        position: relative;
-    }
-    .custom-radio.checked {
-        border-color: #2563EB;
-        background-color: white;
-    }
-    .custom-radio.checked::after {
-        content: '';
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        background-color: #2563EB;
+        background-color: #ffffff;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # --- 3. Helper Functions ---
 
+def shorten_url(url):
+    """สร้าง Short Link โดยใช้ TinyURL API"""
+    try:
+        api_url = f"http://tinyurl.com/api-create.php?url={url}"
+        response = requests.get(api_url, timeout=5)
+        if response.status_code == 200:
+            return response.text
+        else:
+            return None
+    except Exception as e:
+        return None
+
 def generate_qr_code_with_logo(data, logo_file_name=None):
     """สร้าง QR Code จากข้อมูลที่กำหนด และใส่ Logo ตรงกลาง (ถ้ามี)"""
+    # ใช้ Error Correction Level High (H) เพื่อรองรับการวาง Logo โดยข้อมูลไม่เสียหาย
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_H,
         box_size=10,
-        border=2,
+        border=4,
     )
     qr.add_data(data)
     qr.make(fit=True)
     
     img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
     
+    # ถ้ามีการเลือก Logo
     if logo_file_name:
         try:
+            # ตรวจสอบว่าไฟล์มีอยู่จริงหรือไม่
             if os.path.exists(logo_file_name):
                 logo = Image.open(logo_file_name)
+                
+                # คำนวณขนาด Logo (ประมาณ 25% ของความกว้าง QR Code)
                 width, height = img.size
-                logo_size = int(width / 3.5) 
+                logo_size = int(width / 4) 
                 logo = logo.resize((logo_size, logo_size))
+                
+                # คำนวณตำแหน่งวางตรงกลาง
                 pos = ((width - logo_size) // 2, (height - logo_size) // 2)
+                
+                # วาง Logo ลงไป
                 img.paste(logo, pos)
-        except Exception:
-            pass
+            else:
+                print(f"Logo file not found: {logo_file_name}")
+        except Exception as e:
+            print(f"Error loading logo: {e}")
 
+    # Convert to bytes for Streamlit
     buf = BytesIO()
     img.save(buf, format="PNG")
     buf.seek(0)
     return buf
 
-def get_image_base64(image_path):
-    try:
-        with open(image_path, "rb") as img_file:
-            return base64.b64encode(img_file.read()).decode('utf-8')
-    except Exception:
-        return None
-
-# --- 4. Sidebar ---
+# --- 4. Sidebar Section ---
 with st.sidebar:
     try:
         st.image("image_e05e9c.png", use_column_width=True) 
     except:
         pass 
 
+    # Sidebar Footer
     st.markdown("""
         <div class="sidebar-footer">
             <p>
@@ -205,149 +189,112 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
 # --- 5. Main Content ---
-st.title("📱 QR Code Generator")
-st.markdown("##### เครื่องมือสร้างคิวอาร์โค้ดพร้อมโลโก้หน่วยงาน")
+st.title("🔗 Short Link & QR Code Generator")
+st.markdown("##### เครื่องมือสร้างลิงก์สั้นและคิวอาร์โค้ดพร้อมโลโก้")
 
-# Container หลักแบบ Card
-with st.container(border=True):
-    col_left, col_right = st.columns([1.2, 0.8], gap="large")
+col1, col2 = st.columns([1.2, 0.8], gap="large")
 
-    # --- Left Column: Input & Logo Selection ---
-    with col_left:
-        st.subheader("1. ใส่ข้อมูล")
-        qr_data = st.text_input("URL หรือข้อความที่ต้องการ:", placeholder="https://www.example.com")
-        
-        st.write("")
-        st.subheader("2. เลือกโลโก้")
-        
-        # Initialize Session State
-        if 'selected_logo_key' not in st.session_state:
-            st.session_state['selected_logo_key'] = 'none'
+with col1:
+    st.info("✏️ **ข้อมูลสำหรับสร้าง QR**")
+    
+    long_url = st.text_input("วาง URL ที่นี่ (เช่น https://www.example.com)", placeholder="https://...")
+    
+    st.write("")
+    st.markdown("**ตัวเลือกโลโก้ (Logo Options):**")
+    
+    # Radio Button สำหรับเลือก Logo
+    logo_option = st.radio(
+        "เลือกรูปแบบโลโก้:",
+        ("ไม่ใส่โลโก้", "logoSAO-BW-TH_0.png (ขาว-ดำ)", "logoSAO-TH-02.png (สี)"),
+        index=0,
+        horizontal=False
+    )
+    
+    # Map ตัวเลือกกับชื่อไฟล์จริง
+    logo_file_map = {
+        "ไม่ใส่โลโก้": None,
+        "logoSAO-BW-TH_0.png (ขาว-ดำ)": "logoSAO-BW-TH_0.png",
+        "logoSAO-TH-02.png (สี)": "logoSAO-TH-02.png"
+    }
+    selected_logo_file = logo_file_map[logo_option]
 
-        # --- Logo Selection Grid ---
-        # แบ่งเป็น 3 คอลัมน์สำหรับตัวเลือกโลโก้
-        l1, l2, l3 = st.columns(3)
-        
-        # Helper function to render selectable card
-        def render_logo_card(col, key, label, img_path=None, is_no_logo=False):
-            with col:
-                is_selected = st.session_state['selected_logo_key'] == key
-                
-                # กำหนดสีขอบและพื้นหลังตามสถานะการเลือก
-                border_style = "2px solid #2563EB" if is_selected else "1px solid #E2E8F0"
-                bg_style = "#EFF6FF" if is_selected else "white"
-                
-                # สร้าง HTML Container สำหรับรูปภาพ
-                img_html = ""
-                if is_no_logo:
-                    img_html = f"""
-                        <div style="height: 80px; display: flex; align-items: center; justify-content: center; color: #94A3B8; border: 1px dashed #CBD5E1; border-radius: 8px; width: 100%; background-color: #F8FAFC;">
-                            <span style="font-size: 0.9rem;">No Logo</span>
-                        </div>
-                    """
-                elif img_path and os.path.exists(img_path):
-                    b64 = get_image_base64(img_path)
-                    if b64:
-                        img_html = f'<img src="data:image/png;base64,{b64}" style="height: 80px; object-fit: contain; margin-bottom: 5px;">'
-                else:
-                     img_html = f'<div style="height:80px; display:flex; align-items:center; justify-content:center; color:red;">File Not Found</div>'
-
-                # แสดงผล Card พร้อมรูปภาพ (ใช้ Markdown HTML)
-                st.markdown(f"""
-                    <div style="
-                        border: {border_style};
-                        background-color: {bg_style};
-                        border-radius: 10px;
-                        padding: 10px;
-                        text-align: center;
-                        height: 140px;
-                        display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                        justify-content: space-between;
-                        margin-bottom: 10px;
-                    ">
-                        {img_html}
-                    </div>
-                """, unsafe_allow_html=True)
-                
-                # ปุ่มเลือก (ใช้ Button ของ Streamlit เพื่อจัดการ State)
-                btn_text = "✅ เลือกแล้ว" if is_selected else "เลือก"
-                btn_type = "primary" if is_selected else "secondary"
-                
-                if st.button(btn_text, key=f"btn_{key}", type=btn_type, use_container_width=True):
-                    st.session_state['selected_logo_key'] = key
-                    st.rerun()
-
-        # Render ตัวเลือกทั้ง 3 แบบ
-        render_logo_card(l1, 'none', 'ไม่ใส่', is_no_logo=True)
-        render_logo_card(l2, 'bw', 'ขาว-ดำ', img_path="logoSAO-BW-TH_0.png")
-        render_logo_card(l3, 'color', 'สี', img_path="logoSAO-TH-02.png")
-
-        # Map selection to filename
-        logo_map = {
-            "none": None,
-            "bw": "logoSAO-BW-TH_0.png",
-            "color": "logoSAO-TH-02.png"
-        }
-        selected_logo = logo_map[st.session_state['selected_logo_key']]
-
-        st.markdown("---")
-        
-        # Generate Button
-        if st.button("🚀 สร้าง QR Code", type="primary", use_container_width=True):
-            if qr_data:
-                with st.spinner("กำลังสร้าง..."):
-                    img_buf = generate_qr_code_with_logo(qr_data, selected_logo)
-                    st.session_state['gen_qr_image'] = img_buf
-                    st.session_state['gen_qr_data'] = qr_data
+    # --- ส่วนแสดง Preview Logo ---
+    if selected_logo_file:
+        st.markdown("ตัวอย่างโลโก้:")
+        try:
+            if os.path.exists(selected_logo_file):
+                st.image(selected_logo_file, width=100, caption="Logo Preview")
             else:
-                st.error("กรุณาใส่ URL หรือข้อความก่อนครับ")
+                st.warning("ไม่พบไฟล์โลโก้ในระบบ (QR จะถูกสร้างโดยไม่มีโลโก้)")
+        except Exception:
+            st.warning("ไม่สามารถแสดงตัวอย่างโลโก้ได้")
+    # -----------------------------
 
-    # --- Right Column: Result Preview ---
-    with col_right:
-        st.subheader("3. ผลลัพธ์")
-        
-        # สร้างพื้นที่แสดงผล (Container ว่างๆ หรือแสดง QR)
-        result_placeholder = st.empty()
-        
-        if 'gen_qr_image' in st.session_state:
-            with result_placeholder.container():
-                st.markdown("""
-                    <div style="text-align: center; padding: 20px; border: 1px solid #E2E8F0; border-radius: 10px; background-color: #F8FAFC;">
-                """, unsafe_allow_html=True)
+    st.write("")
+    if st.button("🚀 สร้าง Short Link & QR Code", type="primary", use_container_width=True):
+        if long_url:
+            with st.spinner("กำลังสร้าง..."):
+                # 1. Shorten URL (สร้าง Short Link เพื่อแสดงผล แต่ไม่ได้ใช้ใน QR)
+                short_url = shorten_url(long_url)
                 
-                st.image(st.session_state['gen_qr_image'], caption="QR Code ของคุณ", width=300)
+                # 2. Generate QR Code (ใช้ URL ต้นฉบับตามที่ user ขอ)
+                target_url_for_qr = long_url 
                 
-                st.success("สร้างเรียบร้อย!")
-                st.caption(f"Link: {st.session_state.get('gen_qr_data', '')[:40]}...")
+                # ส่งชื่อไฟล์โลโก้ไปที่ฟังก์ชัน
+                qr_image = generate_qr_code_with_logo(target_url_for_qr, selected_logo_file)
                 
-                st.download_button(
-                    label="💾 ดาวน์โหลดไฟล์ PNG",
-                    data=st.session_state['gen_qr_image'],
-                    file_name="qrcode.png",
-                    mime="image/png",
-                    use_container_width=True
-                )
+                # เก็บผลลัพธ์ลง Session State
+                st.session_state['gen_short_url'] = short_url
+                st.session_state['gen_qr_image'] = qr_image
+                st.session_state['gen_original_url'] = long_url
                 
-                st.markdown("</div>", unsafe_allow_html=True)
+                st.success("✅ สร้างสำเร็จ!")
         else:
-            # Default Empty State
-            result_placeholder.markdown("""
-                <div style="
-                    height: 400px; 
-                    display: flex; 
-                    flex-direction: column;
-                    align-items: center; 
-                    justify-content: center; 
-                    color: #94A3B8; 
-                    text-align: center;
-                    border: 2px dashed #E2E8F0;
-                    border-radius: 10px;
-                    background-color: #F8FAFC;
-                ">
-                    <div style="font-size: 4rem; margin-bottom: 10px;">📷</div>
-                    <div style="font-size: 1.1rem; font-weight: 500;">รอการสร้าง QR Code</div>
-                    <div style="font-size: 0.9rem;">กรอกข้อมูลและเลือกโลโก้ทางซ้ายมือ<br>แล้วกดปุ่มสร้างได้เลย</div>
-                </div>
+            st.warning("กรุณาใส่ URL ก่อนครับ")
+
+with col2:
+    # ตรวจสอบว่ามีการสร้างผลลัพธ์หรือยัง
+    if 'gen_qr_image' in st.session_state:
+        st.info("📝 **ผลลัพธ์**")
+        
+        # แสดง Short Link (ถ้าสร้างได้)
+        if st.session_state.get('gen_short_url'):
+            st.markdown(f"""
+            <div class="result-box">
+                <p style="margin-bottom: 5px; font-weight: bold; color: #263238;">Short Link:</p>
+                <a href="{st.session_state['gen_short_url']}" target="_blank" style="font-size: 18px; color: #2563EB; text-decoration: none;">
+                    {st.session_state['gen_short_url']}
+                </a>
+            </div>
             """, unsafe_allow_html=True)
+        else:
+            st.warning("ไม่สามารถสร้าง Short Link ได้ (แต่ QR Code สร้างเรียบร้อยแล้ว)")
+        
+        st.write("") # Spacer
+
+        # แสดง QR Code
+        st.markdown(f"**QR Code (จากลิงก์ต้นฉบับ):**")
+        st.caption(f"Target: {st.session_state.get('gen_original_url', '')[:50]}...") # แสดง URL บางส่วน
+
+        if st.session_state['gen_qr_image']:
+            st.image(st.session_state['gen_qr_image'], caption="สแกนเพื่อไปยังลิงก์", width=250)
+            
+            # ปุ่มดาวน์โหลด QR Code
+            st.download_button(
+                label="💾 ดาวน์โหลด QR Code (PNG)",
+                data=st.session_state['gen_qr_image'],
+                file_name="qrcode_with_logo.png",
+                mime="image/png"
+            )
+
+    else:
+        # หน้าจอว่างเปล่าเมื่อยังไม่เริ่ม
+        st.container(border=True).markdown(
+            """
+            <div style="text-align: center; padding: 40px; color: #64748B;">
+                <h3>รอการสร้าง...</h3>
+                <p>ใส่ URL เลือกโลโก้ แล้วกดปุ่มสร้างได้เลย</p>
+            </div>
+            """, 
+            unsafe_allow_html=True
+        )
