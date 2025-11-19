@@ -100,18 +100,9 @@ st.markdown("""
         margin-top: 10px;
     }
 
-    /* Style สำหรับ Card เลือกโลโก้ */
-    .logo-card {
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        padding: 10px;
-        text-align: center;
-        background-color: white;
-        height: 100%;
-    }
-    .logo-selected {
-        border: 2px solid #2563EB;
-        background-color: #eff6ff;
+    /* Style สำหรับปุ่มเลือกโลโก้ */
+    div[data-testid="column"] button {
+        width: 100%;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -210,36 +201,37 @@ with col1:
 
     logo_cols = st.columns([1, 1, 1])
     
-    # ฟังก์ชันช่วยแสดงผลตัวเลือก
+    # ฟังก์ชันช่วยแสดงผลตัวเลือกแบบ Clickable Image (โดยใช้ Button ซ้อน)
     def render_option(col, key, label, image_path=None, is_no_logo=False):
         with col:
             is_selected = (st.session_state['selected_logo_key'] == key)
             
-            # ใช้สัญลักษณ์แทนตัวเลข
-            icon = "🔘" if is_selected else "⚪"
-            st.markdown(f"<div style='text-align:center; margin-bottom:5px; font-weight:bold; color: #263238;'>{icon} {label}</div>", unsafe_allow_html=True)
-            
+            # ส่วนแสดงผลรูปภาพ
             if is_no_logo:
-                st.markdown("<div style='height:100px; border:1px dashed #ccc; display:flex; align-items:center; justify-content:center; color:#aaa; border-radius:8px; background:white; margin-bottom:10px;'>No Logo</div>", unsafe_allow_html=True)
+                st.markdown(f"""
+                    <div style='height:100px; border:2px solid {'#2563EB' if is_selected else '#ccc'}; 
+                    display:flex; align-items:center; justify-content:center; color:#aaa; 
+                    border-radius:8px; background:{'#eff6ff' if is_selected else 'white'}; margin-bottom:5px;'>
+                        No Logo
+                    </div>""", unsafe_allow_html=True)
             elif image_path and os.path.exists(image_path):
                 img_b64 = get_image_base64(image_path)
                 if img_b64:
-                    st.markdown(
-                        f"""<div style='height:100px; display:flex; align-items:center; justify-content:center; margin-bottom:10px; background:white; border-radius:8px; border: 1px solid #eee;'>
-                            <img src="data:image/png;base64,{img_b64}" style="max-height:100px; max-width:100%;">
-                        </div>""", 
-                        unsafe_allow_html=True
-                    )
+                    st.markdown(f"""
+                        <div style='height:100px; display:flex; align-items:center; justify-content:center; 
+                        margin-bottom:5px; background:{'#eff6ff' if is_selected else 'white'}; 
+                        border-radius:8px; border: 2px solid {'#2563EB' if is_selected else '#eee'};'>
+                            <img src="data:image/png;base64,{img_b64}" style="max-height:90px; max-width:100%;">
+                        </div>""", unsafe_allow_html=True)
             else:
                  st.warning("ไม่พบไฟล์")
 
-            # ปุ่มเลือก (เปลี่ยนข้อความปุ่มเพื่อความเรียบง่าย)
-            if is_selected:
-                st.button("เลือกแล้ว", key=f"btn_{key}", type="primary", disabled=True, use_container_width=True)
-            else:
-                if st.button("เลือก", key=f"btn_{key}_select", use_container_width=True):
-                    st.session_state['selected_logo_key'] = key
-                    st.rerun()
+            # ปุ่มกดเพื่อเลือก (ทำหน้าที่เป็น Label และ Selector)
+            btn_label = f"{'🔘' if is_selected else '⚪'} {label}"
+            # ถ้าเลือกอยู่แล้วให้ปุ่มเป็น Primary (สีน้ำเงิน) ถ้ายังไม่เลือกให้เป็น Secondary (สีขาว)
+            if st.button(btn_label, key=f"btn_select_{key}", type="secondary", use_container_width=True):
+                st.session_state['selected_logo_key'] = key
+                st.rerun()
 
     # 1. ไม่ใส่โลโก้
     render_option(logo_cols[0], 'none', 'ไม่ใส่โลโก้', is_no_logo=True)
