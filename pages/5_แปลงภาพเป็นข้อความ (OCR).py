@@ -267,8 +267,8 @@ if uploaded_file:
         st.markdown("---") # เพิ่มเส้นแบ่งระหว่าง Input หลัก กับ Advanced Settings
         
         # --- Advanced Settings (ตามที่ร้องขอ) ---
-        st.markdown("### ⚙️ การตั้งค่า (Advanced)")
-        with st.expander("ปรับแต่งค่า Parameter", expanded=False):
+        # นำหัวข้อ "### ⚙️ การตั้งค่า (Advanced)" ออก และรวมข้อความเข้ากับหัวข้อ Expander
+        with st.expander("⚙️ การตั้งค่า (Advanced) | ปรับแต่งค่า Parameter", expanded=False):
             # ใช้ st.session_state.get เพื่อกำหนดค่าเริ่มต้นและเก็บค่าที่ผู้ใช้ปรับ
             max_tokens = st.slider("Max Tokens", 1000, 16000, st.session_state.get("max_tokens", 16000), 100, key="max_tokens_slider")
             temperature = st.slider("Temperature", 0.0, 1.0, st.session_state.get("temperature", 0.1), 0.1, key="temperature_slider")
