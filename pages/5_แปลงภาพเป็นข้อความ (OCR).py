@@ -7,7 +7,7 @@ from docx import Document # ต้องติดตั้ง python-docx
 
 # --- 1. ตั้งค่า Page Config ---
 st.set_page_config(
-    page_title="OCR",
+    page_title="Typhoon OCR",
     page_icon="📄",
     layout="wide"
 )
@@ -255,11 +255,33 @@ with st.sidebar:
 st.title("📄 ระบบแปลงภาพเป็นข้อความ (OCR)")
 st.markdown("##### เครื่องมือช่วยดึงข้อความจากเอกสารภาษาไทยและอังกฤษด้วย AI")
 
-# พื้นที่ Upload
-uploaded_file = st.file_uploader(
-    "เลือกไฟล์ภาพ (JPG, PNG) หรือเอกสาร (PDF)", 
-    type=['png', 'jpg', 'jpeg', 'webp', 'pdf']
-)
+# --- Input Selection Tabs (Upload vs Camera) ---
+tab_upload, tab_camera = st.tabs(["📁 อัปโหลดไฟล์", "📸 ถ่ายภาพ (Camera)"])
+
+uploaded_file = None
+
+with tab_upload:
+    file_upload = st.file_uploader(
+        "เลือกไฟล์ภาพ (JPG, PNG) หรือเอกสาร (PDF)", 
+        type=['png', 'jpg', 'jpeg', 'webp', 'pdf'],
+        key="file_uploader"
+    )
+
+with tab_camera:
+    camera_image = st.camera_input("ถ่ายภาพเอกสาร")
+
+# Logic เลือกไฟล์ที่จะนำไปประมวลผล
+if camera_image is not None:
+    uploaded_file = camera_image
+    # กำหนดชื่อและประเภทไฟล์จำลองเพื่อให้ฟังก์ชัน OCR ทำงานได้ (กรณี camera_input ไม่ได้ส่งค่ามาครบ)
+    # โดยปกติ Streamlit UploadedFile จะมี attribute เหล่านี้อยู่แล้ว
+    if not hasattr(uploaded_file, 'name'):
+        uploaded_file.name = "camera_capture.jpg"
+    if not hasattr(uploaded_file, 'type'):
+        uploaded_file.type = "image/jpeg"
+        
+elif file_upload is not None:
+    uploaded_file = file_upload
 
 # Layout หลัก: 2 คอลัมน์
 if uploaded_file:
@@ -280,8 +302,7 @@ if uploaded_file:
         
         st.markdown("---") # เพิ่มเส้นแบ่งระหว่าง Input หลัก กับ Advanced Settings
         
-        # --- Advanced Settings (ตามที่ร้องขอ) ---
-        # นำหัวข้อ "### ⚙️ การตั้งค่า (Advanced)" ออก และรวมข้อความเข้ากับหัวข้อ Expander
+        # --- Advanced Settings ---
         with st.expander("⚙️ การตั้งค่า (Advanced) | ปรับแต่งค่า Parameter", expanded=False):
             # ใช้ st.session_state.get เพื่อกำหนดค่าเริ่มต้นและเก็บค่าที่ผู้ใช้ปรับ
             max_tokens = st.slider("Max Tokens", 1000, 16000, st.session_state.get("max_tokens", 16000), 100, key="max_tokens_slider")
@@ -298,14 +319,14 @@ if uploaded_file:
             if not current_api_key:
                 st.error("❌ กรุณาตั้งค่า API Key ใน Streamlit Secrets หรือติดต่อผู้ดูแลระบบเพื่อเข้าถึงฟังก์ชันนี้")
             else:
-                # บันทึกค่าพารามิเตอร์ลงใน session state ก่อนเรียก API เพื่อให้ค่าคงที่
+                # บันทึกค่าพารามิเตอร์ลงใน session state
                 st.session_state["max_tokens"] = max_tokens
                 st.session_state["temperature"] = temperature
                 st.session_state["top_p"] = top_p
                 st.session_state["repetition_penalty"] = repetition_penalty
 
                 with st.spinner("🌀 AI กำลังอ่านเอกสาร... โปรดรอสักครู่"):
-                    # เรียกฟังก์ชันประมวลผล โดยใช้ค่าจาก slider
+                    # เรียกฟังก์ชันประมวลผล
                     result_text = extract_text_from_image(
                         uploaded_file, current_api_key, model, task_type, 
                         max_tokens, temperature, top_p, repetition_penalty, pages_input
@@ -328,7 +349,7 @@ if uploaded_file:
             label_visibility="collapsed"
         )
         
-        # ปุ่ม Download (แก้ไขเป็น .docx)
+        # ปุ่ม Download (.docx)
         if result_text:
             docx_file = create_docx(result_text)
             st.download_button(
@@ -337,5 +358,3 @@ if uploaded_file:
                 file_name="ocr_result.docx",
                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             )
-
-# ส่วน else ถูกลบออกแล้ว
