@@ -121,19 +121,6 @@ st.markdown("""
         box-shadow: 0 6px 8px -1px rgba(37, 99, 235, 0.3) !important;
     }
     
-    /* Special case: Selected Option Button (เราจะใช้ key เพื่อระบุ หรือใช้ secondary แต่หน้าตาเปลี่ยน) */
-    /* เนื่องจากเราแยก type ไม่ได้ละเอียดใน CSS ของ Streamlit (มีแค่ primary/secondary) */
-    /* เราจะใช้ logic: 
-       - ปุ่มเลือก (Options) -> ใช้ type="secondary" ทั้งหมด (เพื่อให้เป็นพื้นขาว)
-       - ปุ่มสร้าง (Generate) -> ใช้ type="primary" (เพื่อให้เป็นสีน้ำเงิน)
-       
-       *แต่* ถ้าปุ่ม Option ถูกเลือก เราอยากให้มีขอบสีฟ้า?
-       เราทำใน Python ไม่ได้โดยตรง (ส่ง class ไม่ได้)
-       
-       ทางแก้: เราจะใช้ icon (🔴/⭕) ในการบอกสถานะแทน ซึ่งเราทำแล้วใน Python
-       ดังนั้น CSS นี้จะทำให้ปุ่มเลือกเป็นสีขาว และปุ่มสร้างเป็นสีน้ำเงินถูกต้องตามที่ขอครับ
-    */
-
     .result-box {
         background-color: white;
         padding: 20px;
@@ -148,8 +135,11 @@ st.markdown("""
 
 # --- 3. Helper Functions ---
 
-def generate_qr_code_with_logo(data, logo_file_name=None):
-    """สร้าง QR Code จากข้อมูลที่กำหนด และใส่ Logo ตรงกลาง (ถ้ามี)"""
+def generate_qr_code_with_logo(data, logo_file_name=None, logo_size_factor=3.5):
+    """
+    สร้าง QR Code จากข้อมูลที่กำหนด และใส่ Logo ตรงกลาง (ถ้ามี)
+    logo_size_factor: ตัวหารขนาดโลโก้ ยิ่งน้อยโลโก้ยิ่งใหญ่ (เช่น 3 ใหญ่กว่า 4)
+    """
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_H,
@@ -166,7 +156,12 @@ def generate_qr_code_with_logo(data, logo_file_name=None):
             if os.path.exists(logo_file_name):
                 logo = Image.open(logo_file_name)
                 width, height = img.size
-                logo_size = int(width / 3.5) 
+                
+                # คำนวณขนาด Logo ตาม factor ที่ได้รับ
+                # ป้องกันหารเป็น 0
+                if logo_size_factor <= 0: logo_size_factor = 1
+                logo_size = int(width / logo_size_factor) 
+                
                 logo = logo.resize((logo_size, logo_size))
                 pos = ((width - logo_size) // 2, (height - logo_size) // 2)
                 img.paste(logo, pos)
@@ -271,6 +266,28 @@ with st.container(border=True):
             "color": "logoSAO-TH-02.png"
         }
         selected_logo = logo_map[st.session_state['selected_logo_key']]
+        
+        # --- Slider ปรับขนาดโลโก้ (แสดงเฉพาะเมื่อมีการเลือกโลโก้) ---
+        if selected_logo is not None:
+            st.write("")
+            st.markdown("**ปรับขนาดโลโก้:**")
+            # ค่าตัวหาร: 5 (เล็ก) -> 2.5 (ใหญ่)
+            # เพื่อให้เข้าใจง่าย เราจะ mapping 1-100% (แต่จริงๆ คือ scale factor)
+            # ให้ slider เลือกค่า 2.0 (ใหญ่สุด 50%) ถึง 6.0 (เล็กสุด ~16%)
+            # แต่เพื่อให้ user เข้าใจง่าย ใช้ "เล็ก -> ใหญ่" 
+            # ดังนั้นเราจะใช้ค่า 1-5 แล้ว map กลับ
+            logo_scale_input = st.slider("ขนาดโลโก้ (เล็ก - ใหญ่)", min_value=1, max_value=5, value=3, step=1)
+            
+            # Map ค่า Slider (1-5) ไปเป็นตัวหาร (Divisor)
+            # 1 (เล็กสุด) -> หาร 5
+            # 5 (ใหญ่สุด) -> หาร 2.5
+            # สูตร linear: y = mx + c
+            # (1, 5), (5, 2.5)
+            # m = (2.5 - 5) / (5 - 1) = -2.5 / 4 = -0.625
+            # c = 5 - (1 * -0.625) = 5.625
+            logo_divisor = 5.625 + (logo_scale_input * -0.625)
+        else:
+            logo_divisor = 3.5 # ค่า default (ไม่มีผลเพราะไม่มีโลโก้)
 
         st.markdown("---")
         
@@ -278,7 +295,8 @@ with st.container(border=True):
         if st.button("🚀 สร้าง QR Code", type="primary", use_container_width=True):
             if qr_data:
                 with st.spinner("กำลังสร้าง..."):
-                    img_buf = generate_qr_code_with_logo(qr_data, selected_logo)
+                    # ส่งค่า logo_divisor ไปด้วย
+                    img_buf = generate_qr_code_with_logo(qr_data, selected_logo, logo_divisor)
                     st.session_state['gen_qr_image'] = img_buf
                     st.session_state['gen_qr_data'] = qr_data
             else:
