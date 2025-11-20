@@ -289,7 +289,7 @@ with st.container(border=True):
             st.write("")
             st.markdown("**ปรับขนาดโลโก้:**")
             # ค่าตัวหาร: 5 (เล็ก) -> 2.5 (ใหญ่)
-            logo_scale_input = st.slider("ขนาดโลโก้ (เล็ก - ใหญ่)", min_value=1, max_value=5, value=3, step=1)
+            logo_scale_input = st.slider("ขนาดโลโก้ (เล็ก - ใหญ่)", min_value=1, max_value=4, value=2, step=1)
             logo_divisor = 5.625 + (logo_scale_input * -0.625)
         else:
             logo_divisor = 3.5
