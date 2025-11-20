@@ -13,7 +13,6 @@ st.set_page_config(
 )
 
 # --- 2. Custom CSS (Styles) ---
-# การตั้งค่าสไตล์ทั้งหมดตามธีม PA Assistant Chat (Sarabun, สีเขียวอ่อน)
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;700&display=swap');
@@ -47,21 +46,19 @@ st.markdown("""
     }
 
     /* --- Flexbox layout for Sidebar --- */
-    /* This targets the inner container of the sidebar */
     [data-testid="stSidebar"] > div:first-child {
         display: flex;
         flex-direction: column;
         height: 100%;
     }
-    /* This makes the navigation take up all available space, pushing the footer down */
     [data-testid="stSidebarNav"] {
         flex-grow: 1;
-        margin-top: 20px; /* Move navigation down */
+        margin-top: 20px;
     }
     .sidebar-footer {
         width: 100%;
         padding: 1rem;
-        text-align: center; /* Center the footer content */
+        text-align: center;
     }
 
     /* Remove Streamlit's default top padding */
@@ -69,51 +66,7 @@ st.markdown("""
         padding-top: 2rem;
     }
 
-    /* --- Feature Box Styling (Main Page) - included for consistency across app --- */
-    .feature-link { text-decoration: none !important; color: inherit !important; }
-    .feature-link:hover { text-decoration: none !important; color: inherit !important; }
-    .feature-box {
-        background-color: #e0f2f1;
-        padding: 1rem 1rem;
-        border-radius: 20px;
-        text-align: center;
-        transition: transform 0.3s, box-shadow 0.3s;
-        height: 200px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        border: 1px solid #d0e0df;
-    }
-    .feature-box:hover {
-        transform: translateY(-10px);
-        box-shadow: 0 8px 30px rgba(0,0,0,0.12);
-    }
-    .feature-box .emoji { font-size: 1.6rem; line-height: 1; }
-    .feature-box h3 { margin-top: 0.7rem; margin-bottom: 0.4rem; font-size: 1.2rem; }
-    .feature-box p { color: #6c757d; font-size: 0.85rem; }
-     
-    /* --- Style the sidebar navigation --- */
-    div[data-testid="stSidebarNav"] > ul > li > a {
-        padding: 18px 40px !important; /* Increased padding for more height */
-        font-size: 20px !important;    /* Larger font size */
-        margin-bottom: 10px;
-        border-radius: 8px;
-        color: #263238 !important;      /* Darker text for inactive links */
-        background-color: #b2dfdb;      /* Light teal for inactive links */
-        border: 1px solid #9dbdb9;
-        font-weight: 500;
-    }
-     
-    /* Style the ACTIVE page link */
-    div[data-testid="stSidebarNav"] a[aria-current="page"] {
-        background-color: #80cbc4;      /* Dark teal for active link */
-        color: #FFFFFF !important;      /* White text for active link */
-        font-weight: 600;
-        border: 1px solid #00796b;
-    }
-
-    /* ปรับแต่งปุ่ม Primary (Start OCR) - คงสีน้ำเงินเพื่อให้โดดเด่น */
+    /* ปรับแต่งปุ่ม Primary (Start OCR) */
     .stButton > button {
         background-color: #2563EB; /* สีน้ำเงิน Typhoon */
         color: white;
@@ -131,7 +84,7 @@ st.markdown("""
     /* ปรับแต่งพื้นที่แสดงผลลัพธ์ */
     .stTextArea textarea {
         background-color: #FFFFFF;
-        border: 1px solid #9dbdb9; /* ใช้สีขอบที่เข้ากับธีม */
+        border: 1px solid #9dbdb9; 
         border-radius: 8px;
         font-family: 'Sarabun', sans-serif;
         line-height: 1.6;
@@ -181,12 +134,12 @@ def extract_text_from_image(uploaded_file, api_key, model, task_type, max_tokens
             result = response.json()
             extracted_texts = []
             
-            # แกะ JSON Response เพื่อดึงข้อความที่ได้จาก OCR
+            # แกะ JSON Response
             for page_result in result.get('results', []):
                 if page_result.get('success') and page_result.get('message'):
                     content = page_result['message']['choices'][0]['message']['content']
                     try:
-                        # พยายามแปลง String JSON กลับเป็น Object เพื่อดึงเฉพาะ natural_text (ข้อความดิบ)
+                        # พยายามแปลง String JSON กลับเป็น Object เพื่อดึงเฉพาะ natural_text
                         parsed_content = json.loads(content)
                         text = parsed_content.get('natural_text', content)
                         # จัดการกรณีที่ข้อความเป็น dict/list
@@ -223,7 +176,7 @@ def create_docx(text):
 # --- API Key loader for Streamlit Cloud ---
 if 'api_key' not in st.session_state:
     try:
-        # โหลดจาก st.secrets["api_key"] (สำหรับ Streamlit Cloud)
+        # โหลดจาก st.secrets["api_key"]
         st.session_state['api_key'] = st.secrets.get("api_key", "")
     except Exception:
         st.session_state['api_key'] = "" 
@@ -252,8 +205,7 @@ with st.sidebar:
 st.title("📄 ระบบแปลงภาพเป็นข้อความ (OCR)")
 st.markdown("##### เครื่องมือช่วยดึงข้อความจากเอกสารภาษาไทยและอังกฤษด้วย AI")
 
-# --- Input Selection Tabs (Upload vs Camera) ---
-# ใช้ Radio แทน Tabs เพื่อควบคุมการเปิด/ปิดกล้อง (ตามที่คุณเคยขอ)
+# --- Input Selection (Radio) ---
 st.write("")
 input_method = st.radio(
     "เลือกวิธีการนำเข้าข้อมูล:",
@@ -277,6 +229,7 @@ elif input_method == "📸 ถ่ายภาพ (Camera)":
     camera_image = st.camera_input("ถ่ายภาพเอกสาร")
     if camera_image:
         uploaded_file = camera_image
+        # กำหนดค่าจำลองสำหรับไฟล์ภาพจากกล้อง
         if not hasattr(uploaded_file, 'name'):
             uploaded_file.name = "camera_capture.jpg"
         if not hasattr(uploaded_file, 'type'):
@@ -290,11 +243,10 @@ if 'last_processed_file_id' not in st.session_state:
 should_process_auto = False
 
 if uploaded_file:
-    # ใช้ file_id จาก uploaded_file (ถ้าไม่มีใช้ชื่อ+ขนาด)
-    # ใน Streamlit, UploadedFile object มี attribute `id` หรือ `file_id` (ขึ้นกับเวอร์ชัน) แต่ใช้ name+size ก็พอไหว
+    # สร้าง ID จำลองของไฟล์ (ใช้ชื่อ+ขนาด) เพื่อเช็คว่าเป็นไฟล์ใหม่หรือไม่
     current_file_id = f"{uploaded_file.name}_{uploaded_file.size}"
     
-    # ถ้าไฟล์ปัจจุบัน ไม่ตรงกับไฟล์ล่าสุดที่เคยทำ -> แปลว่าไฟล์ใหม่ -> สั่ง Process
+    # ถ้าไฟล์ปัจจุบัน ไม่ตรงกับไฟล์ล่าสุดที่เคยทำ -> แปลว่าไฟล์ใหม่ -> สั่ง Process ทันที
     if current_file_id != st.session_state['last_processed_file_id']:
         should_process_auto = True
         st.session_state['last_processed_file_id'] = current_file_id # อัปเดต ID ล่าสุด
@@ -326,14 +278,13 @@ if uploaded_file:
         
         st.markdown("---") 
 
-        # ปุ่ม Action (กดเองก็ได้)
+        # ปุ่ม Action (กดเองก็ได้ หรือรันออโต้ก็ได้)
         current_api_key = st.session_state.get("api_key", "")
         manual_start = st.button("🚀 เริ่มประมวลผล (Start OCR)", type="primary", use_container_width=True)
 
     # --- Column ขวา: Result ---
     with col2:
         st.info("📝 **ผลลัพธ์ข้อความ**")
-        output_area = st.empty() # Placeholder
         
         # Logic: รันถ้ากดปุ่ม หรือ เป็นไฟล์ใหม่ (Auto)
         if manual_start or should_process_auto:
@@ -352,11 +303,12 @@ if uploaded_file:
                         max_tokens, temperature, top_p, repetition_penalty, pages_input
                     )
                     st.session_state["ocr_result"] = result_text
-                    # ไม่ต้อง success message ก็ได้ถ้ามัน auto บ่อยๆ หรือใส่ก็ได้
-                    if manual_start: 
+                    
+                    # ถ้ากดปุ่มเอง ให้แสดง success message (ถ้า auto อาจจะไม่ต้องแสดงเพื่อให้ดู smooth)
+                    if manual_start:
                         st.success("✅ เสร็จสิ้น!")
 
-        # แสดงผลลัพธ์จาก Session State (ไม่ว่าจะมาจาก Auto หรือ Manual)
+        # แสดงผลลัพธ์จาก Session State
         result_text = st.session_state.get("ocr_result", "")
         
         # Text Area สำหรับแสดงผล
