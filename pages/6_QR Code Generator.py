@@ -51,14 +51,15 @@ st.markdown("""
         flex-direction: column;
         height: 100%;
     }
+    /* This makes the navigation take up all available space, pushing the footer down */
     [data-testid="stSidebarNav"] {
         flex-grow: 1;
-        margin-top: 20px;
+        margin-top: 20px; /* Move navigation down */
     }
     .sidebar-footer {
         width: 100%;
         padding: 1rem;
-        text-align: center;
+        text-align: center; /* Center the footer content */
     }
 
     /* Remove Streamlit's default top padding */
@@ -105,7 +106,7 @@ def extract_text_from_image(uploaded_file, api_key, model, task_type, max_tokens
     url = "https://api.opentyphoon.ai/v1/ocr"
     
     # เตรียมไฟล์ (Streamlit ส่งมาเป็น BytesIO)
-    # สำคัญ: ต้อง seek(0) ก่อนส่งไฟล์เสมอเผื่อไฟล์ถูกอ่านไปแล้ว
+    # สำคัญ: ต้อง seek(0) ก่อนส่งไฟล์เสมอเผื่อไฟล์ถูกอ่านไปแล้วจากการแสดงผล preview
     uploaded_file.seek(0)
     files = {'file': (uploaded_file.name, uploaded_file, uploaded_file.type)}
     
@@ -236,20 +237,21 @@ elif input_method == "📸 ถ่ายภาพ (Camera)":
             uploaded_file.type = "image/jpeg"
 
 # --- Logic Auto-Process ---
-# สร้าง session state สำหรับเก็บ ID ไฟล์ล่าสุดที่ประมวลผลไปแล้ว
+# สร้าง session state สำหรับเก็บ ID ไฟล์ล่าสุดที่ประมวลผลไปแล้ว เพื่อป้องกันการรันซ้ำ
 if 'last_processed_file_id' not in st.session_state:
     st.session_state['last_processed_file_id'] = None
 
 should_process_auto = False
+current_file_id = None
 
 if uploaded_file:
     # สร้าง ID จำลองของไฟล์ (ใช้ชื่อ+ขนาด) เพื่อเช็คว่าเป็นไฟล์ใหม่หรือไม่
-    current_file_id = f"{uploaded_file.name}_{uploaded_file.size}"
+    # เพิ่ม input_method เข้าไปใน ID ด้วย เพื่อแยกแยะระหว่างไฟล์อัปโหลดกับภาพถ่ายที่อาจมีชื่อซ้ำกัน
+    current_file_id = f"{input_method}_{uploaded_file.name}_{uploaded_file.size}"
     
     # ถ้าไฟล์ปัจจุบัน ไม่ตรงกับไฟล์ล่าสุดที่เคยทำ -> แปลว่าไฟล์ใหม่ -> สั่ง Process ทันที
     if current_file_id != st.session_state['last_processed_file_id']:
         should_process_auto = True
-        st.session_state['last_processed_file_id'] = current_file_id # อัปเดต ID ล่าสุด
 
 # --- Layout หลัก: 2 คอลัมน์ ---
 if uploaded_file:
@@ -298,13 +300,18 @@ if uploaded_file:
                 st.session_state["repetition_penalty"] = repetition_penalty
 
                 with st.spinner("🌀 AI กำลังอ่านเอกสารอัตโนมัติ... โปรดรอสักครู่"):
+                    # เรียกฟังก์ชัน OCR
                     result_text = extract_text_from_image(
                         uploaded_file, current_api_key, model, task_type, 
                         max_tokens, temperature, top_p, repetition_penalty, pages_input
                     )
                     st.session_state["ocr_result"] = result_text
                     
-                    # ถ้ากดปุ่มเอง ให้แสดง success message (ถ้า auto อาจจะไม่ต้องแสดงเพื่อให้ดู smooth)
+                    # อัปเดต ID ไฟล์ล่าสุด *หลังจาก* ทำงานสำเร็จแล้วเท่านั้น
+                    if current_file_id:
+                        st.session_state['last_processed_file_id'] = current_file_id
+                    
+                    # ถ้ากดปุ่มเอง ให้แสดง success message
                     if manual_start:
                         st.success("✅ เสร็จสิ้น!")
 
