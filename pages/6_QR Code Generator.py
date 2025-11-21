@@ -1,14 +1,14 @@
 import streamlit as st
-import requests
-import json
-from PIL import Image
+import qrcode
 from io import BytesIO
-from docx import Document
+from PIL import Image
+import os
+import base64
 
 # --- 1. ตั้งค่า Page Config ---
 st.set_page_config(
-    page_title="Typhoon OCR",
-    page_icon="📄",
+    page_title="QR Code Generator",
+    page_icon="📱",
     layout="wide"
 )
 
@@ -16,73 +16,195 @@ st.set_page_config(
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;700&display=swap');
-    html, body, [class*="css"] { font-family: 'Sarabun', sans-serif; }
-    [data-testid="stAppViewContainer"] > .main { background-color: #e0f2f1; }
-    h1, h2, h3 { color: #263238; font-weight: 700; }
-    [data-testid="stSidebar"] { background-color: #e0f2f1; width: 250px !important; border-right: 1px solid #b2dfdb; }
-    [data-testid="stSidebar"] > div:first-child { display: flex; flex-direction: column; height: 100%; }
-    [data-testid="stSidebarNav"] { flex-grow: 1; margin-top: 20px; }
-    .sidebar-footer { width: 100%; padding: 1rem; text-align: center; }
-    .block-container { padding-top: 2rem; }
-    .stButton > button { background-color: #2563EB; color: white; border: none; border-radius: 8px; padding: 0.5rem 1rem; font-weight: 500; transition: all 0.2s; }
-    .stButton > button:hover { background-color: #1D4ED8; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
-    .stTextArea textarea { background-color: #FFFFFF; border: 1px solid #9dbdb9; border-radius: 8px; font-family: 'Sarabun', sans-serif; line-height: 1.6; }
-    [data-testid="stImage"] { border: 1px solid #9dbdb9; border-radius: 8px; overflow: hidden; }
+
+    html, body, [class*="css"] {
+        font-family: 'Sarabun', sans-serif;
+    }
+    
+    [data-testid="stAppViewContainer"] > .main {
+        background-color: #e0f2f1; 
+    }
+    
+    h1 { 
+        font-size: 36px !important; 
+        color: #263238; 
+        font-weight: 700;
+    }
+    h2, h3 {
+        color: #263238;
+        font-weight: 700;
+    }
+    
+    [data-testid="stSidebar"] {
+        background-color: #e0f2f1;
+        width: 250px !important;
+        border-right: 1px solid #b2dfdb;
+    }
+
+    [data-testid="stSidebar"] > div:first-child {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+    [data-testid="stSidebarNav"] {
+        flex-grow: 1;
+        margin-top: 20px;
+    }
+    .sidebar-footer {
+        width: 100%;
+        padding: 1rem;
+        text-align: center;
+    }
+
+    .block-container {
+        padding-top: 2rem;
+    }
+    
+    div[data-testid="stSidebarNav"] > ul > li > a {
+        padding: 18px 40px !important;
+        font-size: 20px !important;
+        margin-bottom: 10px;
+        border-radius: 8px;
+        color: #263238 !important;
+        background-color: #b2dfdb;
+        border: 1px solid #9dbdb9;
+        font-weight: 500;
+    }
+    div[data-testid="stSidebarNav"] a[aria-current="page"] {
+        background-color: #80cbc4;
+        color: #FFFFFF !important;
+        font-weight: 600;
+        border: 1px solid #00796b;
+    }
+
+    /* General Button Style */
+    .stButton > button {
+        border-radius: 8px;
+        font-weight: 500;
+        transition: all 0.2s;
+        width: 100%;
+    }
+
+    /* ---------------------------------------- */
+    /* Button Styles Implementation            */
+    /* ---------------------------------------- */
+
+    /* 1. Selection Buttons (Secondary) - สีขาว/โปร่ง */
+    button[kind="secondary"] {
+        background-color: white !important;
+        border: 1px solid #CBD5E1 !important; 
+        color: #334155 !important;
+        box-shadow: none !important;
+    }
+    button[kind="secondary"]:hover {
+        background-color: #F1F5F9 !important;
+        border-color: #94A3B8 !important;
+        color: #0F172A !important;
+    }
+    button[kind="secondary"]:focus {
+        border-color: #2563EB !important;
+        color: #2563EB !important;
+        background-color: #EFF6FF !important;
+    }
+
+    /* 2. Generate Button (Primary) - สีน้ำเงินทึบ */
+    button[kind="primary"] {
+        background-color: #2563EB !important;
+        border: 1px solid #2563EB !important;
+        color: white !important;
+        font-weight: bold !important;
+        box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2) !important;
+    }
+    button[kind="primary"]:hover {
+        background-color: #1D4ED8 !important;
+        border-color: #1D4ED8 !important;
+        box-shadow: 0 6px 8px -1px rgba(37, 99, 235, 0.3) !important;
+    }
+    
+    .result-box {
+        background-color: white;
+        padding: 20px;
+        border-radius: 10px;
+        border: 1px solid #9dbdb9;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        margin-top: 10px;
+    }
+
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. ฟังก์ชัน Logic การเรียก API ---
-def extract_text_from_image(uploaded_file, api_key, model, task_type, max_tokens, temperature, top_p, repetition_penalty, pages=None):
-    url = "https://api.opentyphoon.ai/v1/ocr"
-    uploaded_file.seek(0)
-    files = {'file': (uploaded_file.name, uploaded_file, uploaded_file.type)}
-    data = {
-        'model': model, 'task_type': task_type,
-        'max_tokens': str(max_tokens), 'temperature': str(temperature),
-        'top_p': str(top_p), 'repetition_penalty': str(repetition_penalty)
-    }
-    if pages and pages.strip(): data['pages'] = pages.strip()
-    headers = {'Authorization': f'Bearer {api_key}'}
+# --- 3. Helper Functions ---
 
+def generate_qr_code_with_logo(data, logo_file_name=None, logo_size_factor=3.5):
+    """
+    สร้าง QR Code จากข้อมูลที่กำหนด และใส่ Logo ตรงกลาง (ถ้ามี)
+    ปรับปรุง: รองรับไฟล์ PNG พื้นหลังโปร่งใส (RGBA)
+    """
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_H,
+        box_size=10,
+        border=2,
+    )
+    qr.add_data(data)
+    qr.make(fit=True)
+    
+    # สร้างรูป QR Code พื้นฐาน (โหมด RGB)
+    img = qr.make_image(fill_color="black", back_color="white").convert('RGBA')
+    
+    if logo_file_name:
+        try:
+            if os.path.exists(logo_file_name):
+                # เปิดไฟล์โลโก้
+                logo = Image.open(logo_file_name)
+                
+                # คำนวณขนาด
+                if logo_size_factor <= 0: logo_size_factor = 1
+                width, height = img.size
+                logo_size = int(width / logo_size_factor)
+                logo = logo.resize((logo_size, logo_size), Image.Resampling.LANCZOS)
+                
+                # --- สร้างพื้นหลังสีขาวรองรับโลโก้ ---
+                # สร้างภาพสี่เหลี่ยมสีขาวขนาดเท่าโลโก้ (บวกขอบนิดหน่อยถ้าต้องการ)
+                bg_size = logo_size 
+                logo_bg = Image.new("RGBA", (bg_size, bg_size), "white")
+                
+                # คำนวณตำแหน่งวาง (กึ่งกลาง)
+                pos = ((width - bg_size) // 2, (height - bg_size) // 2)
+                
+                # วางพื้นหลังสีขาวลงไปก่อน
+                img.paste(logo_bg, pos)
+                
+                # วางโลโก้ทับลงไป โดยใช้ตัวเองเป็น Mask เพื่อรักษาความโปร่งใส
+                # ถ้าโลโก้เป็น RGBA ให้ใช้ mask
+                if logo.mode == 'RGBA':
+                    img.paste(logo, pos, mask=logo)
+                else:
+                    img.paste(logo, pos)
+                    
+        except Exception as e:
+            print(f"Logo Error: {e}")
+
+    # แปลงกลับเป็น RGB ก่อนเซฟ (ถ้าไม่ต้องการ Transparency ใน QR final result) หรือเซฟเป็น PNG ได้เลย
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return buf
+
+def get_image_base64(image_path):
     try:
-        response = requests.post(url, files=files, data=data, headers=headers)
-        if response.status_code == 200:
-            result = response.json()
-            extracted_texts = []
-            for page_result in result.get('results', []):
-                if page_result.get('success') and page_result.get('message'):
-                    content = page_result['message']['choices'][0]['message']['content']
-                    try:
-                        parsed_content = json.loads(content)
-                        text = parsed_content.get('natural_text', content)
-                        if isinstance(text, (dict, list)): text = json.dumps(text, ensure_ascii=False)
-                    except json.JSONDecodeError: text = content
-                    extracted_texts.append(text)
-                elif not page_result.get('success'):
-                    error_msg = f"Error: {page_result.get('error', 'Unknown error')}"
-                    extracted_texts.append(f"[{error_msg}]")
-            return '\n\n---\n\n'.join(extracted_texts)
-        else: return f"API Error: {response.status_code}\n{response.text}"
-    except Exception as e: return f"Connection Error: {str(e)}"
-
-def create_docx(text):
-    doc = Document()
-    for paragraph in text.split('\n'): doc.add_paragraph(paragraph)
-    buffer = BytesIO()
-    doc.save(buffer)
-    buffer.seek(0)
-    return buffer
-
-# --- API Key & Config ---
-if 'api_key' not in st.session_state:
-    try: st.session_state['api_key'] = st.secrets.get("api_key", "")
-    except Exception: st.session_state['api_key'] = "" 
-
-model = "typhoon-ocr"
-task_type = "v1.5"
+        with open(image_path, "rb") as img_file:
+            return base64.b64encode(img_file.read()).decode('utf-8')
+    except Exception:
+        return None
 
 # --- 4. Sidebar ---
 with st.sidebar:
+    try:
+        st.image("image_e05e9c.png", use_column_width=True) 
+    except:
+        pass 
+
     st.markdown("""
         <div class="sidebar-footer">
             <p>
@@ -97,106 +219,136 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
 # --- 5. Main Content ---
-st.title("📄 ระบบแปลงภาพเป็นข้อความ (OCR)")
-st.markdown("##### เครื่องมือช่วยดึงข้อความจากเอกสารภาษาไทยและอังกฤษด้วย AI")
+st.title("📱 QR Code Generator")
+st.markdown("##### เครื่องมือสร้างคิวอาร์โค้ดพร้อมโลโก้หน่วยงาน")
 
-# --- Input Selection ---
-st.write("")
-input_method = st.radio(
-    "เลือกวิธีการนำเข้าข้อมูล:",
-    options=["📁 อัปโหลดไฟล์", "📸 ถ่ายภาพ (Camera)"],
-    horizontal=True,
-    label_visibility="collapsed"
-)
+with st.container(border=True):
+    col_left, col_right = st.columns([1.2, 0.8], gap="large")
 
-uploaded_file = None
-if input_method == "📁 อัปโหลดไฟล์":
-    file_upload = st.file_uploader("เลือกไฟล์ภาพ หรือเอกสาร PDF", type=['png', 'jpg', 'jpeg', 'webp', 'pdf'], key="file_uploader")
-    if file_upload: uploaded_file = file_upload
-elif input_method == "📸 ถ่ายภาพ (Camera)":
-    camera_image = st.camera_input("ถ่ายภาพเอกสาร")
-    if camera_image:
-        uploaded_file = camera_image
-        if not hasattr(uploaded_file, 'name'): uploaded_file.name = "camera_capture.jpg"
-        if not hasattr(uploaded_file, 'type'): uploaded_file.type = "image/jpeg"
-
-# --- Logic Auto-Process ---
-# 1. Init Session State
-if 'last_processed_id' not in st.session_state:
-    st.session_state['last_processed_id'] = None
-if 'ocr_result' not in st.session_state:
-    st.session_state['ocr_result'] = ""
-
-# 2. Check if we need to process
-should_run_ocr = False
-current_file_id = None
-
-if uploaded_file:
-    # สร้าง Unique ID สำหรับไฟล์นี้
-    current_file_id = f"{uploaded_file.name}_{uploaded_file.size}"
-    
-    # ถ้า ID ไม่ตรงกับที่เคยทำล่าสุด -> แปลว่าเป็นไฟล์ใหม่ -> สั่งรัน!
-    if current_file_id != st.session_state['last_processed_id']:
-        should_run_ocr = True
-
-# --- Layout ---
-if uploaded_file:
-    col1, col2 = st.columns([1, 1], gap="large")
-
-    with col1:
-        st.info("🖼️ **ไฟล์ต้นฉบับ**")
-        if uploaded_file.type == "application/pdf":
-            st.warning("⚠️ ไฟล์ PDF จะไม่แสดงตัวอย่าง แต่สามารถประมวลผลได้ปกติ")
-        else:
-            st.image(uploaded_file, use_column_width=True)
+    # --- Left Column ---
+    with col_left:
+        st.subheader("1. ใส่ข้อมูล")
+        qr_data = st.text_input("URL หรือข้อความที่ต้องการ:", placeholder="https://www.example.com")
         
-        pages_input = st.text_input("ระบุหน้า (สำหรับ PDF)", placeholder="เช่น 1, 2 หรือ 1-5")
-        st.markdown("---") 
+        st.write("")
+        st.subheader("2. เลือกโลโก้")
         
-        with st.expander("⚙️ การตั้งค่า (Advanced) | ปรับแต่งค่า Parameter", expanded=False):
-            max_tokens = st.slider("Max Tokens", 1000, 16000, st.session_state.get("max_tokens", 16000), 100)
-            temperature = st.slider("Temperature", 0.0, 1.0, st.session_state.get("temperature", 0.1), 0.1)
-            top_p = st.slider("Top P", 0.0, 1.0, st.session_state.get("top_p", 0.6), 0.1)
-            repetition_penalty = st.slider("Repetition Penalty", 1.0, 2.0, st.session_state.get("repetition_penalty", 1.1), 0.1)
-        
-        st.markdown("---") 
-        current_api_key = st.session_state.get("api_key", "")
-        # ปุ่ม Manual Start (เผื่อกดซ้ำ)
-        manual_start = st.button("🚀 เริ่มประมวลผล (Start OCR)", type="primary", use_container_width=True)
+        # Init State
+        if 'selected_logo_key' not in st.session_state:
+            st.session_state['selected_logo_key'] = 'none'
 
-    with col2:
-        st.info("📝 **ผลลัพธ์ข้อความ**")
+        # Layout 3 คอลัมน์
+        l1, l2, l3 = st.columns(3)
         
-        # --- Execute OCR (Auto or Manual) ---
-        # ทำงานเมื่อ: (เป็นไฟล์ใหม่) หรือ (กดปุ่ม Manual)
-        if should_run_ocr or manual_start:
-             if not current_api_key:
-                st.error("❌ กรุณาตั้งค่า API Key ก่อน")
-             else:
-                # บันทึกค่า Parameter
-                st.session_state["max_tokens"] = max_tokens
-                st.session_state["temperature"] = temperature
-                st.session_state["top_p"] = top_p
-                st.session_state["repetition_penalty"] = repetition_penalty
-
-                with st.spinner("🌀 กำลังประมวลผลอัตโนมัติ... โปรดรอสักครู่"):
-                    result_text = extract_text_from_image(
-                        uploaded_file, current_api_key, model, task_type, 
-                        max_tokens, temperature, top_p, repetition_penalty, pages_input
-                    )
-                    # เก็บผลลัพธ์และ ID ลง State ทันทีที่เสร็จ
-                    st.session_state["ocr_result"] = result_text
-                    if current_file_id:
-                        st.session_state['last_processed_id'] = current_file_id
-                    
-                # Force Rerun เพื่อให้ UI อัปเดตทันที (สำคัญสำหรับ Auto Process ในบางเคส)
-                if should_run_ocr:
+        # --- Helper เพื่อสร้าง Card ---
+        def render_logo_selection(col, key, label, image_path=None, is_no_logo=False):
+            with col:
+                # แสดงรูป
+                if is_no_logo:
+                     st.markdown("""
+                        <div style='height:100px; border:1px dashed #ccc; display:flex; align-items:center; justify-content:center; 
+                        color:#aaa; border-radius:8px; background:white; margin-bottom:10px; font-size:0.8rem;'>No Logo</div>
+                    """, unsafe_allow_html=True)
+                elif image_path and os.path.exists(image_path):
+                    b64 = get_image_base64(image_path)
+                    if b64:
+                        st.markdown(f"""
+                            <div style='height:100px; display:flex; align-items:center; justify-content:center; 
+                            border:1px solid #eee; border-radius:8px; background:white; margin-bottom:10px;'>
+                                <img src="data:image/png;base64,{b64}" style="max-height:80px; max-width:100%;">
+                            </div>""", unsafe_allow_html=True)
+                else:
+                    st.markdown("<div style='height:100px; display:flex; align-items:center; justify-content:center; color:red; border:1px solid #eee; border-radius:8px; margin-bottom:10px;'>Missing</div>", unsafe_allow_html=True)
+                
+                # ปุ่มเลือก
+                is_selected = (st.session_state['selected_logo_key'] == key)
+                
+                # กำหนดสัญลักษณ์
+                icon = "🔴" if is_selected else "⭕"
+                
+                # ใช้ type="secondary" เสมอสำหรับปุ่มเลือก เพื่อให้เป็นพื้นขาวตามที่ขอ
+                if st.button(f"{icon} {label}", key=f"btn_{key}", type="secondary", use_container_width=True):
+                    st.session_state['selected_logo_key'] = key
                     st.rerun()
 
-        # แสดงผลลัพธ์
-        result_text = st.session_state.get("ocr_result", "")
-        st.text_area("Text Output", value=result_text, height=600, label_visibility="collapsed")
+        # Render
+        render_logo_selection(l1, 'none', 'ไม่ใส่', is_no_logo=True)
+        render_logo_selection(l2, 'bw', 'ขาว-ดำ', image_path="logoSAO-BW-TH_0.png")
+        render_logo_selection(l3, 'color', 'สี', image_path="logoSAO-TH-02.png")
+
+        # Map selection
+        logo_map = {
+            "none": None,
+            "bw": "logoSAO-BW-TH_0.png",
+            "color": "logoSAO-TH-02.png"
+        }
+        selected_logo = logo_map[st.session_state['selected_logo_key']]
         
-        if result_text:
-            docx_file = create_docx(result_text)
-            st.download_button("💾 ดาวน์โหลดไฟล์ .docx", data=docx_file, file_name="ocr_result.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+        # --- Slider ปรับขนาดโลโก้ (แสดงเฉพาะเมื่อมีการเลือกโลโก้) ---
+        if selected_logo is not None:
+            st.write("")
+            st.markdown("**ปรับขนาดโลโก้:**")
+            # ค่าตัวหาร: 5 (เล็ก) -> 2.5 (ใหญ่)
+            logo_scale_input = st.slider("ขนาดโลโก้ (เล็ก - ใหญ่)", min_value=1, max_value=4, value=3, step=1)
+            logo_divisor = 5.625 + (logo_scale_input * -0.625)
+        else:
+            logo_divisor = 3.5
+
+        st.markdown("---")
+        
+        # ปุ่ม Generate ใช้ type="primary" เพื่อให้ CSS จับเป็นสีน้ำเงินทึบ
+        if st.button("🚀 สร้าง QR Code", type="primary", use_container_width=True):
+            if qr_data:
+                with st.spinner("กำลังสร้าง..."):
+                    # ส่งค่า logo_divisor ไปด้วย
+                    img_buf = generate_qr_code_with_logo(qr_data, selected_logo, logo_divisor)
+                    st.session_state['gen_qr_image'] = img_buf
+                    st.session_state['gen_qr_data'] = qr_data
+            else:
+                st.error("กรุณาใส่ URL หรือข้อความก่อนครับ")
+
+    # --- Right Column ---
+    with col_right:
+        st.subheader("3. ผลลัพธ์")
+        
+        result_placeholder = st.empty()
+        
+        if 'gen_qr_image' in st.session_state:
+            with result_placeholder.container():
+                st.markdown("""
+                    <div style="text-align: center; padding: 20px; border: 1px solid #E2E8F0; border-radius: 10px; background-color: #F8FAFC;">
+                """, unsafe_allow_html=True)
+                
+                st.image(st.session_state['gen_qr_image'], caption="QR Code ของคุณ", width=300)
+                
+                st.success("สร้างเรียบร้อย!")
+                st.caption(f"Link: {st.session_state.get('gen_qr_data', '')[:40]}...")
+                
+                st.download_button(
+                    label="💾 ดาวน์โหลดไฟล์ PNG",
+                    data=st.session_state['gen_qr_image'],
+                    file_name="qrcode.png",
+                    mime="image/png",
+                    use_container_width=True
+                )
+                
+                st.markdown("</div>", unsafe_allow_html=True)
+        else:
+            result_placeholder.markdown("""
+                <div style="
+                    height: 400px; 
+                    display: flex; 
+                    flex-direction: column;
+                    align-items: center; 
+                    justify-content: center; 
+                    color: #94A3B8; 
+                    text-align: center;
+                    border: 2px dashed #E2E8F0;
+                    border-radius: 10px;
+                    background-color: #F8FAFC;
+                ">
+                    <div style="font-size: 4rem; margin-bottom: 10px;">📷</div>
+                    <div style="font-size: 1.1rem; font-weight: 500;">รอการสร้าง QR Code</div>
+                    <div style="font-size: 0.9rem;">กรอกข้อมูลและเลือกโลโก้ทางซ้ายมือ<br>แล้วกดปุ่มสร้างได้เลย</div>
+                </div>
+            """, unsafe_allow_html=True)
