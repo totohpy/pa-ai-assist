@@ -279,7 +279,6 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณ..."
                         model="typhoon-v2.5-30b-a3b-instruct",
                         messages=messages_for_api,
                         temperature=0.5,
-                        max_tokens=3072,
                         stream=True  # ⚠️ จำเป็นต้องเพิ่มนี้เพื่อให้ stream ทำงาน
                     )
                     
