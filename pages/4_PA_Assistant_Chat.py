@@ -275,13 +275,14 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณ..."
                     ] + st.session_state.chatbot_messages[-10:]
 
                     client = OpenAI(api_key=api_key, base_url="https://api.opentyphoon.ai/v1")
-                    response_stream = client.chat.completions.create(
+                    response= client.chat.completions.create(
                         model="typhoon-v2.5-30b-a3b-instruct", 
                         messages=messages_for_api, 
                         temperature=0.5, 
                         max_tokens=90000, 
                         stream=True
                     )
+               
                     response = message_placeholder.write_stream(response_stream)
                     st.session_state.chatbot_messages.append({"role": "assistant", "content": response})
 
