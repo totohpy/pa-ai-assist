@@ -218,7 +218,7 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณท�
             try:
                 client = OpenAI(api_key=api_key, base_url="https://api.opentyphoon.ai/v1")
                 
-                full_response = ""
+                # ใช้ Streaming Response
                 response_stream = client.chat.completions.create(
                     model="typhoon-v2.1-12b-instruct",
                     messages=messages_for_api,
@@ -227,6 +227,7 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณท�
                     stream=True
                 )
                 
+                full_response = ""
                 for chunk in response_stream:
                     if chunk.choices[0].delta.content:
                         full_response += chunk.choices[0].delta.content
@@ -240,4 +241,4 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณท�
             except Exception as e:
                 error_message = f"เกิดข้อผิดพลาดขณะประมวลผล: {e}"
                 message_placeholder.error(error_message)
-                # ไม่บันทึก error ลง history เพื่อไม่ให้รบกวน context
+                st.session_state.chatbot_messages.append({"role": "assistant", "content": error_message})
