@@ -107,9 +107,8 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --- API Key Handling ---
+# --- ADDED: API Key loader for Streamlit Cloud ---
 if 'api_key' not in st.session_state:
-    # Try loading from secrets first
     try:
         st.session_state.api_key = st.secrets.get("api_key", "")
     except Exception:
@@ -241,4 +240,4 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณท�
             except Exception as e:
                 error_message = f"เกิดข้อผิดพลาดขณะประมวลผล: {e}"
                 message_placeholder.error(error_message)
-                st.session_state.chatbot_messages.append({"role": "assistant", "content": error_message})
+                # ไม่บันทึก error ลง history เพื่อไม่ให้รบกวน context
