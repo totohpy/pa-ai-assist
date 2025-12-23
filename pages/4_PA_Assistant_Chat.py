@@ -112,7 +112,7 @@ st.title("💬 PA Assistant Chat")
 st.markdown("ถาม-ตอบผู้ช่วยอัจฉริยะด้านการตรวจสอบ")
 
 # ----------------- Functions for Chatbot -----------------
-MAX_CHARS_LIMIT = 150000
+MAX_CHARS_LIMIT = 80000
 
 @st.cache_data(show_spinner=False)
 def load_local_documents(folder_path="Doc"):
@@ -279,7 +279,7 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณ..."
                         model="typhoon-v2.5-30b-a3b-instruct",
                         messages=messages_for_api,
                         temperature=0.5,
-                        max_tokens=4096,  # แนะนำใช้ 2048 หรือ 4096 ก็เพียงพอสำหรับคำตอบครับ
+                        max_tokens=2048,  # แนะนำใช้ 2048 หรือ 4096 ก็เพียงพอสำหรับคำตอบครับ
                         stream=True
                         )
                
