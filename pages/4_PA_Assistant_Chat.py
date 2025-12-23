@@ -279,7 +279,7 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณ..."
                         model="typhoon-v2.5-30b-a3b-instruct", 
                         messages=messages_for_api, 
                         temperature=0.5, 
-                        max_tokens=3072, 
+                        max_tokens=4096, 
                         stream=True
                     )
                     response = message_placeholder.write_stream(response_stream)
