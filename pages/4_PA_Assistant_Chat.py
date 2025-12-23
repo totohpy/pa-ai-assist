@@ -276,15 +276,18 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณ..."
 
                     client = OpenAI(api_key=api_key, base_url="https://api.opentyphoon.ai/v1")
                     response_stream = client.chat.completions.create(
-                        model="typhoon-v2.5-30b-a3b-instruct", 
-                        messages=messages_for_api, 
-                        temperature=0.5, 
-                        max_tokens=3072, 
-                        stream=True
+                        model="typhoon-v2.5-30b-a3b-instruct",
+                        messages=messages_for_api,
+                        temperature=0.5,
+                        max_tokens=3072,
+                        stream=True  # ⚠️ จำเป็นต้องเพิ่มนี้เพื่อให้ stream ทำงาน
                     )
-                    response = message_placeholder.write_stream(response_stream)
-                    st.session_state.chatbot_messages.append({"role": "assistant", "content": response})
+                    
+                    for chunk in response_stream:
+                        if chunk.choices[0].delta.content is not None:
+                            print(chunk.choices[0].delta.content, end="", flush=True)
 
+                
                 except Exception as e:
                     error_message = f"เกิดข้อผิดพลาดขณะประมวลผล: {e}"
                     message_placeholder.error(error_message)
