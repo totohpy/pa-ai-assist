@@ -241,4 +241,4 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณท�
             except Exception as e:
                 error_message = f"เกิดข้อผิดพลาดขณะประมวลผล: {e}"
                 message_placeholder.error(error_message)
-                # ไม่บันทึก error ลง history เพื่อไม่ให้รบกวน context
+                st.session_state.chatbot_messages.append({"role": "assistant", "content": error_message})
