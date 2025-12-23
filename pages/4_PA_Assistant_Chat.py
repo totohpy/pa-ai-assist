@@ -270,38 +270,36 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณ..."
 ---
 จากข้อมูลข้างต้นนี้ จงตอบคำถามล่าสุดของผู้ใช้
 """                  
-            messages_for_api = [
-                {"role": "system", "content": system_prompt}
+                    messages_for_api = [
+                        {"role": "system", "content": system_prompt}
                     ] + st.session_state.chatbot_messages[-10:]
-        
-            client = OpenAI(api_key=api_key, base_url="https://api.opentyphoon.ai/v1")
-        
-        # Use a placeholder to display streaming output
-            with message_placeholder:
-                full_response = ""
-                response_stream = client.chat.completions.create(
-                    model="typhoon-v2.1-12b-instruct",
-                    messages=messages_for_api,
-                    temperature=0.5,
-                    max_tokens=3072,
-                    stream=True
-                )
-            
-            # Accumulate and display each chunk
-            for chunk in response_stream:
-                if chunk.choices[0].delta.content:
-                    full_response += chunk.choices[0].delta.content
-                    message_placeholder.markdown(full_response + "▌")  # Cursor effect
-            
-            # Final clean-up
-            message_placeholder.markdown(full_response)
-        
-        # Now safely append the complete response
-        st.session_state.chatbot_messages.append({"role": "assistant", "content": full_response})
                 
+                    client = OpenAI(api_key=api_key, base_url="https://api.opentyphoon.ai/v1")
+                
+                    # Use a placeholder to display streaming output
+                    with message_placeholder:
+                        full_response = ""
+                        response_stream = client.chat.completions.create(
+                            model="typhoon-v2.1-12b-instruct",
+                            messages=messages_for_api,
+                            temperature=0.5,
+                            max_tokens=3072,
+                            stream=True
+                        )
+                    
+                        # Accumulate and display each chunk
+                        for chunk in response_stream:
+                            if chunk.choices[0].delta.content:
+                                full_response += chunk.choices[0].delta.content
+                                message_placeholder.markdown(full_response + "▌")  # Cursor effect
+                        
+                        # Final clean-up
+                        message_placeholder.markdown(full_response)
+                
+                    # Now safely append the complete response
+                    st.session_state.chatbot_messages.append({"role": "assistant", "content": full_response})
 
                 except Exception as e:
                     error_message = f"เกิดข้อผิดพลาดขณะประมวลผล: {e}"
                     message_placeholder.error(error_message)
                     st.session_state.chatbot_messages.append({"role": "assistant", "content": error_message})
-
