@@ -248,27 +248,30 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณท�
             try:
                 client = OpenAI(api_key=api_key, base_url="https://api.opentyphoon.ai/v1")
                 
-                full_response = ""
-                response_stream = client.chat.completions.create(
-                    model="typhoon-v2.1-12b-instruct",
-                    messages=messages_for_api,
-                    temperature=0.5,
-                    max_tokens=3072,
-                    stream=True
-                )
+                # Use a placeholder to display streaming output
+                with message_placeholder:
+                    full_response = ""
+                    response_stream = client.chat.completions.create(
+                        model="typhoon-v2.1-12b-instruct",
+                        messages=messages_for_api,
+                        temperature=0.5,
+                        max_tokens=3072,
+                        stream=True
+                    )
                 
-                for chunk in response_stream:
-                    if chunk.choices[0].delta.content:
-                        full_response += chunk.choices[0].delta.content
-                        message_placeholder.markdown(full_response + "▌")
+                    # Accumulate and display each chunk
+                    for chunk in response_stream:
+                        if chunk.choices[0].delta.content:
+                            full_response += chunk.choices[0].delta.content
+                            message_placeholder.markdown(full_response + "▌")  # Cursor effect
                 
-                message_placeholder.markdown(full_response)
-                
-                # Append assistant response to history
+                    # Final clean-up
+                    message_placeholder.markdown(full_response)
+            
+                # Now safely append the complete response
                 st.session_state.chatbot_messages.append({"role": "assistant", "content": full_response})
 
             except Exception as e:
                 error_message = f"เกิดข้อผิดพลาดขณะประมวลผล: {e}"
                 message_placeholder.error(error_message)
                 st.session_state.chatbot_messages.append({"role": "assistant", "content": error_message})
-
