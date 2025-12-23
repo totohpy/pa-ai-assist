@@ -283,7 +283,7 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณ..."
                             model="typhoon-v2.1-12b-instruct",
                             messages=messages_for_api,
                             temperature=0.5,
-                            max_tokens=100072,
+                            max_tokens=90000,
                             stream=True
                         )
                     
