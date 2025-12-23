@@ -107,27 +107,8 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --- ADDED: API Key loader for Streamlit Cloud ---
-if 'api_key' not in st.session_state:
-    try:
-        st.session_state.api_key = st.secrets.get("api_key", "")
-    except Exception:
-        st.session_state.api_key = ""
-
-# Sidebar input for API Key if not found in secrets
-with st.sidebar:
-    if not st.session_state.api_key:
-        api_key_input = st.text_input("Enter API Key", type="password")
-        if api_key_input:
-            st.session_state.api_key = api_key_input
-            st.rerun()
-    else:
-        st.success("API Key is ready")
-        if st.button("Logout / Clear Key"):
-            st.session_state.api_key = ""
-            st.rerun()
-
-api_key = st.session_state.api_key
+# Initialize api_key from secrets or session state (Required to prevent NameError)
+api_key = st.secrets.get("api_key", st.session_state.get("api_key", ""))
 
 # --- Helper Functions ---
 def extract_text_from_pdf(file):
@@ -218,7 +199,8 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณท�
             try:
                 client = OpenAI(api_key=api_key, base_url="https://api.opentyphoon.ai/v1")
                 
-                # ใช้ Streaming Response
+                # Use a placeholder to display streaming output
+                full_response = ""
                 response_stream = client.chat.completions.create(
                     model="typhoon-v2.1-12b-instruct",
                     messages=messages_for_api,
@@ -226,16 +208,17 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณท�
                     max_tokens=3072,
                     stream=True
                 )
-                
-                full_response = ""
+            
+                # Accumulate and display each chunk
                 for chunk in response_stream:
                     if chunk.choices[0].delta.content:
                         full_response += chunk.choices[0].delta.content
-                        message_placeholder.markdown(full_response + "▌")
-                
+                        message_placeholder.markdown(full_response + "▌")  # Cursor effect
+            
+                # Final clean-up
                 message_placeholder.markdown(full_response)
-                
-                # Append assistant response to history
+        
+                # Now safely append the complete response
                 st.session_state.chatbot_messages.append({"role": "assistant", "content": full_response})
 
             except Exception as e:
