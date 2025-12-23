@@ -281,11 +281,11 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณ..."
                         temperature=0.5,
                         max_tokens=3072,
                         stream=True  # ⚠️ จำเป็นต้องเพิ่มนี้เพื่อให้ stream ทำงาน
-                        )
-                        
-                        for chunk in response_stream:
-                        if chunk.choices[0].delta.content is not None:
-                            print(chunk.choices[0].delta.content, end="", flush=True)
+                    )
+                    
+                    for chunk in response_stream:
+                    if chunk.choices[0].delta.content is not None:
+                        print(chunk.choices[0].delta.content, end="", flush=True)
 
                 except Exception as e:
                     error_message = f"เกิดข้อผิดพลาดขณะประมวลผล: {e}"
