@@ -112,7 +112,7 @@ st.title("💬 PA Assistant Chat")
 st.markdown("ถาม-ตอบผู้ช่วยอัจฉริยะด้านการตรวจสอบ")
 
 # ----------------- Functions for Chatbot -----------------
-MAX_CHARS_LIMIT = 80000
+MAX_CHARS_LIMIT = 750000
 
 @st.cache_data(show_spinner=False)
 def load_local_documents(folder_path="Doc"):
@@ -275,14 +275,13 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณ..."
                     ] + st.session_state.chatbot_messages[-10:]
 
                     client = OpenAI(api_key=api_key, base_url="https://api.opentyphoon.ai/v1")
-                    response = client.chat.completions.create(
-                        model="typhoon-v2.5-30b-a3b-instruct",
-                        messages=messages_for_api,
-                        temperature=0.5,
-                        max_tokens=2048,  # แนะนำใช้ 2048 หรือ 4096 ก็เพียงพอสำหรับคำตอบครับ
+                    response_stream = client.chat.completions.create(
+                        model="typhoon-v2.5-30b-a3b-instruct", 
+                        messages=messages_for_api, 
+                        temperature=0.5, 
+                        max_tokens=3072, 
                         stream=True
-                        )
-               
+                    )
                     response = message_placeholder.write_stream(response_stream)
                     st.session_state.chatbot_messages.append({"role": "assistant", "content": response})
 
