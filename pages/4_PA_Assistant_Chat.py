@@ -107,7 +107,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Initialize api_key from secrets or session state (Required to prevent NameError)
+# Initialize api_key from secrets or session state
 api_key = st.secrets.get("api_key", st.session_state.get("api_key", ""))
 
 # --- Helper Functions ---
@@ -128,9 +128,51 @@ def init_chat_history():
     if "chatbot_messages" not in st.session_state:
         st.session_state.chatbot_messages = []
     if "file_context" not in st.session_state:
-        st.session_state.file_context = ""
+        st.session_state.file_context = "" # จากการอัปโหลด
+    if "doc_folder_context" not in st.session_state:
+        st.session_state.doc_folder_context = "" # จากโฟลเดอร์ Doc
+    if "loaded_doc_files" not in st.session_state:
+        st.session_state.loaded_doc_files = []
 
 init_chat_history()
+
+# --- Load Documents from 'Doc' Folder (ADDED) ---
+def load_documents_from_folder(folder_path="Doc"):
+    """อ่านเอกสารทั้งหมดจากโฟลเดอร์ที่ระบุ"""
+    combined_text = ""
+    loaded_files = []
+    
+    if os.path.exists(folder_path):
+        for filename in os.listdir(folder_path):
+            file_path = os.path.join(folder_path, filename)
+            try:
+                text = ""
+                if filename.lower().endswith('.pdf'):
+                    text = extract_text_from_pdf(file_path)
+                elif filename.lower().endswith(('.xlsx', '.xls')):
+                    text = extract_text_from_excel(file_path)
+                
+                if text:
+                    combined_text += f"\n\n--- ข้อมูลจากไฟล์ในโฟลเดอร์ Doc: {filename} ---\n{text}"
+                    loaded_files.append(filename)
+            except Exception as e:
+                # แสดง error เล็กๆ ใน sidebar ถ้าอ่านไฟล์ไหนไม่ได้
+                st.sidebar.error(f"Error reading {filename}: {e}")
+                
+    return combined_text, loaded_files
+
+# โหลดข้อมูลจากโฟลเดอร์ Doc (ถ้ายังไม่เคยโหลด)
+if not st.session_state.doc_folder_context:
+    folder_text, doc_files = load_documents_from_folder()
+    if folder_text:
+        st.session_state.doc_folder_context = folder_text
+        st.session_state.loaded_doc_files = doc_files
+
+# แสดงรายการไฟล์ที่โหลดจากโฟลเดอร์ Doc ใน Sidebar
+if st.session_state.loaded_doc_files:
+    with st.sidebar.expander("📂 เอกสารในโฟลเดอร์ Doc", expanded=True):
+        for f in st.session_state.loaded_doc_files:
+            st.caption(f"📄 {f}")
 
 # --- Main Interface ---
 st.title("💬 PA Assistant Chat")
@@ -148,7 +190,7 @@ if uploaded_file:
                 file_text = extract_text_from_excel(uploaded_file)
             
             # Limit context size to prevent token overflow (approx limit)
-            st.session_state.file_context = file_text[:30000]
+            st.session_state.file_context = f"\n\n--- ข้อมูลจากไฟล์ที่แนบ: {uploaded_file.name} ---\n{file_text}"
             st.success(f"อ่านไฟล์ '{uploaded_file.name}' เรียบร้อยแล้ว")
             
             with st.expander("ดูเนื้อหาไฟล์ที่อ่านได้"):
@@ -159,7 +201,8 @@ if uploaded_file:
 # Clear Chat Button
 if st.sidebar.button("Clear Chat"):
     st.session_state.chatbot_messages = []
-    st.session_state.file_context = "" # Optional: clear context too?
+    st.session_state.file_context = "" 
+    # หมายเหตุ: เราไม่เคลียร์ doc_folder_context เพราะเป็นไฟล์ถาวร
     st.rerun()
 
 # Display Chat History
@@ -181,10 +224,16 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณท�
         with st.chat_message("assistant"):
             message_placeholder = st.empty()
             
-            # Construct messages
+            # รวม Context จากทั้ง Folder และ Uploaded File
+            full_context = st.session_state.doc_folder_context + st.session_state.file_context
+            
+            # ตัด Context ถ้าเยอะเกินไป (ป้องกัน Token เต็ม)
+            if len(full_context) > 30000:
+                full_context = full_context[:30000] + "\n...(ตัดเนื้อหาบางส่วน)..."
+
             context_str = ""
-            if st.session_state.file_context:
-                context_str = f"\n\nข้อมูลอ้างอิงจากเอกสาร:\n{st.session_state.file_context}"
+            if full_context:
+                context_str = f"\n\nข้อมูลอ้างอิงจากเอกสาร:\n{full_context}"
             
             system_prompt = (
                 "คุณคือผู้ช่วยผู้ตรวจสอบภายใน (PA Assistant) ที่มีความเชี่ยวชาญ "
@@ -199,7 +248,6 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณท�
             try:
                 client = OpenAI(api_key=api_key, base_url="https://api.opentyphoon.ai/v1")
                 
-                # Use a placeholder to display streaming output
                 full_response = ""
                 response_stream = client.chat.completions.create(
                     model="typhoon-v2.1-12b-instruct",
@@ -208,20 +256,19 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณท�
                     max_tokens=3072,
                     stream=True
                 )
-            
-                # Accumulate and display each chunk
+                
                 for chunk in response_stream:
                     if chunk.choices[0].delta.content:
                         full_response += chunk.choices[0].delta.content
-                        message_placeholder.markdown(full_response + "▌")  # Cursor effect
-            
-                # Final clean-up
+                        message_placeholder.markdown(full_response + "▌")
+                
                 message_placeholder.markdown(full_response)
-        
-                # Now safely append the complete response
+                
+                # Append assistant response to history
                 st.session_state.chatbot_messages.append({"role": "assistant", "content": full_response})
 
             except Exception as e:
                 error_message = f"เกิดข้อผิดพลาดขณะประมวลผล: {e}"
                 message_placeholder.error(error_message)
                 st.session_state.chatbot_messages.append({"role": "assistant", "content": error_message})
+
