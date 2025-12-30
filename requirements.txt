@@ -15,3 +15,7 @@ requests
 python-docx
 React
 qrcode
+langchain
+langchain-openai
+langchain-community
+faiss-cpu
