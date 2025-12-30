@@ -5,6 +5,7 @@ import os
 from PyPDF2 import PdfReader
 
 # --- Import Libraries สำหรับ RAG ---
+# ตรวจสอบว่าใน requirements.txt มี langchain-text-splitters แล้ว
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
@@ -41,8 +42,8 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-st.title("💬 PA Assistant Chat (RAG System)")
-st.markdown("ถาม-ตอบผู้ช่วยอัจฉริยะ (ระบบค้นหาข้อมูลแม่นยำ - รองรับเอกสารไม่จำกัด - จำบริบทได้)")
+st.title("💬 PA Assistant Chat (Pro RAG)")
+st.markdown("ถาม-ตอบผู้ช่วยอัจฉริยะ (ระบบค้นหาข้อมูลแม่นยำ - จำบริบท - ตอบแบบมืออาชีพ)")
 
 # ----------------- RAG Functions -----------------
 
@@ -170,7 +171,7 @@ def extract_text_from_files(files, folder_path="Doc"):
 # ----------------- Session Init -----------------
 def init_chat_state():
     ss = st.session_state
-    ss.setdefault('chatbot_messages', [{"role": "assistant", "content": "สวัสดีครับ ผมคือ PA Assistant ระบบ RAG แบบจดจำบริบท พร้อมให้บริการครับ"}])
+    ss.setdefault('chatbot_messages', [{"role": "assistant", "content": "สวัสดีครับ ผมคือ PA Assistant ระบบ RAG ที่ปรับปรุงใหม่ พร้อมให้บริการตรวจสอบข้อมูลครับ"}])
     ss.setdefault('vector_store', None)
     ss.setdefault('last_processed_files', set())
 
@@ -229,12 +230,11 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณ..."
                 )
 
                 # --- STEP 1: Query Rewriting (หัวใจสำคัญของการจำบริบท) ---
-                # ถ้ามีประวัติการคุยมากกว่า 1 ข้อความ (คือไม่ใช่ข้อแรกสุด) ให้ทำการ Rewrite
                 has_history = len(st.session_state.chatbot_messages) > 1
                 
                 if has_history:
                     # ส่งประวัติเก่า (ไม่รวมข้อล่าสุด) ไปให้ AI ช่วยเกลาคำถาม
-                    with st.spinner("Thinking..."): # ใส่ Spinner เล็กๆ ให้รู้ว่ากำลังคิด
+                    with st.spinner("กำลังทบทวนบริบท..."): 
                         search_query = rewrite_query(prompt, st.session_state.chatbot_messages[:-1], client)
                 else:
                     search_query = prompt
@@ -246,15 +246,19 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณ..."
                 else:
                     context_text = "ไม่มีเอกสารให้อ้างอิง ตอบตามความรู้ทั่วไป"
 
-                # --- STEP 3: Generation (ตอบคำถาม) ---
+                # --- STEP 3: Generation (ตอบคำถามด้วย Prompt ใหม่ที่ฉลาดขึ้น) ---
                 system_prompt = f"""
 คุณคือผู้ช่วย AI ผู้เชี่ยวชาญด้านการตรวจสอบ (PA Assistant)
 หน้าที่: ตอบคำถามโดยใช้ข้อมูลจาก "บริบทที่ค้นพบ" ด้านล่างนี้เป็นหลัก
-กฎ:
-- อ้างอิงข้อมูลจากบริบทที่ให้มาเท่านั้น
-- ถ้าข้อมูลในบริบทไม่เพียงพอ ให้ตอบว่า "ขออภัย ข้อมูลในเอกสารไม่เพียงพอต่อการตอบคำถามนี้"
-- ห้ามมั่วข้อมูลขึ้นมาเอง
-- **คำถามของผู้ใช้คือ:** "{prompt}" (ฉันค้นหาข้อมูลเรื่อง "{search_query}" มาให้คุณประกอบการตอบ)
+
+กฎการตอบ (สำคัญ):
+1. อ้างอิงข้อมูลจากบริบทที่ให้มาเท่านั้น
+2. **กรณีคำถามแบบ "ใช่หรือไม่" หรือถามถึงสิ่งที่ "ไม่มีในเอกสาร":**
+   - ห้ามตอบว่า "ไม่ทราบ" หรือ "ข้อมูลไม่เพียงพอ" ทันที
+   - ให้ตอบโดยระบุ **"สิ่งที่มีอยู่จริงในเอกสาร"** แทน เพื่อให้ผู้ใช้เปรียบเทียบเอง
+   - ตัวอย่าง: ถ้าถามว่า "ต้องส่ง นาย A ไหม" แต่เอกสารบอกแค่ส่ง นาย B -> ให้ตอบว่า "จากเอกสารระบุให้ส่งถึง นาย B เท่านั้น ไม่ปรากฏข้อมูลเกี่ยวกับการส่งถึง นาย A"
+3. ห้ามมั่วข้อมูลขึ้นมาเอง
+4. **คำถามของผู้ใช้คือ:** "{prompt}" (ฉันค้นหาข้อมูลเรื่อง "{search_query}" มาให้คุณประกอบการตอบ)
 
 --- บริบทที่ค้นพบ (Context) ---
 {context_text}
@@ -262,7 +266,7 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณ..."
 """
                 messages_for_api = [
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt} # ส่งคำถามเดิมให้ User รู้สึกเป็นธรรมชาติ
+                    {"role": "user", "content": prompt}
                 ]
 
                 stream = client.chat.completions.create(
