@@ -2,8 +2,8 @@ streamlit
 pandas
 scikit-learn
 openai
-openpyxl  # จำเป็นสำหรับการอ่าน/เขียนไฟล์ .xlsx (โดยเฉพาะฟังก์ชัน create_excel_template)
-xlsxwriter # จำเป็นสำหรับการเขียนไฟล์ .xlsx (ใน create_excel_template)
+openpyxl
+xlsxwriter
 PyPDF2==3.0.1
 groq
 graphviz
@@ -13,11 +13,9 @@ google-generativeai==0.5.4
 fpdf2
 requests
 python-docx
-React
 qrcode
 langchain
 langchain-openai
 langchain-community
 faiss-cpu
-streamlit
 tiktoken
