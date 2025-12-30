@@ -19,4 +19,3 @@ langchain
 langchain-openai
 langchain-community
 faiss-cpu
-langchain.text_splitter
