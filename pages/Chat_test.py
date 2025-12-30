@@ -38,11 +38,11 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-st.title("💬 PA Assistant Chat (OpenRouter)")
-st.markdown("ถาม-ตอบผู้ช่วยอัจฉริยะด้านการตรวจสอบ (Powered by GPT-4o)")
+st.title("💬 PA Assistant Chat")
+st.markdown("ถาม-ตอบผู้ช่วยอัจฉริยะด้านการตรวจสอบผลสัมฤทธิ์และประสิทธิภาพการดำเนินงาน (Performance Audit)")
 
 # ----------------- Functions for Chatbot -----------------
-MAX_CHARS_LIMIT = 75000
+MAX_CHARS_LIMIT = 300000
 
 @st.cache_data(show_spinner=False)
 def load_local_documents(folder_path="Doc"):
@@ -92,7 +92,7 @@ def process_documents(files, source_type, limit, current_len=0):
 # ----------------- Session Init -----------------
 def init_chat_state():
     ss = st.session_state
-    ss.setdefault('chatbot_messages', [{"role": "assistant", "content": "สวัสดีครับ ผมคือ PA Chat Assistant ผู้ช่วยอัจฉริยะด้านการตรวจสอบ"}])
+    ss.setdefault('chatbot_messages', [{"role": "assistant", "content": "สวัสดีครับ ผมคือ PA Chat Assistant ผู้ช่วยอัจฉริยะด้านการตรวจสอบ PA "}])
     ss.setdefault('doc_context_uploaded', "")
     ss.setdefault('last_uploaded_files', set())
     
@@ -163,7 +163,7 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณ..."
                     doc_context = st.session_state.get('doc_context_local', '') + st.session_state.get('doc_context_uploaded', '')
                     
                     system_prompt = f"""
-คุณคือผู้ช่วย AI อัจฉริยะ หน้าที่ของคุณคือตอบคำถามของผู้ใช้ให้ถูกต้อง โดยใช้ข้อมูลจากสองแหล่ง:
+คุณคือผู้ช่วย AI อัจฉริยะ Performance Auditor หน้าที่ของคุณคือตอบคำถามของผู้ใช้ให้ถูกต้อง โดยใช้ข้อมูลจากสองแหล่ง:
 1.  **เอกสารภายใน (Primary Source):** เนื้อหาจากไฟล์ในระบบ ให้ยึดข้อมูลนี้เป็นหลักเสมอ
 2.  **ความรู้ทั่วไป (Secondary Source):** หากคำตอบไม่มีในเอกสาร ให้ใช้ความรู้ทั่วไป
 **กฎการตอบ:**
