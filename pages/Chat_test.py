@@ -42,7 +42,7 @@ st.markdown(
 )
 
 st.title("💬 PA Assistant Chat (RAG System)")
-st.markdown("ถาม-ตอบผู้ช่วยอัจฉริยะ (ระบบค้นหาข้อมูลแม่นยำ - รองรับเอกสารไม่จำกัด)")
+st.markdown("ถาม-ตอบผู้ช่วยอัจฉริยะ (ระบบค้นหาข้อมูลแม่นยำ - รองรับเอกสารไม่จำกัด - จำบริบทได้)")
 
 # ----------------- RAG Functions -----------------
 
@@ -50,19 +50,15 @@ st.markdown("ถาม-ตอบผู้ช่วยอัจฉริยะ (�
 def build_vector_store(text_content, api_key):
     """
     ฟังก์ชันสร้างฐานข้อมูลเวกเตอร์ (Vector Store) จากข้อความ
-    1. แบ่งข้อความ (Split)
-    2. แปลงเป็นตัวเลข (Embed)
-    3. เก็บเข้า FAISS
     """
     if not text_content or not api_key:
         return None
     
     try:
         # 1. แบ่งข้อความออกเป็นชิ้นย่อยๆ (Chunks)
-        # ภาษาไทยอาจต้องใช้ chunk_size ที่เหมาะสม ประมาณ 1000-2000 chars
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=1500,
-            chunk_overlap=300, # ให้เนื้อหาเกยกันนิดหน่อยกันใจความขาด
+            chunk_overlap=300,
             separators=["\n\n", "\n", " ", ""]
         )
         
@@ -72,8 +68,8 @@ def build_vector_store(text_content, api_key):
         # 2. สร้าง Embeddings และ Vector Store
         embeddings = OpenAIEmbeddings(
             openai_api_key=api_key,
-            base_url="https://openrouter.ai/api/v1", # ใช้ OpenRouter สำหรับ Embeddings (หรือใช้ OpenAI ตรงๆ ก็ได้)
-            model="text-embedding-3-small", # โมเดล Embeddings มาตรฐาน
+            base_url="https://openrouter.ai/api/v1",
+            model="text-embedding-3-small",
             check_embedding_ctx_length=False 
         )
         
@@ -85,7 +81,7 @@ def build_vector_store(text_content, api_key):
         return None
 
 def get_relevant_context(vector_store, query):
-    """ค้นหาเนื้อหาที่เกี่ยวข้องกับคำถามมากที่สุด 4-5 ชิ้น"""
+    """ค้นหาเนื้อหาที่เกี่ยวข้องกับคำถามมากที่สุด 5 ชิ้น"""
     if not vector_store:
         return ""
     
@@ -96,7 +92,50 @@ def get_relevant_context(vector_store, query):
     context = "\n\n".join([f"[เนื้อหาที่ {i+1}]: {d.page_content}" for i, d in enumerate(docs)])
     return context
 
-# ฟังก์ชันอ่านไฟล์ (เหมือนเดิมแต่ตัด limit ออก)
+def rewrite_query(user_question, chat_history, client):
+    """
+    ฟังก์ชันสำหรับแปลงคำถามสั้นๆ ให้เป็นคำถามที่สมบูรณ์ โดยดูบริบทจากประวัติการแชท
+    """
+    # แปลง History 6 ข้อความล่าสุดให้เป็น String
+    history_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in chat_history[-6:]])
+    
+    system_prompt_rewrite = f"""
+    คุณคือ AI ที่ทำหน้าที่ "เรียบเรียงประโยคคำถามใหม่" (Query Rewriter)
+    หน้าที่ของคุณ:
+    1. อ่านประวัติการสนทนา (Chat History) และคำถามล่าสุดของผู้ใช้
+    2. ถ้าคำถามล่าสุดเชื่อมโยงกับบริบทก่อนหน้า ให้เขียนคำถามใหม่ให้สมบูรณ์และชัดเจนขึ้น (ระบุประธาน/กรรม ให้ครบ)
+    3. ถ้าคำถามล่าสุดเป็นเรื่องใหม่ ไม่เกี่ยวกับบริบทเดิม ให้คืนค่าคำถามเดิมกลับมา
+    4. **ไม่ต้องตอบคำถาม** แค่เรียบเรียงประโยคคำถามใหม่เท่านั้น
+    5. ผลลัพธ์ต้องเป็น "ภาษาไทย" เท่านั้น
+
+    ตัวอย่าง:
+    History: User: การแจ้งผลตรวจสอบทำอย่างไร?, AI: ต้องทำหนังสือแจ้ง...
+    Current Question: ต้องทำถึงใครบ้าง?
+    Rewritten Question: ในการแจ้งผลการตรวจสอบ ต้องทำหนังสือแจ้งถึงใครบ้าง?
+
+    --- Chat History ---
+    {history_text}
+    --------------------
+    Current Question: {user_question}
+    """
+    
+    try:
+        response = client.chat.completions.create(
+            model="openai/gpt-4o", 
+            messages=[
+                {"role": "system", "content": system_prompt_rewrite},
+                {"role": "user", "content": "Rewritten Question:"}
+            ],
+            temperature=0.3,
+            max_tokens=200
+        )
+        new_question = response.choices[0].message.content.strip()
+        return new_question
+    except Exception as e:
+        print(f"Error rewriting: {e}")
+        return user_question # ถ้า Error ให้ใช้คำถามเดิม
+
+# ฟังก์ชันอ่านไฟล์
 def extract_text_from_files(files, folder_path="Doc"):
     text = ""
     
@@ -131,7 +170,7 @@ def extract_text_from_files(files, folder_path="Doc"):
 # ----------------- Session Init -----------------
 def init_chat_state():
     ss = st.session_state
-    ss.setdefault('chatbot_messages', [{"role": "assistant", "content": "สวัสดีครับ ผมใช้ระบบ RAG ค้นหาข้อมูลเฉพาะจุด ทำให้ตอบคำถามจากเอกสารยาวๆ ได้แม่นยำครับ"}])
+    ss.setdefault('chatbot_messages', [{"role": "assistant", "content": "สวัสดีครับ ผมคือ PA Assistant ระบบ RAG แบบจดจำบริบท พร้อมให้บริการครับ"}])
     ss.setdefault('vector_store', None)
     ss.setdefault('last_processed_files', set())
 
@@ -142,13 +181,12 @@ init_chat_state()
 with st.expander("อัปโหลดเอกสารเพิ่มเติม (PDF, TXT, CSV)"):
     uploaded_files = st.file_uploader("เลือกไฟล์...", type=['pdf', 'txt', 'csv'], accept_multiple_files=True)
 
-# ตรวจสอบว่าต้องสร้าง Vector Store ใหม่หรือไม่ (เมื่อมีการอัปโหลดไฟล์เพิ่ม หรือเพิ่งเริ่ม)
+# ตรวจสอบว่าต้องสร้าง Vector Store ใหม่หรือไม่
 current_files_set = {f.name for f in uploaded_files} if uploaded_files else set()
 is_files_changed = current_files_set != st.session_state.last_processed_files
 is_first_load = st.session_state.vector_store is None
 
 if is_files_changed or is_first_load:
-    # ดึง API Key
     try:
         api_key = st.secrets["openrouter_api_key"]
     except:
@@ -156,11 +194,9 @@ if is_files_changed or is_first_load:
 
     if api_key:
         with st.spinner("กำลังสร้างดัชนีข้อมูล (RAG Indexing)..."):
-            # 1. อ่านข้อความทั้งหมด
             raw_text = extract_text_from_files(uploaded_files)
             
             if raw_text:
-                # 2. สร้าง Vector Store
                 st.session_state.vector_store = build_vector_store(raw_text, api_key)
                 st.session_state.last_processed_files = current_files_set
                 st.success(f"✅ สร้างฐานข้อมูลเรียบร้อย! (จากเนื้อหา {len(raw_text):,} ตัวอักษร)")
@@ -175,6 +211,7 @@ with chat_container:
             st.markdown(message["content"])
 
 if prompt := st.chat_input("พิมพ์คำถามของคุณ...", key="chat_input_main"):
+    # แสดงคำถาม User
     st.session_state.chatbot_messages.append({"role": "user", "content": prompt})
     
     with chat_container:
@@ -184,15 +221,32 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณ..."
             
             try:
                 api_key = st.secrets["openrouter_api_key"]
-                vector_store = st.session_state.vector_store
                 
-                # --- RAG Step 1: ค้นหาเนื้อหาที่เกี่ยวข้อง (Retrieval) ---
+                # สร้าง Client
+                client = OpenAI(
+                    base_url="https://openrouter.ai/api/v1",
+                    api_key=api_key,
+                )
+
+                # --- STEP 1: Query Rewriting (หัวใจสำคัญของการจำบริบท) ---
+                # ถ้ามีประวัติการคุยมากกว่า 1 ข้อความ (คือไม่ใช่ข้อแรกสุด) ให้ทำการ Rewrite
+                has_history = len(st.session_state.chatbot_messages) > 1
+                
+                if has_history:
+                    # ส่งประวัติเก่า (ไม่รวมข้อล่าสุด) ไปให้ AI ช่วยเกลาคำถาม
+                    with st.spinner("Thinking..."): # ใส่ Spinner เล็กๆ ให้รู้ว่ากำลังคิด
+                        search_query = rewrite_query(prompt, st.session_state.chatbot_messages[:-1], client)
+                else:
+                    search_query = prompt
+
+                # --- STEP 2: Retrieval (ค้นหาด้วยคำถามที่เกลาแล้ว) ---
+                vector_store = st.session_state.vector_store
                 if vector_store:
-                    context_text = get_relevant_context(vector_store, prompt)
+                    context_text = get_relevant_context(vector_store, search_query)
                 else:
                     context_text = "ไม่มีเอกสารให้อ้างอิง ตอบตามความรู้ทั่วไป"
 
-                # --- RAG Step 2: สร้าง Prompt ---
+                # --- STEP 3: Generation (ตอบคำถาม) ---
                 system_prompt = f"""
 คุณคือผู้ช่วย AI ผู้เชี่ยวชาญด้านการตรวจสอบ (PA Assistant)
 หน้าที่: ตอบคำถามโดยใช้ข้อมูลจาก "บริบทที่ค้นพบ" ด้านล่างนี้เป็นหลัก
@@ -200,6 +254,7 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณ..."
 - อ้างอิงข้อมูลจากบริบทที่ให้มาเท่านั้น
 - ถ้าข้อมูลในบริบทไม่เพียงพอ ให้ตอบว่า "ขออภัย ข้อมูลในเอกสารไม่เพียงพอต่อการตอบคำถามนี้"
 - ห้ามมั่วข้อมูลขึ้นมาเอง
+- **คำถามของผู้ใช้คือ:** "{prompt}" (ฉันค้นหาข้อมูลเรื่อง "{search_query}" มาให้คุณประกอบการตอบ)
 
 --- บริบทที่ค้นพบ (Context) ---
 {context_text}
@@ -207,15 +262,9 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณ..."
 """
                 messages_for_api = [
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt}
+                    {"role": "user", "content": prompt} # ส่งคำถามเดิมให้ User รู้สึกเป็นธรรมชาติ
                 ]
 
-                # --- RAG Step 3: ส่งให้ LLM ตอบ (Generation) ---
-                client = OpenAI(
-                    base_url="https://openrouter.ai/api/v1",
-                    api_key=api_key,
-                )
-                
                 stream = client.chat.completions.create(
                     extra_headers={
                         "HTTP-Referer": "https://streamlit.io/",
