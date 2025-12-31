@@ -106,21 +106,25 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณ..."
                 1. ตอบคำถามโดยใช้ข้อมูลข้างบนนี้เป็นหลัก
                 2. ถ้าข้อมูลมีระบุไว้ ให้ตอบตามจริง
                 3. ถ้าข้อมูลไม่มีระบุไว้ ให้บอกว่า "ในเอกสารไม่ได้ระบุเรื่อง... ไว้ครับ" (แต่อย่าตอบปฏิเสธทันทีถ้ายังไม่ได้หาดีๆ)
-                """
+                """             
 
                 stream = client.chat.completions.create(
                     extra_headers={
                         "HTTP-Referer": "https://streamlit.io/",
-                        "X-Title": "PA Assistant Gemini",
+                        "X-Title": "PA Assistant RAG",
                     },
-                    # --- แก้ไขตรงนี้ครับ เติม :free ---
-                    model="google/gemini-2.0-flash-exp:free", 
-                    # --------------------------------
+                    # --- แก้บรรทัดนี้ครับ ---
+                    model="meta-llama/llama-3.3-70b-instruct:free", 
+                    # ----------------------
                     messages=[
                         {"role": "system", "content": system_prompt},
                     ] + st.session_state.chatbot_messages[-6:], 
                     stream=True
                 )
+
+
+
+
                 
                 full_response = ""
                 for chunk in stream:
