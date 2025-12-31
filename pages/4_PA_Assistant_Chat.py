@@ -12,7 +12,7 @@ from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 
 # --- Page Configuration ---
-st.set_page_config(page_title="PA Assistant Chat (RAG)", page_icon="💬", layout="wide")
+st.set_page_config(page_title="PA Assistant Chat", page_icon="💬", layout="wide")
 
 # --- Sidebar Configuration ---
 with st.sidebar:
@@ -42,8 +42,8 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-st.title("💬 PA Assistant Chat (Pro RAG)")
-st.markdown("ถาม-ตอบผู้ช่วยอัจฉริยะ (ระบบค้นหาข้อมูลแม่นยำ - จำบริบท - ตอบแบบมืออาชีพ)")
+st.title("💬 PA Assistant Chat")
+st.markdown("ถาม-ตอบผู้ช่วยอัจฉริยะ (ตอบแบบมืออาชีพอ้างอิงคู่มือการปฎิบัติงานและผลการตรวจสอบที่ผ่านมา)")
 
 # ----------------- RAG Functions -----------------
 
