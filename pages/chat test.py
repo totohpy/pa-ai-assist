@@ -5,7 +5,6 @@ import os
 from PyPDF2 import PdfReader
 
 # --- Import Libraries สำหรับ RAG ---
-# ตรวจสอบว่าใน requirements.txt มี langchain-text-splitters แล้ว
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
@@ -122,7 +121,8 @@ def rewrite_query(user_question, chat_history, client):
     
     try:
         response = client.chat.completions.create(
-            model="openai/gpt-4o", 
+            # ใช้ Llama 3.3 แทน GPT-4o เพื่อความรวดเร็วและฟรีในการ Rewrite
+            model="meta-llama/llama-3.3-70b-instruct:free", 
             messages=[
                 {"role": "system", "content": system_prompt_rewrite},
                 {"role": "user", "content": "Rewritten Question:"}
@@ -133,7 +133,7 @@ def rewrite_query(user_question, chat_history, client):
         new_question = response.choices[0].message.content.strip()
         return new_question
     except Exception as e:
-        print(f"Error rewriting: {e}")
+        # print(f"Error rewriting: {e}")
         return user_question # ถ้า Error ให้ใช้คำถามเดิม
 
 # ฟังก์ชันอ่านไฟล์
@@ -171,7 +171,7 @@ def extract_text_from_files(files, folder_path="Doc"):
 # ----------------- Session Init -----------------
 def init_chat_state():
     ss = st.session_state
-    ss.setdefault('chatbot_messages', [{"role": "assistant", "content": "สวัสดีครับ ผมคือ PA Assistant ระบบ RAG ที่ปรับปรุงใหม่ พร้อมให้บริการตรวจสอบข้อมูลครับ"}])
+    ss.setdefault('chatbot_messages', [{"role": "assistant", "content": "สวัสดีครับ ผมคือ PA Assistant ระบบ RAG พร้อมให้บริการครับ"}])
     ss.setdefault('vector_store', None)
     ss.setdefault('last_processed_files', set())
 
@@ -229,24 +229,23 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณ..."
                     api_key=api_key,
                 )
 
-                # --- STEP 1: Query Rewriting (หัวใจสำคัญของการจำบริบท) ---
+                # --- STEP 1: Query Rewriting ---
                 has_history = len(st.session_state.chatbot_messages) > 1
                 
                 if has_history:
-                    # ส่งประวัติเก่า (ไม่รวมข้อล่าสุด) ไปให้ AI ช่วยเกลาคำถาม
-                    with st.spinner("กำลังทบทวนบริบท..."): 
+                    with st.spinner("..."): 
                         search_query = rewrite_query(prompt, st.session_state.chatbot_messages[:-1], client)
                 else:
                     search_query = prompt
 
-                # --- STEP 2: Retrieval (ค้นหาด้วยคำถามที่เกลาแล้ว) ---
+                # --- STEP 2: Retrieval ---
                 vector_store = st.session_state.vector_store
                 if vector_store:
                     context_text = get_relevant_context(vector_store, search_query)
                 else:
                     context_text = "ไม่มีเอกสารให้อ้างอิง ตอบตามความรู้ทั่วไป"
 
-                # --- STEP 3: Generation (ตอบคำถามด้วย Prompt ใหม่ที่ฉลาดขึ้น) ---
+                # --- STEP 3: Generation with Smart Fallback ---
                 system_prompt = f"""
 คุณคือผู้ช่วย AI ผู้เชี่ยวชาญด้านการตรวจสอบ (PA Assistant)
 หน้าที่: ตอบคำถามโดยใช้ข้อมูลจาก "บริบทที่ค้นพบ" ด้านล่างนี้เป็นหลัก
@@ -269,15 +268,33 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณ..."
                     {"role": "user", "content": prompt}
                 ]
 
-                stream = client.chat.completions.create(
-                    extra_headers={
-                        "HTTP-Referer": "https://streamlit.io/",
-                        "X-Title": "PA Assistant RAG",
-                    },
-                    model="openai/gpt-4o",
-                    messages=messages_for_api,
-                    stream=True
-                )
+                # กำหนดโมเดลหลักและโมเดลสำรอง
+                primary_model = "google/gemini-2.0-pro-exp-02-05:free"  # เก่งสุด/ฟรี
+                backup_model = "meta-llama/llama-3.3-70b-instruct:free" # เสถียร/ฟรี
+
+                try:
+                    # ลองใช้ Gemini 2.0 Pro ก่อน
+                    stream = client.chat.completions.create(
+                        extra_headers={
+                            "HTTP-Referer": "https://streamlit.io/",
+                            "X-Title": "PA Assistant RAG",
+                        },
+                        model=primary_model,
+                        messages=messages_for_api,
+                        stream=True
+                    )
+                except Exception as e:
+                    # ถ้า Error (เช่น Rate Limit) ให้สลับไปใช้ Llama 3.3 ทันที
+                    # st.toast("⚠️ Gemini ไม่ว่าง สลับไปใช้ Llama 3.3 แทน") # แจ้งเตือนเล็กๆ (Optional)
+                    stream = client.chat.completions.create(
+                        extra_headers={
+                            "HTTP-Referer": "https://streamlit.io/",
+                            "X-Title": "PA Assistant RAG",
+                        },
+                        model=backup_model,
+                        messages=messages_for_api,
+                        stream=True
+                    )
                 
                 full_response = ""
                 for chunk in stream:
