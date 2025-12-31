@@ -171,7 +171,7 @@ def extract_text_from_files(files, folder_path="Doc"):
 # ----------------- Session Init -----------------
 def init_chat_state():
     ss = st.session_state
-    ss.setdefault('chatbot_messages', [{"role": "assistant", "content": "สวัสดีครับ ผมคือ PA Assistant ระบบ RAG พร้อมให้บริการครับ"}])
+    ss.setdefault('chatbot_messages', [{"role": "assistant", "content": "สวัสดีครับ ผมคือ PA Assistant ที่ PAO1 Audit Intelligence Team พัฒนาขึ้นครับ"}])
     ss.setdefault('vector_store', None)
     ss.setdefault('last_processed_files', set())
 
