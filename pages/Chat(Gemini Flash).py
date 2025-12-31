@@ -25,7 +25,7 @@ st.markdown(
 )
 
 st.title("💬 PA Assistant (Gemini 2.0 Flash)")
-st.markdown("ถาม-ตอบผู้ช่วยอัจฉริยะ (อ่านเอกสารทั้งเล่ม - ไม่ต้องย่อ)")
+st.markdown("ถาม-ตอบผู้ช่วยอัจฉริยะ (อ่านเอกสารทั้งเล่ม - ไม่ต้องย่อ - ฟรี)")
 
 # ----------------- Functions -----------------
 
@@ -88,7 +88,9 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณ..."
             message_placeholder = st.empty()
             
             try:
-                api_key = st.secrets.get("openrouter_api_key", "")
+                # ดึง API Key
+                api_key = st.secrets.get("openrouter_api_key", st.secrets.get("api_key", ""))
+                
                 client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=api_key)
 
                 # Prompt แบบใส่เนื้อหาเข้าไปตรงๆ (Context Stuffing)
@@ -103,7 +105,7 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณ..."
                 คำสั่ง:
                 1. ตอบคำถามโดยใช้ข้อมูลข้างบนนี้เป็นหลัก
                 2. ถ้าข้อมูลมีระบุไว้ ให้ตอบตามจริง
-                3. ถ้าข้อมูลไม่มีระบุไว้ ให้บอกว่า "ในเอกสารไม่ได้ระบุเรื่อง... ไว้ครับ"
+                3. ถ้าข้อมูลไม่มีระบุไว้ ให้บอกว่า "ในเอกสารไม่ได้ระบุเรื่อง... ไว้ครับ" (แต่อย่าตอบปฏิเสธทันทีถ้ายังไม่ได้หาดีๆ)
                 """
 
                 stream = client.chat.completions.create(
@@ -111,10 +113,12 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณ..."
                         "HTTP-Referer": "https://streamlit.io/",
                         "X-Title": "PA Assistant Gemini",
                     },
-                    model="google/gemini-2.0-flash-exp", # พระเอกของเรา
+                    # --- แก้ไขตรงนี้ครับ เติม :free ---
+                    model="google/gemini-2.0-flash-exp:free", 
+                    # --------------------------------
                     messages=[
                         {"role": "system", "content": system_prompt},
-                    ] + st.session_state.chatbot_messages[-6:], # ส่งประวัติไปนิดหน่อย
+                    ] + st.session_state.chatbot_messages[-6:], 
                     stream=True
                 )
                 
