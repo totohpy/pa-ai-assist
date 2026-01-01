@@ -136,24 +136,34 @@ def rewrite_query(user_question, chat_history, client):
         # print(f"Error rewriting: {e}")
         return user_question # ถ้า Error ให้ใช้คำถามเดิม
 
-# ฟังก์ชันอ่านไฟล์
+# ฟังก์ชันอ่านไฟล์ (อัปเกรดให้อ่าน CSV ใน Folder ได้แล้ว)
 def extract_text_from_files(files, folder_path="Doc"):
     text = ""
     
-    # 1. อ่านจาก Folder Local
+    # 1. อ่านจาก Folder Local (เช่น โฟลเดอร์ Doc)
     if os.path.isdir(folder_path):
         for filename in os.listdir(folder_path):
             file_path = os.path.join(folder_path, filename)
             try:
+                # อ่าน PDF
                 if filename.endswith('.pdf'):
                     with open(file_path, 'rb') as f:
                         reader = PdfReader(f)
                         for page in reader.pages: text += page.extract_text() or ""
+                
+                # อ่าน Text File
                 elif filename.endswith('.txt'):
                     with open(file_path, 'r', encoding='utf-8', errors='ignore') as f: text += f.read()
-            except: pass
+                
+                # อ่าน CSV (เพิ่มส่วนนี้)
+                elif filename.endswith('.csv'):
+                    df = pd.read_csv(file_path)
+                    text += df.to_string()
+                    
+            except Exception as e:
+                print(f"อ่านไฟล์ {filename} ไม่สำเร็จ: {e}")
 
-    # 2. อ่านจาก Uploaded Files
+    # 2. อ่านจาก Uploaded Files (ส่วนนี้เหมือนเดิม)
     if files:
         for file in files:
             try:
