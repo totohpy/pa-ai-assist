@@ -41,33 +41,24 @@ st.markdown("ถาม-ตอบผู้ช่วยอัจฉริยะ (�
 # ----------------- Helper Functions -----------------
 
 def rewrite_query(user_question, chat_history, client):
-    """
-    ฟังก์ชันสำหรับแปลงคำถามสั้นๆ ให้เป็นคำถามที่สมบูรณ์ โดยดูบริบทจากประวัติการแชท
-    """
-    # แปลง History 6 ข้อความล่าสุดให้เป็น String
-    history_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in chat_history[-6:]])
-    
-    system_prompt_rewrite = f"""
-    คุณคือ AI ที่ทำหน้าที่ "เรียบเรียงประโยคคำถามใหม่" (Query Rewriter)
-    หน้าที่ของคุณ:
-    1. อ่านประวัติการสนทนา (Chat History) และคำถามล่าสุดของผู้ใช้
-    2. ถ้าคำถามล่าสุดเชื่อมโยงกับบริบทก่อนหน้า ให้เขียนคำถามใหม่ให้สมบูรณ์และชัดเจนขึ้น (ระบุประธาน/กรรม ให้ครบ)
-    3. ถ้าคำถามล่าสุดเป็นเรื่องใหม่ ไม่เกี่ยวกับบริบทเดิม ให้คืนค่าคำถามเดิมกลับมา
-    4. **ไม่ต้องตอบคำถาม** แค่เรียบเรียงประโยคคำถามใหม่เท่านั้น
-    5. ผลลัพธ์ต้องเป็น "ภาษาไทย" เท่านั้น
-
-    ตัวอย่าง:
-    History: User: การแจ้งผลตรวจสอบทำอย่างไร?, AI: ต้องทำหนังสือแจ้ง...
-    Current Question: ต้องทำถึงใครบ้าง?
-    Rewritten Question: ในการแจ้งผลการตรวจสอบ ต้องทำหนังสือแจ้งถึงใครบ้าง?
-
-    --- Chat History ---
-    {history_text}
-    --------------------
-    Current Question: {user_question}
-    """
-    
+    """แปลงคำถามสั้นๆ ให้เป็นคำถามที่สมบูรณ์"""
     try:
+        history_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in chat_history[-4:]]) # ลด History เหลือ 4 เพื่อประหยัด Token
+        
+        system_prompt_rewrite = f"""
+        คุณคือ AI ที่ทำหน้าที่ "เรียบเรียงประโยคคำถามใหม่" (Query Rewriter)
+        หน้าที่ของคุณ:
+        1. อ่านประวัติการสนทนาและคำถามล่าสุด
+        2. ถ้าคำถามล่าสุดเชื่อมโยงกับบริบทก่อนหน้า ให้เขียนคำถามใหม่ให้สมบูรณ์ (เช่น "มันคืออะไร" -> "การตรวจสอบภายในคืออะไร")
+        3. ถ้าไม่เกี่ยวข้องกัน ให้ใช้คำถามเดิม
+        4. ตอบเฉพาะคำถามใหม่เท่านั้น ห้ามมีคำอธิบายอื่น
+
+        --- Chat History ---
+        {history_text}
+        --------------------
+        Current Question: {user_question}
+        """
+        
         response = client.chat.completions.create(
             model="meta-llama/llama-3.3-70b-instruct:free", 
             messages=[
@@ -77,38 +68,71 @@ def rewrite_query(user_question, chat_history, client):
             temperature=0.3,
             max_tokens=200
         )
-        new_question = response.choices[0].message.content.strip()
-        return new_question
-    except Exception as e:
+        return response.choices[0].message.content.strip()
+    except Exception:
         return user_question 
+
+def filter_relevant_content(full_text, query, max_chars=350000):
+    """
+    ฟังก์ชันกรองเนื้อหาแบบง่าย (Keyword Matching) เพื่อลดขนาดข้อความก่อนส่ง AI
+    โดยไม่ต้องใช้ RAG Library
+    """
+    if not full_text or len(full_text) < max_chars:
+        return full_text
+        
+    # 1. แบ่งข้อความเป็นย่อหน้า (Chunks)
+    chunks = full_text.split('\n\n')
+    if len(chunks) < 5: # ถ้าแบ่งย่อหน้าไม่ได้ ให้แบ่งตามบรรทัด
+        chunks = full_text.split('\n')
+
+    # 2. ให้คะแนนแต่ละย่อหน้าตามคำค้นหา (Query)
+    query_words = set(query.replace("?", "").split())
+    scored_chunks = []
+    
+    for chunk in chunks:
+        # นับคำที่ตรงกัน
+        score = sum(1 for word in query_words if word in chunk)
+        # ให้คะแนนพิเศษถ้าย่อหน้านั้นยาวพอสมควร (มีเนื้อหา)
+        if len(chunk) > 100: 
+            score += 0.5 
+        scored_chunks.append((score, chunk))
+    
+    # 3. เรียงลำดับตามคะแนน (มากไปน้อย)
+    scored_chunks.sort(key=lambda x: x[0], reverse=True)
+    
+    # 4. เลือกเฉพาะเนื้อหา Top จนกว่าจะเต็มโควต้า (max_chars)
+    final_context = ""
+    current_chars = 0
+    
+    for score, chunk in scored_chunks:
+        if current_chars + len(chunk) < max_chars:
+            final_context += chunk + "\n\n...[ตัดตอน]...\n\n"
+            current_chars += len(chunk)
+        else:
+            break
+            
+    return final_context
 
 def extract_text_from_files(files, folder_path="Doc"):
     text = ""
-    
-    # 1. อ่านจาก Folder Local (เช่น โฟลเดอร์ Doc)
+    # อ่านจาก Folder Local
     if os.path.isdir(folder_path):
         for filename in os.listdir(folder_path):
             file_path = os.path.join(folder_path, filename)
             try:
-                # อ่าน PDF
                 if filename.endswith('.pdf'):
                     with open(file_path, 'rb') as f:
                         reader = PdfReader(f)
                         for page in reader.pages: text += page.extract_text() or ""
-                
-                # อ่าน Text File
                 elif filename.endswith('.txt'):
                     with open(file_path, 'r', encoding='utf-8', errors='ignore') as f: text += f.read()
-                
-                # อ่าน CSV
                 elif filename.endswith('.csv'):
                     df = pd.read_csv(file_path)
                     text += df.to_string()
-                    
             except Exception as e:
-                print(f"อ่านไฟล์ {filename} ไม่สำเร็จ: {e}")
+                print(f"Error reading {filename}: {e}")
 
-    # 2. อ่านจาก Uploaded Files
+    # อ่านจาก Uploaded Files
     if files:
         for file in files:
             try:
@@ -126,8 +150,8 @@ def extract_text_from_files(files, folder_path="Doc"):
 # ----------------- Session Init -----------------
 def init_chat_state():
     ss = st.session_state
-    ss.setdefault('chatbot_messages', [{"role": "assistant", "content": "สวัสดีครับ ผมคือ PA Assistant ที่ PAO1 Audit Intelligence Team พัฒนาขึ้นครับ"}])
-    ss.setdefault('file_context', "") # เก็บเนื้อหาไฟล์ทั้งหมดเป็น String แทน Vector Store
+    ss.setdefault('chatbot_messages', [{"role": "assistant", "content": "สวัสดีครับ ผมคือ PA Assistant Chat พร้อมให้บริการครับ"}])
+    ss.setdefault('file_context', "") 
     ss.setdefault('last_processed_files', set())
 
 init_chat_state()
@@ -137,7 +161,7 @@ init_chat_state()
 with st.expander("อัปโหลดเอกสารเพิ่มเติม (PDF, TXT, CSV)"):
     uploaded_files = st.file_uploader("เลือกไฟล์...", type=['pdf', 'txt', 'csv'], accept_multiple_files=True)
 
-# ตรวจสอบการเปลี่ยนแปลงของไฟล์
+# ตรวจสอบไฟล์และโหลด
 current_files_set = {f.name for f in uploaded_files} if uploaded_files else set()
 is_files_changed = current_files_set != st.session_state.last_processed_files
 is_first_load = not st.session_state.file_context and (uploaded_files or os.path.isdir("Doc"))
@@ -149,7 +173,7 @@ if is_files_changed or (is_first_load and not st.session_state.file_context):
         if raw_text:
             st.session_state.file_context = raw_text
             st.session_state.last_processed_files = current_files_set
-            st.success(f"✅ อ่านข้อมูลเรียบร้อย! (จำนวน {len(raw_text):,} ตัวอักษร)")
+            st.success(f"✅ อ่านข้อมูลเรียบร้อย! ({len(raw_text):,} ตัวอักษร)")
         else:
             st.warning("ยังไม่มีข้อมูลเอกสาร กรุณาอัปโหลดไฟล์หรือใส่ไฟล์ในโฟลเดอร์ Doc")
 
@@ -161,7 +185,6 @@ with chat_container:
             st.markdown(message["content"])
 
 if prompt := st.chat_input("พิมพ์คำถามของคุณ...", key="chat_input_main"):
-    # แสดงคำถาม User
     st.session_state.chatbot_messages.append({"role": "user", "content": prompt})
     
     with chat_container:
@@ -170,13 +193,11 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณ..."
             message_placeholder = st.empty()
             
             try:
-                # ตรวจสอบ API Key
                 try:
                     api_key = st.secrets["openrouter_api_key"]
                 except:
-                    api_key = "" # Handle กรณีไม่มี key
+                    api_key = "" 
                 
-                # สร้าง Client
                 client = OpenAI(
                     base_url="https://openrouter.ai/api/v1",
                     api_key=api_key,
@@ -184,35 +205,36 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณ..."
 
                 # --- STEP 1: Query Rewriting ---
                 has_history = len(st.session_state.chatbot_messages) > 1
-                
                 if has_history:
                     with st.spinner("..."): 
                         search_query = rewrite_query(prompt, st.session_state.chatbot_messages[:-1], client)
                 else:
                     search_query = prompt
 
-                # --- STEP 2: Context Preparation (Direct Text) ---
-                # ดึงข้อมูล Text ทั้งหมดที่อ่านได้มาใช้เป็น Context ตรงๆ
-                context_text = st.session_state.file_context
-                if not context_text:
-                    context_text = "ไม่มีเอกสารให้อ้างอิง ให้ตอบตามความรู้ทั่วไป"
+                # --- STEP 2: Filter Context (แก้ปัญหา Token เกิน) ---
+                # กรองเอาเฉพาะส่วนที่เกี่ยวกับคำถาม + จำกัดขนาดไม่ให้เกิน ~100k tokens
+                raw_context = st.session_state.file_context
+                
+                # ถ้าไม่มีข้อมูล
+                if not raw_context:
+                    final_context = "ไม่มีเอกสารให้อ้างอิง ตอบตามความรู้ทั่วไป"
+                else:
+                    # เรียกใช้ฟังก์ชันกรองที่เขียนเพิ่ม
+                    final_context = filter_relevant_content(raw_context, search_query, max_chars=300000) 
 
-                # --- STEP 3: Generation with Smart Fallback ---
+                # --- STEP 3: Generation ---
                 system_prompt = f"""
 คุณคือผู้ช่วย AI ผู้เชี่ยวชาญด้านการตรวจสอบ (PA Assistant)
-หน้าที่: ตอบคำถามโดยใช้ข้อมูลจาก "เนื้อหาเอกสารแนบ" ด้านล่างนี้เป็นหลัก
+หน้าที่: ตอบคำถามโดยใช้ข้อมูลจาก "เนื้อหาเอกสารแนบ" ที่คัดเลือกมาแล้วด้านล่างนี้
 
-กฎการตอบ (สำคัญ):
+กฎการตอบ:
 1. อ้างอิงข้อมูลจากเนื้อหาเอกสารที่ให้มาเท่านั้น
-2. **กรณีคำถามแบบ "ใช่หรือไม่" หรือถามถึงสิ่งที่ "ไม่มีในเอกสาร":**
-   - ห้ามตอบว่า "ไม่ทราบ" หรือ "ข้อมูลไม่เพียงพอ" ทันที
-   - ให้ตอบโดยระบุ **"สิ่งที่มีอยู่จริงในเอกสาร"** แทน เพื่อให้ผู้ใช้เปรียบเทียบเอง
-   - ตัวอย่าง: ถ้าถามว่า "ต้องส่ง นาย A ไหม" แต่เอกสารบอกแค่ส่ง นาย B -> ให้ตอบว่า "จากเอกสารระบุให้ส่งถึง นาย B เท่านั้น ไม่ปรากฏข้อมูลเกี่ยวกับการส่งถึง นาย A"
-3. ห้ามมั่วข้อมูลขึ้นมาเอง
-4. **คำถามของผู้ใช้คือ:** "{prompt}" (ฉันค้นหาข้อมูลเรื่อง "{search_query}" มาให้คุณประกอบการตอบ)
+2. ถ้าข้อมูลถูกตัดทอน (มีคำว่า ...[ตัดตอน]...) ให้พยายามปะติดปะต่อเท่าที่ทำได้
+3. หากไม่พบข้อมูลในส่วนที่คัดมา ให้แจ้งผู้ใช้ว่า "จากเอกสารที่เกี่ยวข้อง ไม่พบข้อมูลดังกล่าว"
+4. **คำถามของผู้ใช้คือ:** "{prompt}" (บริบทค้นหา: "{search_query}")
 
---- เนื้อหาเอกสารแนบ (Context) ---
-{context_text}
+--- เนื้อหาเอกสารแนบ (คัดเลือกมาบางส่วน) ---
+{final_context}
 -----------------------------
 """
                 messages_for_api = [
@@ -220,12 +242,11 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณ..."
                     {"role": "user", "content": prompt}
                 ]
 
-                # กำหนดโมเดลหลักและโมเดลสำรอง
-                primary_model = "google/gemini-2.0-pro-exp-02-05:free"  # Context Window ใหญ่ เหมาะกับส่ง Text ไปทั้งหมด
+                # ใช้ Model
+                primary_model = "google/gemini-2.0-pro-exp-02-05:free"
                 backup_model = "meta-llama/llama-3.3-70b-instruct:free"
 
                 try:
-                    # ลองใช้ Gemini 2.0 Pro ก่อน
                     stream = client.chat.completions.create(
                         extra_headers={
                             "HTTP-Referer": "https://streamlit.io/",
@@ -235,8 +256,7 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณ..."
                         messages=messages_for_api,
                         stream=True
                     )
-                except Exception as e:
-                    # ถ้า Error สลับไปใช้ Llama 3.3
+                except Exception:
                     stream = client.chat.completions.create(
                         extra_headers={
                             "HTTP-Referer": "https://streamlit.io/",
