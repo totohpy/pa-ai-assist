@@ -7,224 +7,161 @@ from PyPDF2 import PdfReader
 # --- Page Configuration ---
 st.set_page_config(page_title="PA Assistant Chat", page_icon="💬", layout="wide")
 
-# --- Sidebar Configuration (empty to inherit from main page) ---
+# --- Sidebar Configuration ---
 with st.sidebar:
-    pass
+    st.markdown("""
+        <div class="sidebar-footer">
+            <p>
+                <span style="color: grey;">By PAO1 </span><br>
+                <span style="font-size: 16px; letter-spacing: 0.5px;">
+                    <span style="color: red; font-weight: bold;">A</span>udit 
+                    <span style="color: red; font-weight: bold;">I</span>ntelligence
+                    <span style="color: red; font-weight: bold;">T</span>eam
+                </span>
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
 
-# --- Apply Consistent Styling ---
 st.markdown(
     """
      <style>
-    /* --- Overall App Color Theme --- */
-    [data-testid="stAppViewContainer"] > .main {
-        background-color: #e0f2f1;
-    }
-    [data-testid="stSidebar"] {
-        background-color: #e0f2f1;
-        width: 250px !important;
-    }
-    
-    /* --- Flexbox layout for Sidebar --- */
-    /* This targets the inner container of the sidebar */
-    [data-testid="stSidebar"] > div:first-child {
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-    }
-    /* This makes the navigation take up all available space, pushing the footer down */
-    [data-testid="stSidebarNav"] {
-        flex-grow: 1;
-        margin-top: 20px; /* Move navigation down */
-    }
-    .sidebar-footer {
-        width: 100%;
-        padding: 1rem;
-        text-align: center; /* Center the footer content */
-    }
-
-    /* Remove Streamlit's default top padding */
-    .block-container {
-        padding-top: 2rem;
-    }
-
-    /* --- Feature Box Styling (Main Page) --- */
-    .feature-link { text-decoration: none !important; color: inherit !important; }
-    .feature-link:hover { text-decoration: none !important; color: inherit !important; }
-    .feature-box {
-        background-color: #e0f2f1;
-        padding: 1rem 1rem;
-        border-radius: 20px;
-        text-align: center;
-        transition: transform 0.3s, box-shadow 0.3s;
-        height: 200px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        border: 1px solid #d0e0df;
-    }
-    .feature-box:hover {
-        transform: translateY(-10px);
-        box-shadow: 0 8px 30px rgba(0,0,0,0.12);
-    }
-    .feature-box .emoji { font-size: 1.6rem; line-height: 1; }
-    .feature-box h3 { margin-top: 0.7rem; margin-bottom: 0.4rem; font-size: 1.2rem; }
-    .feature-box p { color: #6c757d; font-size: 0.85rem; }
-    
-    /* --- Style the sidebar navigation --- */
-    div[data-testid="stSidebarNav"] > ul > li > a {
-        padding: 18px 40px !important; /* Increased padding for more height */
-        font-size: 20px !important;    /* Larger font size */
-        margin-bottom: 10px;
-        border-radius: 8px;
-        color: #263238 !important;     /* Darker text for inactive links */
-        background-color: #b2dfdb;     /* Light teal for inactive links */
-        border: 1px solid #9dbdb9;
-        font-weight: 500;
-    }
-    
-    /* Style the ACTIVE page link */
-    div[data-testid="stSidebarNav"] a[aria-current="page"] {
-        background-color: #80cbc4;     /* Dark teal for active link */
-        color: #FFFFFF !important;     /* White text for active link */
-        font-weight: 600;
-        border: 1px solid #00796b;
-    }
+    [data-testid="stAppViewContainer"] > .main { background-color: #e0f2f1; }
+    h1 { font-size: 36px !important; }
+    [data-testid="stSidebar"] { background-color: #e0f2f1; width: 250px !important; }
+    .sidebar-footer { width: 100%; padding: 1rem; text-align: center; }
+    .block-container { padding-top: 2rem; }
     </style>
     """,
     unsafe_allow_html=True
 )
 
-
 st.title("💬 PA Assistant Chat")
-st.markdown("ถาม-ตอบผู้ช่วยอัจฉริยะด้านการตรวจสอบ")
+st.markdown("ถาม-ตอบผู้ช่วยอัจฉริยะ (ตอบแบบมืออาชีพอ้างอิงคู่มือการปฎิบัติงานและผลการตรวจสอบที่ผ่านมา)")
 
-# ----------------- Functions for Chatbot -----------------
-MAX_CHARS_LIMIT = 300000
+# ----------------- Helper Functions -----------------
 
-@st.cache_data(show_spinner=False)
-def load_local_documents(folder_path="Doc"):
-    """Reads all files from the local document library."""
-    text = ""
-    if not os.path.isdir(folder_path):
-        return text 
+def rewrite_query(user_question, chat_history, client):
+    """
+    ฟังก์ชันสำหรับแปลงคำถามสั้นๆ ให้เป็นคำถามที่สมบูรณ์ โดยดูบริบทจากประวัติการแชท
+    """
+    # แปลง History 6 ข้อความล่าสุดให้เป็น String
+    history_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in chat_history[-6:]])
+    
+    system_prompt_rewrite = f"""
+    คุณคือ AI ที่ทำหน้าที่ "เรียบเรียงประโยคคำถามใหม่" (Query Rewriter)
+    หน้าที่ของคุณ:
+    1. อ่านประวัติการสนทนา (Chat History) และคำถามล่าสุดของผู้ใช้
+    2. ถ้าคำถามล่าสุดเชื่อมโยงกับบริบทก่อนหน้า ให้เขียนคำถามใหม่ให้สมบูรณ์และชัดเจนขึ้น (ระบุประธาน/กรรม ให้ครบ)
+    3. ถ้าคำถามล่าสุดเป็นเรื่องใหม่ ไม่เกี่ยวกับบริบทเดิม ให้คืนค่าคำถามเดิมกลับมา
+    4. **ไม่ต้องตอบคำถาม** แค่เรียบเรียงประโยคคำถามใหม่เท่านั้น
+    5. ผลลัพธ์ต้องเป็น "ภาษาไทย" เท่านั้น
 
+    ตัวอย่าง:
+    History: User: การแจ้งผลตรวจสอบทำอย่างไร?, AI: ต้องทำหนังสือแจ้ง...
+    Current Question: ต้องทำถึงใครบ้าง?
+    Rewritten Question: ในการแจ้งผลการตรวจสอบ ต้องทำหนังสือแจ้งถึงใครบ้าง?
+
+    --- Chat History ---
+    {history_text}
+    --------------------
+    Current Question: {user_question}
+    """
+    
     try:
-        files_in_doc = os.listdir(folder_path)
-        # Use a temporary placeholder for progress bar if sidebar is not always visible
-        progress_placeholder = st.empty()
-        for i, filename in enumerate(files_in_doc):
-            if len(text) >= MAX_CHARS_LIMIT:
-                st.warning(f"ถึงขีดจำกัดข้อมูลแล้ว ({MAX_CHARS_LIMIT:,} ตัวอักษร)")
-                break
-            
+        response = client.chat.completions.create(
+            model="meta-llama/llama-3.3-70b-instruct:free", 
+            messages=[
+                {"role": "system", "content": system_prompt_rewrite},
+                {"role": "user", "content": "Rewritten Question:"}
+            ],
+            temperature=0.3,
+            max_tokens=200
+        )
+        new_question = response.choices[0].message.content.strip()
+        return new_question
+    except Exception as e:
+        return user_question 
+
+def extract_text_from_files(files, folder_path="Doc"):
+    text = ""
+    
+    # 1. อ่านจาก Folder Local (เช่น โฟลเดอร์ Doc)
+    if os.path.isdir(folder_path):
+        for filename in os.listdir(folder_path):
             file_path = os.path.join(folder_path, filename)
             try:
+                # อ่าน PDF
                 if filename.endswith('.pdf'):
                     with open(file_path, 'rb') as f:
                         reader = PdfReader(f)
-                        for page in reader.pages:
-                            text += page.extract_text() or ""
+                        for page in reader.pages: text += page.extract_text() or ""
+                
+                # อ่าน Text File
                 elif filename.endswith('.txt'):
-                    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                        text += f.read()
+                    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f: text += f.read()
+                
+                # อ่าน CSV
                 elif filename.endswith('.csv'):
                     df = pd.read_csv(file_path)
-                    text += df.head(15).to_string()
+                    text += df.to_string()
+                    
             except Exception as e:
-                print(f"Could not read file {filename}: {e}")
+                print(f"อ่านไฟล์ {filename} ไม่สำเร็จ: {e}")
+
+    # 2. อ่านจาก Uploaded Files
+    if files:
+        for file in files:
+            try:
+                if file.name.endswith('.pdf'):
+                    reader = PdfReader(file)
+                    for page in reader.pages: text += page.extract_text() or ""
+                elif file.name.endswith('.txt'): text += file.getvalue().decode("utf-8")
+                elif file.name.endswith('.csv'):
+                    df = pd.read_csv(file)
+                    text += df.to_string()
+            except: pass
             
-            progress_placeholder.progress((i + 1) / len(files_in_doc), text=f"กำลังโหลดเอกสาร... ({i+1}/{len(files_in_doc)})")
-        progress_placeholder.empty()
-                
-    except Exception as e:
-        st.error(f"เกิดข้อผิดพลาดในการเข้าถึงคลังข้อมูล: {e}")
-    
-    return text[:MAX_CHARS_LIMIT]
+    return text
 
-def process_documents(files, source_type, limit, current_len=0):
-    """Function to read text from uploaded files."""
-    text = ""
-    for file in files:
-        if current_len + len(text) >= limit:
-            st.warning(f"ถึงขีดจำกัดตัวอักษรสูงสุด ({limit:,}) แล้ว บางไฟล์อาจไม่ถูกประมวลผล")
-            break
-        try:
-            if file.name.endswith('.pdf'):
-                reader = PdfReader(file)
-                for page in reader.pages:
-                    text += page.extract_text() or ""
-            elif file.name.endswith('.txt'):
-                text += file.getvalue().decode("utf-8")
-            elif file.name.endswith('.csv'):
-                df = pd.read_csv(file)
-                text += df.head(15).to_string()
-        except Exception as e:
-            st.error(f"เกิดข้อผิดพลาดในการอ่านไฟล์ {file.name}: {e}")
-    return text[:limit - current_len], [f.name for f in files]
-
-# ----------------- Session Init (for Chatbot only) -----------------
+# ----------------- Session Init -----------------
 def init_chat_state():
     ss = st.session_state
-    ss.setdefault('chatbot_messages', [{"role": "assistant", "content": "สวัสดีครับ ผมคือ PA Chat Assistant ผู้ช่วยอัจฉริยะด้านการตรวจสอบ"}])
-    ss.setdefault('doc_context_uploaded', "")
-    ss.setdefault('last_uploaded_files', set())
-
-    # Load API Key from secrets
-    try:
-        ss.setdefault('api_key_global', st.secrets["api_key"])
-    except (KeyError, FileNotFoundError):
-        ss.setdefault('api_key_global', "")
-        # A warning will be shown in the main UI if key is missing
-
-    # Load local documents only once
-    if 'doc_context_local' not in ss:
-        ss.doc_context_local = load_local_documents()
-        if ss.doc_context_local and os.path.isdir('Doc'):
-             ss.chatbot_messages.append({"role": "assistant", "content": f"ผมได้โหลดเอกสารเป็นฐานความรู้แล้ว"})
+    ss.setdefault('chatbot_messages', [{"role": "assistant", "content": "สวัสดีครับ ผมคือ PA Assistant ที่ PAO1 Audit Intelligence Team พัฒนาขึ้นครับ"}])
+    ss.setdefault('file_context', "") # เก็บเนื้อหาไฟล์ทั้งหมดเป็น String แทน Vector Store
+    ss.setdefault('last_processed_files', set())
 
 init_chat_state()
 
-# ----------------- Chatbot UI -----------------
+# ----------------- UI & Logic -----------------
+
 with st.expander("อัปโหลดเอกสารเพิ่มเติม (PDF, TXT, CSV)"):
-    st.info("ข้อมูลจากไฟล์ที่อัปโหลดจะถูกใช้ในการตอบคำถาม")
-    uploaded_files = st.file_uploader(
-        "เลือกไฟล์...",
-        type=['pdf', 'txt', 'csv'],
-        accept_multiple_files=True,
-        label_visibility="collapsed"
-    )
+    uploaded_files = st.file_uploader("เลือกไฟล์...", type=['pdf', 'txt', 'csv'], accept_multiple_files=True)
 
-current_uploaded_file_names = {f.name for f in uploaded_files}
-if uploaded_files and st.session_state.get('last_uploaded_files') != current_uploaded_file_names:
+# ตรวจสอบการเปลี่ยนแปลงของไฟล์
+current_files_set = {f.name for f in uploaded_files} if uploaded_files else set()
+is_files_changed = current_files_set != st.session_state.last_processed_files
+is_first_load = not st.session_state.file_context and (uploaded_files or os.path.isdir("Doc"))
+
+if is_files_changed or (is_first_load and not st.session_state.file_context):
     with st.spinner("กำลังประมวลผลเอกสาร..."):
-        st.session_state.doc_context_uploaded, _ = process_documents(uploaded_files, 'uploaded', MAX_CHARS_LIMIT, len(st.session_state.get('doc_context_local', '')))
-        st.session_state.last_uploaded_files = current_uploaded_file_names
-        st.session_state.chatbot_messages.append({"role": "assistant", "content": "อัปเดตเอกสารใหม่แล้ว"})
-        st.rerun()
-elif not uploaded_files and st.session_state.doc_context_uploaded:
-    st.session_state.doc_context_uploaded = ""
-    st.session_state.last_uploaded_files = set()
-    st.session_state.chatbot_messages.append({"role": "assistant", "content": "ล้างเอกสารที่อัปโหลดแล้ว"})
-    st.rerun()
+        raw_text = extract_text_from_files(uploaded_files)
+        
+        if raw_text:
+            st.session_state.file_context = raw_text
+            st.session_state.last_processed_files = current_files_set
+            st.success(f"✅ อ่านข้อมูลเรียบร้อย! (จำนวน {len(raw_text):,} ตัวอักษร)")
+        else:
+            st.warning("ยังไม่มีข้อมูลเอกสาร กรุณาอัปโหลดไฟล์หรือใส่ไฟล์ในโฟลเดอร์ Doc")
 
-local_len = len(st.session_state.get('doc_context_local', ''))
-uploaded_len = len(st.session_state.get('doc_context_uploaded', ''))
-
-with st.expander("ดูรายละเอียด Context"):
-    if local_len > 0:
-        st.info(f"💾 เนื้อหาจากคลังข้อมูล: {local_len:,} ตัวอักษร")
-    if uploaded_len > 0:
-        st.info(f"📤 เนื้อหาจากไฟล์ที่อัปโหลด: {uploaded_len:,} ตัวอักษร")
-    st.success(f"✅ เนื้อหารวมทั้งหมด: {(local_len + uploaded_len):,} ตัวอักษร (สูงสุด: {MAX_CHARS_LIMIT:,})")
-
-chat_container = st.container(height=500, border=True)
+# Chat UI
+chat_container = st.container(height=400, border=True)
 with chat_container:
     for message in st.session_state.chatbot_messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
 if prompt := st.chat_input("พิมพ์คำถามของคุณ...", key="chat_input_main"):
+    # แสดงคำถาม User
     st.session_state.chatbot_messages.append({"role": "user", "content": prompt})
     
     with chat_container:
@@ -232,46 +169,92 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณ..."
         with st.chat_message("assistant"):
             message_placeholder = st.empty()
             
-            api_key = st.session_state.api_key_global
-            if not api_key:
-                error_message = "เกิดข้อผิดพลาด: ไม่พบ API Key กรุณาติดต่อผู้ดูแลระบบ"
-                message_placeholder.error(error_message)
-                st.session_state.chatbot_messages.append({"role": "assistant", "content": error_message})
-            else:
+            try:
+                # ตรวจสอบ API Key
                 try:
-                    doc_context = st.session_state.get('doc_context_local', '') + st.session_state.get('doc_context_uploaded', '')
-                    
-                    system_prompt = f"""
-คุณคือผู้ช่วย AI อัจฉริยะ หน้าที่ของคุณคือตอบคำถามของผู้ใช้ให้ถูกต้อง โดยใช้ข้อมูลจากสองแหล่ง:
-1.  **เอกสารภายใน (Primary Source):** เนื้อหาจากไฟล์ในระบบ ให้ยึดข้อมูลนี้เป็นหลักเสมอ
-2.  **ความรู้ทั่วไป (Secondary Source):** หากคำตอบไม่มีในเอกสาร ให้ใช้ความรู้ทั่วไป
-**กฎการตอบ:**
-- อ้างอิงเสมอว่าข้อมูลมาจากแหล่งใด (เช่น "จากเอกสาร [ชื่อไฟล์]...", "จากข้อมูลที่ให้มา...")
-- หากข้อมูลขัดแย้งกัน ให้ยึดข้อมูลในเอกสารเป็นหลัก
-- หากไม่พบคำตอบ ให้ตอบว่า "ขออภัยครับ ไม่พบข้อมูลที่เกี่ยวข้อง"
----
-**บริบทจากเอกสารภายใน:**
-{doc_context}
----
-จากข้อมูลข้างต้นนี้ จงตอบคำถามล่าสุดของผู้ใช้
-"""
-                    messages_for_api = [
-                        {"role": "system", "content": system_prompt}
-                    ] + st.session_state.chatbot_messages[-10:]
+                    api_key = st.secrets["openrouter_api_key"]
+                except:
+                    api_key = "" # Handle กรณีไม่มี key
+                
+                # สร้าง Client
+                client = OpenAI(
+                    base_url="https://openrouter.ai/api/v1",
+                    api_key=api_key,
+                )
 
-                    client = OpenAI(api_key=api_key, base_url="https://api.opentyphoon.ai/v1")
-                    response_stream = client.chat.completions.create(
-                        model="typhoon-v2.1-12b-instruct", 
-                        messages=messages_for_api, 
-                        temperature=0.5, 
-                        max_tokens=3072, 
+                # --- STEP 1: Query Rewriting ---
+                has_history = len(st.session_state.chatbot_messages) > 1
+                
+                if has_history:
+                    with st.spinner("..."): 
+                        search_query = rewrite_query(prompt, st.session_state.chatbot_messages[:-1], client)
+                else:
+                    search_query = prompt
+
+                # --- STEP 2: Context Preparation (Direct Text) ---
+                # ดึงข้อมูล Text ทั้งหมดที่อ่านได้มาใช้เป็น Context ตรงๆ
+                context_text = st.session_state.file_context
+                if not context_text:
+                    context_text = "ไม่มีเอกสารให้อ้างอิง ให้ตอบตามความรู้ทั่วไป"
+
+                # --- STEP 3: Generation with Smart Fallback ---
+                system_prompt = f"""
+คุณคือผู้ช่วย AI ผู้เชี่ยวชาญด้านการตรวจสอบ (PA Assistant)
+หน้าที่: ตอบคำถามโดยใช้ข้อมูลจาก "เนื้อหาเอกสารแนบ" ด้านล่างนี้เป็นหลัก
+
+กฎการตอบ (สำคัญ):
+1. อ้างอิงข้อมูลจากเนื้อหาเอกสารที่ให้มาเท่านั้น
+2. **กรณีคำถามแบบ "ใช่หรือไม่" หรือถามถึงสิ่งที่ "ไม่มีในเอกสาร":**
+   - ห้ามตอบว่า "ไม่ทราบ" หรือ "ข้อมูลไม่เพียงพอ" ทันที
+   - ให้ตอบโดยระบุ **"สิ่งที่มีอยู่จริงในเอกสาร"** แทน เพื่อให้ผู้ใช้เปรียบเทียบเอง
+   - ตัวอย่าง: ถ้าถามว่า "ต้องส่ง นาย A ไหม" แต่เอกสารบอกแค่ส่ง นาย B -> ให้ตอบว่า "จากเอกสารระบุให้ส่งถึง นาย B เท่านั้น ไม่ปรากฏข้อมูลเกี่ยวกับการส่งถึง นาย A"
+3. ห้ามมั่วข้อมูลขึ้นมาเอง
+4. **คำถามของผู้ใช้คือ:** "{prompt}" (ฉันค้นหาข้อมูลเรื่อง "{search_query}" มาให้คุณประกอบการตอบ)
+
+--- เนื้อหาเอกสารแนบ (Context) ---
+{context_text}
+-----------------------------
+"""
+                messages_for_api = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt}
+                ]
+
+                # กำหนดโมเดลหลักและโมเดลสำรอง
+                primary_model = "google/gemini-2.0-pro-exp-02-05:free"  # Context Window ใหญ่ เหมาะกับส่ง Text ไปทั้งหมด
+                backup_model = "meta-llama/llama-3.3-70b-instruct:free"
+
+                try:
+                    # ลองใช้ Gemini 2.0 Pro ก่อน
+                    stream = client.chat.completions.create(
+                        extra_headers={
+                            "HTTP-Referer": "https://streamlit.io/",
+                            "X-Title": "PA Assistant",
+                        },
+                        model=primary_model,
+                        messages=messages_for_api,
                         stream=True
                     )
-                    response = message_placeholder.write_stream(response_stream)
-                    st.session_state.chatbot_messages.append({"role": "assistant", "content": response})
-
                 except Exception as e:
-                    error_message = f"เกิดข้อผิดพลาดขณะประมวลผล: {e}"
-                    message_placeholder.error(error_message)
-                    st.session_state.chatbot_messages.append({"role": "assistant", "content": error_message})
+                    # ถ้า Error สลับไปใช้ Llama 3.3
+                    stream = client.chat.completions.create(
+                        extra_headers={
+                            "HTTP-Referer": "https://streamlit.io/",
+                            "X-Title": "PA Assistant",
+                        },
+                        model=backup_model,
+                        messages=messages_for_api,
+                        stream=True
+                    )
+                
+                full_response = ""
+                for chunk in stream:
+                    if chunk.choices[0].delta.content:
+                        full_response += chunk.choices[0].delta.content
+                        message_placeholder.markdown(full_response + "▌")
+                
+                message_placeholder.markdown(full_response)
+                st.session_state.chatbot_messages.append({"role": "assistant", "content": full_response})
 
+            except Exception as e:
+                st.error(f"Error: {e}")
