@@ -43,70 +43,68 @@ st.markdown("ถาม-ตอบผู้ช่วยอัจฉริยะ (�
 def rewrite_query(user_question, chat_history, client):
     """แปลงคำถามสั้นๆ ให้เป็นคำถามที่สมบูรณ์"""
     try:
-        history_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in chat_history[-4:]]) # ลด History เหลือ 4 เพื่อประหยัด Token
+        # ใช้ History แค่ 2 อันล่าสุดพอ เพื่อประหยัด Token
+        history_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in chat_history[-2:]])
         
         system_prompt_rewrite = f"""
-        คุณคือ AI ที่ทำหน้าที่ "เรียบเรียงประโยคคำถามใหม่" (Query Rewriter)
-        หน้าที่ของคุณ:
-        1. อ่านประวัติการสนทนาและคำถามล่าสุด
-        2. ถ้าคำถามล่าสุดเชื่อมโยงกับบริบทก่อนหน้า ให้เขียนคำถามใหม่ให้สมบูรณ์ (เช่น "มันคืออะไร" -> "การตรวจสอบภายในคืออะไร")
-        3. ถ้าไม่เกี่ยวข้องกัน ให้ใช้คำถามเดิม
-        4. ตอบเฉพาะคำถามใหม่เท่านั้น ห้ามมีคำอธิบายอื่น
-
-        --- Chat History ---
-        {history_text}
-        --------------------
-        Current Question: {user_question}
+        คุณคือ AI Query Rewriter
+        หน้าที่: อ่านประวัติการคุย แล้วเขียนคำถามล่าสุดใหม่ให้สมบูรณ์ชัดเจน (ภาษาไทย)
+        บริบท: {history_text}
+        คำถามปัจจุบัน: {user_question}
+        คำถามใหม่:
         """
         
         response = client.chat.completions.create(
             model="meta-llama/llama-3.3-70b-instruct:free", 
-            messages=[
-                {"role": "system", "content": system_prompt_rewrite},
-                {"role": "user", "content": "Rewritten Question:"}
-            ],
+            messages=[{"role": "user", "content": system_prompt_rewrite}],
             temperature=0.3,
-            max_tokens=200
+            max_tokens=150
         )
         return response.choices[0].message.content.strip()
     except Exception:
         return user_question 
 
-def filter_relevant_content(full_text, query, max_chars=350000):
+def filter_relevant_content(full_text, query, max_chars=100000):
     """
-    ฟังก์ชันกรองเนื้อหาแบบง่าย (Keyword Matching) เพื่อลดขนาดข้อความก่อนส่ง AI
-    โดยไม่ต้องใช้ RAG Library
+    ฟังก์ชันกรองเนื้อหา (Manual RAG)
+    ปรับปรุง: ลด max_chars ลงเหลือ 100,000 เพื่อความปลอดภัยของ Token Limit
     """
-    if not full_text or len(full_text) < max_chars:
-        return full_text
+    if not full_text:
+        return ""
         
-    # 1. แบ่งข้อความเป็นย่อหน้า (Chunks)
-    chunks = full_text.split('\n\n')
-    if len(chunks) < 5: # ถ้าแบ่งย่อหน้าไม่ได้ ให้แบ่งตามบรรทัด
-        chunks = full_text.split('\n')
+    # ถ้าข้อความสั้นอยู่แล้ว ไม่ต้องทำอะไร
+    if len(full_text) < max_chars:
+        return full_text
 
-    # 2. ให้คะแนนแต่ละย่อหน้าตามคำค้นหา (Query)
+    # 1. แบ่งเป็นชิ้นๆ (Chunks) ขนาดประมาณ 2000 ตัวอักษร
+    chunk_size = 2000
+    chunks = [full_text[i:i+chunk_size] for i in range(0, len(full_text), chunk_size)]
+
+    # 2. ให้คะแนนแต่ละชิ้น
     query_words = set(query.replace("?", "").split())
     scored_chunks = []
     
-    for chunk in chunks:
-        # นับคำที่ตรงกัน
-        score = sum(1 for word in query_words if word in chunk)
-        # ให้คะแนนพิเศษถ้าย่อหน้านั้นยาวพอสมควร (มีเนื้อหา)
-        if len(chunk) > 100: 
-            score += 0.5 
+    for i, chunk in enumerate(chunks):
+        score = 0
+        for word in query_words:
+            if word in chunk:
+                score += chunk.count(word) # ยิ่งมีคำค้นหาเยอะ ยิ่งคะแนนสูง
+        
+        # เพิ่มคะแนนให้ส่วนหัวของเอกสาร (มักเป็นบทสรุป)
+        if i < 3: score += 1 
+            
         scored_chunks.append((score, chunk))
     
-    # 3. เรียงลำดับตามคะแนน (มากไปน้อย)
+    # 3. เรียงลำดับคะแนนมากไปน้อย
     scored_chunks.sort(key=lambda x: x[0], reverse=True)
     
-    # 4. เลือกเฉพาะเนื้อหา Top จนกว่าจะเต็มโควต้า (max_chars)
+    # 4. เลือกชิ้นเนื้อหาจนกว่าจะครบโควต้า
     final_context = ""
     current_chars = 0
     
     for score, chunk in scored_chunks:
         if current_chars + len(chunk) < max_chars:
-            final_context += chunk + "\n\n...[ตัดตอน]...\n\n"
+            final_context += f"\n...[เนื้อหาที่เกี่ยวข้อง]...\n{chunk}"
             current_chars += len(chunk)
         else:
             break
@@ -115,7 +113,7 @@ def filter_relevant_content(full_text, query, max_chars=350000):
 
 def extract_text_from_files(files, folder_path="Doc"):
     text = ""
-    # อ่านจาก Folder Local
+    # อ่านจาก Folder
     if os.path.isdir(folder_path):
         for filename in os.listdir(folder_path):
             file_path = os.path.join(folder_path, filename)
@@ -132,7 +130,7 @@ def extract_text_from_files(files, folder_path="Doc"):
             except Exception as e:
                 print(f"Error reading {filename}: {e}")
 
-    # อ่านจาก Uploaded Files
+    # อ่านจาก Upload
     if files:
         for file in files:
             try:
@@ -150,7 +148,7 @@ def extract_text_from_files(files, folder_path="Doc"):
 # ----------------- Session Init -----------------
 def init_chat_state():
     ss = st.session_state
-    ss.setdefault('chatbot_messages', [{"role": "assistant", "content": "สวัสดีครับ ผมคือ PA Assistant Chat พร้อมให้บริการครับ"}])
+    ss.setdefault('chatbot_messages', [{"role": "assistant", "content": "สวัสดีครับ PA Assistant พร้อมให้บริการครับ"}])
     ss.setdefault('file_context', "") 
     ss.setdefault('last_processed_files', set())
 
@@ -161,7 +159,7 @@ init_chat_state()
 with st.expander("อัปโหลดเอกสารเพิ่มเติม (PDF, TXT, CSV)"):
     uploaded_files = st.file_uploader("เลือกไฟล์...", type=['pdf', 'txt', 'csv'], accept_multiple_files=True)
 
-# ตรวจสอบไฟล์และโหลด
+# Process Files
 current_files_set = {f.name for f in uploaded_files} if uploaded_files else set()
 is_files_changed = current_files_set != st.session_state.last_processed_files
 is_first_load = not st.session_state.file_context and (uploaded_files or os.path.isdir("Doc"))
@@ -169,13 +167,12 @@ is_first_load = not st.session_state.file_context and (uploaded_files or os.path
 if is_files_changed or (is_first_load and not st.session_state.file_context):
     with st.spinner("กำลังประมวลผลเอกสาร..."):
         raw_text = extract_text_from_files(uploaded_files)
-        
         if raw_text:
             st.session_state.file_context = raw_text
             st.session_state.last_processed_files = current_files_set
             st.success(f"✅ อ่านข้อมูลเรียบร้อย! ({len(raw_text):,} ตัวอักษร)")
         else:
-            st.warning("ยังไม่มีข้อมูลเอกสาร กรุณาอัปโหลดไฟล์หรือใส่ไฟล์ในโฟลเดอร์ Doc")
+            st.warning("ยังไม่มีข้อมูลเอกสาร")
 
 # Chat UI
 chat_container = st.container(height=400, border=True)
@@ -193,75 +190,58 @@ if prompt := st.chat_input("พิมพ์คำถามของคุณ..."
             message_placeholder = st.empty()
             
             try:
-                try:
-                    api_key = st.secrets["openrouter_api_key"]
-                except:
-                    api_key = "" 
+                try: api_key = st.secrets["openrouter_api_key"]
+                except: api_key = "" 
                 
-                client = OpenAI(
-                    base_url="https://openrouter.ai/api/v1",
-                    api_key=api_key,
-                )
+                client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=api_key)
 
-                # --- STEP 1: Query Rewriting ---
+                # 1. Rewrite Query
                 has_history = len(st.session_state.chatbot_messages) > 1
-                if has_history:
-                    with st.spinner("..."): 
-                        search_query = rewrite_query(prompt, st.session_state.chatbot_messages[:-1], client)
-                else:
-                    search_query = prompt
+                search_query = rewrite_query(prompt, st.session_state.chatbot_messages, client) if has_history else prompt
 
-                # --- STEP 2: Filter Context (แก้ปัญหา Token เกิน) ---
-                # กรองเอาเฉพาะส่วนที่เกี่ยวกับคำถาม + จำกัดขนาดไม่ให้เกิน ~100k tokens
+                # 2. Filter Context (CRITICAL FIX: Max 100k chars)
                 raw_context = st.session_state.file_context
+                final_context = filter_relevant_content(raw_context, search_query, max_chars=100000) 
                 
-                # ถ้าไม่มีข้อมูล
-                if not raw_context:
-                    final_context = "ไม่มีเอกสารให้อ้างอิง ตอบตามความรู้ทั่วไป"
-                else:
-                    # เรียกใช้ฟังก์ชันกรองที่เขียนเพิ่ม
-                    final_context = filter_relevant_content(raw_context, search_query, max_chars=300000) 
+                if not final_context: final_context = "ไม่พบข้อมูลในเอกสาร ตอบตามความรู้ทั่วไป"
 
-                # --- STEP 3: Generation ---
+                # 3. Generate Answer
                 system_prompt = f"""
-คุณคือผู้ช่วย AI ผู้เชี่ยวชาญด้านการตรวจสอบ (PA Assistant)
-หน้าที่: ตอบคำถามโดยใช้ข้อมูลจาก "เนื้อหาเอกสารแนบ" ที่คัดเลือกมาแล้วด้านล่างนี้
+คุณคือ PA Assistant ผู้เชี่ยวชาญการตรวจสอบ
+ตอบคำถามโดยอ้างอิง "เนื้อหาที่คัดเลือกมา" ด้านล่างนี้:
 
-กฎการตอบ:
-1. อ้างอิงข้อมูลจากเนื้อหาเอกสารที่ให้มาเท่านั้น
-2. ถ้าข้อมูลถูกตัดทอน (มีคำว่า ...[ตัดตอน]...) ให้พยายามปะติดปะต่อเท่าที่ทำได้
-3. หากไม่พบข้อมูลในส่วนที่คัดมา ให้แจ้งผู้ใช้ว่า "จากเอกสารที่เกี่ยวข้อง ไม่พบข้อมูลดังกล่าว"
-4. **คำถามของผู้ใช้คือ:** "{prompt}" (บริบทค้นหา: "{search_query}")
+กฎ:
+1. ตอบเฉพาะที่มีในเนื้อหา
+2. ถ้าเนื้อหาไม่พอ ให้บอกว่า "ไม่พบข้อมูลในเอกสารที่เกี่ยวข้อง"
+3. คำถาม: "{prompt}" (บริบท: "{search_query}")
 
---- เนื้อหาเอกสารแนบ (คัดเลือกมาบางส่วน) ---
+--- เนื้อหาที่คัดเลือกมา ---
 {final_context}
------------------------------
+-------------------------
 """
+                # Safety Truncate: ถ้า System Prompt ยาวเกินไปจริงๆ ให้ตัดทิ้งอีกรอบ
+                if len(system_prompt) > 120000:
+                    system_prompt = system_prompt[:120000] + "\n... (ข้อมูลถูกตัดเนื่องจากยาวเกินไป)"
+
                 messages_for_api = [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt}
                 ]
 
-                # ใช้ Model
+                # Model Selection
                 primary_model = "google/gemini-2.0-pro-exp-02-05:free"
                 backup_model = "meta-llama/llama-3.3-70b-instruct:free"
 
                 try:
                     stream = client.chat.completions.create(
-                        extra_headers={
-                            "HTTP-Referer": "https://streamlit.io/",
-                            "X-Title": "PA Assistant",
-                        },
+                        extra_headers={"HTTP-Referer": "https://streamlit.io/", "X-Title": "PA Chat"},
                         model=primary_model,
                         messages=messages_for_api,
                         stream=True
                     )
                 except Exception:
                     stream = client.chat.completions.create(
-                        extra_headers={
-                            "HTTP-Referer": "https://streamlit.io/",
-                            "X-Title": "PA Assistant",
-                        },
+                        extra_headers={"HTTP-Referer": "https://streamlit.io/", "X-Title": "PA Chat"},
                         model=backup_model,
                         messages=messages_for_api,
                         stream=True
