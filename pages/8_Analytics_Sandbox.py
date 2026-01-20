@@ -5,6 +5,9 @@ from ydata_profiling import ProfileReport
 import streamlit.components.v1 as components
 import pygwalker as pyg
 from pygwalker.api.streamlit import StreamlitRenderer
+import os
+import matplotlib.pyplot as plt
+import matplotlib.font_manager as fm
 
 # --- Page Config ---
 st.set_page_config(page_title="Super Analytics Sandbox", page_icon="🕵️", layout="wide")
@@ -13,11 +16,39 @@ st.set_page_config(page_title="Super Analytics Sandbox", page_icon="🕵️", la
 st.markdown("""
 <style>
     [data-testid="stAppViewContainer"] > .main { background-color: #f0f2f6; }
-    h1 { color: #263238; }
+    h1 { color: #263238; font-family: 'Sarabun', sans-serif; }
     .stDataFrame { background-color: white; }
     .stButton > button { border-radius: 8px; font-weight: bold; }
 </style>
 """, unsafe_allow_html=True)
+
+# --- 🛠️ FIX: ตั้งค่าฟอนต์ภาษาไทยสำหรับ Matplotlib (YData ใช้ตัวนี้วาดกราฟ) ---
+def setup_thai_font():
+    # ระบุชื่อไฟล์ฟอนต์ที่มีในโปรเจกต์ของคุณ
+    font_files = ["Sarabun-Regular.ttf", "Sarabun-Bold.ttf"]
+    font_path = None
+    
+    # วนหาว่ามีไฟล์ฟอนต์จริงไหม
+    for f in font_files:
+        if os.path.exists(f):
+            font_path = f
+            break
+            
+    if font_path:
+        # 1. Add Font เข้าระบบ Matplotlib
+        fm.fontManager.addfont(font_path)
+        
+        # 2. ตั้งค่าให้เป็นฟอนต์หลัก
+        plt.rcParams['font.family'] = 'Sarabun'
+        plt.rcParams['axes.unicode_minus'] = False # แก้ปัญหาสระลอยหรือเครื่องหมายลบเพี้ยน
+        
+        # print(f"✅ Loaded Thai Font: {font_path}") # Debug
+    else:
+        st.warning("⚠️ ไม่พบไฟล์ฟอนต์ Sarabun ในโฟลเดอร์โปรเจกต์ กราฟอาจแสดงภาษาไทยไม่ถูกต้อง")
+
+# เรียกใช้งานฟังก์ชันตั้งค่าฟอนต์ทันที
+setup_thai_font()
+# -----------------------------------------------------------------------
 
 st.title("🕵️ Super Analytics Sandbox")
 st.markdown("เครื่องมือวิเคราะห์ข้อมูลครบวงจร: **Power BI Mode** (กราฟ) และ **Deep Scan** (ตรวจสอบคุณภาพข้อมูล)")
@@ -35,6 +66,7 @@ def load_data(file):
         else:
             return pd.read_excel(file)
     except Exception as e:
+        st.error(f"Error loading file: {e}")
         return None
 
 @st.cache_resource
@@ -61,7 +93,7 @@ if uploaded_file:
             renderer = get_pyg_renderer(df)
             renderer.explorer()
 
-        # === TAB 2: YData Profiling (แทน D-Tale) ===
+        # === TAB 2: YData Profiling (Deep Analysis) ===
         with tab_ydata:
             st.subheader("🔬 Deep Data Profiling (YData)")
             st.markdown("วิเคราะห์ข้อมูลเชิงลึก เหมาะสำหรับตรวจสอบความผิดปกติ, ความสัมพันธ์ (Correlation) และคุณภาพข้อมูล")
@@ -69,8 +101,17 @@ if uploaded_file:
             if st.button("🚀 เริ่มวิเคราะห์เจาะลึก (Deep Scan)", type="primary"):
                 with st.spinner("กำลังประมวลผล... (ระบบนี้ละเอียดมาก อาจใช้เวลา 1-2 นาที)"):
                     try:
+                        # เรียก setup font อีกครั้งเพื่อความชัวร์ก่อนสร้างกราฟ
+                        setup_thai_font()
+                        
                         # สร้าง Profile Report
-                        pr = ProfileReport(df, explorative=True, title="Audit Data Profiling")
+                        pr = ProfileReport(
+                            df, 
+                            explorative=True, 
+                            title="Audit Data Profiling",
+                            # เพิ่ม config เพื่อรองรับภาษาไทยในส่วนอื่นๆ (ถ้าจำเป็น)
+                            html={'style': {'full_width': True}}
+                        )
                         
                         # บันทึกเป็น HTML ชั่วคราว
                         report_path = "ydata_report.html"
@@ -101,6 +142,8 @@ if uploaded_file:
             
             if st.button("🚀 สร้างรายงานด่วน (Quick Scan)"):
                 with st.spinner("กำลังสร้างรายงาน..."):
+                    # Sweetviz รองรับภาษาไทยได้ดีในระดับ HTML (แต่กราฟอาจมีปัญหาบ้างถ้าไม่มี Font)
+                    # เราตั้งค่า Font Maploading ไว้แล้วด้านบน น่าจะช่วยได้
                     report = sv.analyze(df)
                     report.show_html("sweetviz_report.html", open_browser=False, layout='vertical', scale=1.0)
                     
