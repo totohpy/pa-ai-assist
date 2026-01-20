@@ -21,3 +21,4 @@ faiss-cpu
 tiktoken
 plotly
 pygwalker
+sweetviz
