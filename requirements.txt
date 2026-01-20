@@ -20,3 +20,4 @@ langchain-community
 faiss-cpu
 tiktoken
 plotly
+pygwalker
