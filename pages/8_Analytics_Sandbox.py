@@ -8,7 +8,7 @@ from pygwalker.api.streamlit import StreamlitRenderer
 import os
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
-import seaborn as sns # เพิ่ม seaborn เพื่อบังคับ style
+import seaborn as sns 
 
 # --- Page Config ---
 st.set_page_config(page_title="Super Analytics Sandbox", page_icon="🕵️", layout="wide")
@@ -22,46 +22,53 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 🛠️ FIX v2: ระบบค้นหาและบังคับใช้ Font ภาษาไทย (แบบละเอียด) ---
+# --- 🛠️ FIX v3: ระบบค้นหาและบังคับใช้ Font ภาษาไทย (แบบ Absolute Path) ---
 def setup_thai_font_robust():
-    # ลิสต์รายชื่อที่อาจจะเป็นที่อยู่ของไฟล์ (หาทั้งในโฟลเดอร์ปัจจุบัน และถอยออกไป 1 ชั้น)
-    possible_paths = [
-        "Sarabun-Regular.ttf",          # กรณีอยู่โฟลเดอร์เดียวกับไฟล์นี้
-        "../Sarabun-Regular.ttf",       # กรณีไฟล์นี้อยู่ใน pages/ แล้ว font อยู่ข้างนอก
-        "./Sarabun-Regular.ttf",
-        "Sarabun-Bold.ttf",
-        "../Sarabun-Bold.ttf"
-    ]
+    # หาตำแหน่งที่อยู่ของไฟล์นี้ (8_Analytics_Sandbox.py)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    # ถอยออกไป 1 ชั้น เพื่อหา Root (เพราะไฟล์นี้อยู่ใน pages/)
+    parent_dir = os.path.dirname(current_dir)
     
-    font_path = None
-    for path in possible_paths:
-        if os.path.exists(path):
-            font_path = path
-            break
+    # ระบุ Path แบบเต็มๆ
+    font_path_regular = os.path.join(parent_dir, "Sarabun-Regular.ttf")
+    font_path_bold = os.path.join(parent_dir, "Sarabun-Bold.ttf")
+
+    selected_font_path = None
+    
+    # เช็คว่าไฟล์มีจริงไหม
+    if os.path.exists(font_path_regular):
+        selected_font_path = font_path_regular
+    elif os.path.exists(font_path_bold):
+        selected_font_path = font_path_bold
+    elif os.path.exists("Sarabun-Regular.ttf"): # เผื่อกรณีรันจาก Root
+        selected_font_path = "Sarabun-Regular.ttf"
             
-    if font_path:
+    if selected_font_path:
         # 1. Add Font to Matplotlib Manager
-        fm.fontManager.addfont(font_path)
+        fm.fontManager.addfont(selected_font_path)
         
-        # 2. Get Font Name (ชื่อจริงๆ ของ Font หลังจากแอดแล้ว)
-        prop = fm.FontProperties(fname=font_path)
+        # 2. Get Font Name (ชื่อจริงๆ ของ Font จาก Metadata)
+        prop = fm.FontProperties(fname=selected_font_path)
         font_name = prop.get_name()
         
-        # 3. Force Global Settings (บังคับทุกจุด)
+        # 3. Force Global Settings
         plt.rcParams['font.family'] = font_name
         plt.rcParams['axes.unicode_minus'] = False
-        sns.set(font=font_name) # บังคับ Seaborn ด้วย
+        sns.set(font=font_name) 
         
-        return font_name, True # ส่งชื่อฟอนต์กลับไปใช้ต่อ
+        return font_name, True
     else:
         return None, False
 
-# เรียกใช้ฟังก์ชันทันที
+# เรียกใช้ฟังก์ชันทันที และเก็บชื่อฟอนต์ไว้
 thai_font_name, font_found = setup_thai_font_robust()
 
-# แจ้งเตือน User ถ้าหาไม่เจอจริงๆ
+# Debug: แจ้งเตือน User ถ้าหาไม่เจอจริงๆ
 if not font_found:
-    st.toast("⚠️ ไม่พบไฟล์ฟอนต์ Sarabun-Regular.ttf ภาษาไทยในกราฟอาจแสดงผลผิดพลาด", icon="⚠️")
+    st.error(f"⚠️ ไม่พบไฟล์ฟอนต์ Sarabun-Regular.ttf ในโฟลเดอร์โปรเจกต์ (ตรวจสอบตำแหน่งไฟล์: {os.path.dirname(os.path.abspath(__file__))})")
+else:
+    # แอบบอกหน่อยว่าเจอแล้ว (ลบออกได้)
+    st.toast(f"✅ โหลดฟอนต์สำเร็จ: {thai_font_name}", icon="🇹🇭")
 # -----------------------------------------------------------------------
 
 st.title("🕵️ Super Analytics Sandbox")
@@ -112,7 +119,7 @@ if uploaded_file:
             if st.button("🚀 เริ่มวิเคราะห์เจาะลึก (Deep Scan)", type="primary"):
                 with st.spinner("กำลังประมวลผล..."):
                     try:
-                        # Re-apply font settings before generating
+                        # Re-apply font settings before generating (กันเหนียว)
                         if font_found:
                             plt.rcParams['font.family'] = thai_font_name
                             sns.set(font=thai_font_name)
@@ -122,7 +129,12 @@ if uploaded_file:
                             df, 
                             explorative=True,
                             title="Audit Data Profiling",
-                            plot={'font': {'family': thai_font_name}} if font_found else {}, # บังคับตรงนี้อีกที
+                            plot={
+                                'font': {
+                                    'family': thai_font_name, # บังคับชื่อฟอนต์
+                                    'sans-serif': thai_font_name # บังคับ fallback
+                                }
+                            } if font_found else {}, 
                         )
                         
                         # Save & Show
