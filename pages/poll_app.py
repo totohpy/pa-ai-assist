@@ -5,13 +5,15 @@ import matplotlib.pyplot as plt
 from wordcloud import WordCloud
 
 DATA_FILE = 'poll_data.csv'
-# ⚠️ แก้ชื่อไฟล์ฟอนต์ให้ตรงกับที่คุณโหลดมา
-# ถ้ายังไม่มีไฟล์ฟอนต์ ให้คอมเมนต์บรรทัดนี้ แล้วภาษาไทยจะเป็นสี่เหลี่ยม
+# ⚠️ อย่าลืมไฟล์ฟอนต์นะครับ
 THAI_FONT_PATH = 'Sarabun-Regular.ttf' 
 
 def load_data():
     if os.path.exists(DATA_FILE):
-        return pd.read_csv(DATA_FILE)
+        # โหลดมาทั้งหมด แล้วแปลงเป็น String ให้หมดป้องกัน Error
+        df = pd.read_csv(DATA_FILE)
+        df['vote'] = df['vote'].astype(str) 
+        return df
     else:
         return pd.DataFrame(columns=['vote'])
 
@@ -21,11 +23,11 @@ def save_data(vote_text):
     df = pd.concat([df, new_entry], ignore_index=True)
     df.to_csv(DATA_FILE, index=False)
 
-st.title("☁️ ระบบ Poll แบบ Word Cloud")
-st.write("พิมพ์ความรู้สึกของคุณสั้นๆ (คำซ้ำเยอะ ตัวยิ่งใหญ่)")
+st.title("☁️ Word Cloud (แบบนับทั้งประโยค)")
+st.write("พิมพ์อะไรก็ได้ วรรคตอนก็ได้ ระบบจะนับเป็น 1 คำตอบทันที")
 
 # Input
-user_input = st.text_input("กรอกคำตอบ (เช่น: สนุก, ดีมาก, ง่วง):")
+user_input = st.text_input("กรอกคำตอบ (เช่น '1.1 ดีมาก'):")
 
 if st.button("ส่งคำตอบ"):
     if user_input.strip():
@@ -36,40 +38,41 @@ if st.button("ส่งคำตอบ"):
 
 st.divider()
 
-# Visualization
-st.subheader("ผลลัพธ์แบบ Word Cloud")
+# --- ส่วนแสดงผลที่แก้ไขใหม่ ---
+st.subheader("ผลลัพธ์")
 
 df = load_data()
 
 if not df.empty:
-    # 1. รวมคำตอบทั้งหมดให้เป็นข้อความยาวๆ ข้อความเดียว คั่นด้วยเว้นวรรค
-    # เพราะ WordCloud ต้องการ Text ก้อนใหญ่ก้อนเดียว
-    text_data = " ".join(df['vote'].astype(str))
+    # 1. นับจำนวนคำตอบที่ซ้ำกัน และแปลงเป็น Dictionary
+    # ตัวอย่างผลลัพธ์: {'1.1 ดีมาก': 5, 'เฉยๆ': 2, 'ชอบ (ที่สุด)': 1}
+    vote_counts = df['vote'].value_counts().to_dict()
 
-    # 2. ตั้งค่า WordCloud
-    # regexp=r"[ก-๙a-zA-Z]+" ช่วยให้จับตัวอักษรไทยได้ดีขึ้น
+    # 2. สร้าง WordCloud จากผลนับ (Frequency) โดยตรง
+    # วิธีนี้จะไม่สนใจ Regex แล้ว เพราะเราระบุมาแล้วว่าคำไหนมีค่าเท่าไหร่
     try:
         wc = WordCloud(
             width=800, 
             height=400, 
             background_color='white',
-            font_path=THAI_FONT_PATH, # ใส่ path ฟอนต์ไทยตรงนี้
-            regexp=r"[ก-๙a-zA-Z]+",    # Regular Expression เพื่อให้รองรับภาษาไทย
-            collocations=False         # ปิดการจับคู่คำซ้ำซ้อน
-        ).generate(text_data)
+            font_path=THAI_FONT_PATH,
+            # ไม่ต้องใส่ regexp แล้ว
+            collocations=False
+        ).generate_from_frequencies(vote_counts) # ✅ ใช้คำสั่งนี้แทน
 
-        # 3. แสดงผลด้วย Matplotlib
+        # 3. แสดงผล
         fig, ax = plt.subplots(figsize=(10, 5))
         ax.imshow(wc, interpolation='bilinear')
-        ax.axis("off") # ปิดแกน x, y ไม่ให้รก
+        ax.axis("off")
         st.pyplot(fig)
         
+        # แสดงตารางข้อมูลดิบประกอบ เพื่อเช็คความถูกต้อง
+        with st.expander("ดูตารางสรุปจำนวน"):
+            st.write(vote_counts)
+        
     except Exception as e:
-        st.error(f"เกิดข้อผิดพลาดในการสร้าง Word Cloud: {e}")
-        st.info("💡 คำแนะนำ: คุณอาจจะยังไม่ได้วางไฟล์ Font ภาษาไทย (.ttf) ในโฟลเดอร์")
-    
-    # แสดงจำนวนคนตอบทั้งหมด
-    st.caption(f"จำนวนความคิดเห็นทั้งหมด: {len(df)} คน")
+        st.error(f"เกิดข้อผิดพลาด: {e}")
+        st.info("💡 อย่าลืมเช็คไฟล์ Font ภาษาไทย")
 
 else:
-    st.info("ยังไม่มีข้อมูล ส่งคำตอบแรกเพื่อเริ่มสร้าง Word Cloud เลย!")
+    st.info("รอข้อมูลแรก...")
