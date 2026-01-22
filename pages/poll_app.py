@@ -1,61 +1,75 @@
 import streamlit as st
 import pandas as pd
 import os
+import matplotlib.pyplot as plt
+from wordcloud import WordCloud
 
-# ตั้งชื่อไฟล์สำหรับเก็บข้อมูล (ในที่นี้ใช้ CSV ง่ายๆ)
 DATA_FILE = 'poll_data.csv'
+# ⚠️ แก้ชื่อไฟล์ฟอนต์ให้ตรงกับที่คุณโหลดมา
+# ถ้ายังไม่มีไฟล์ฟอนต์ ให้คอมเมนต์บรรทัดนี้ แล้วภาษาไทยจะเป็นสี่เหลี่ยม
+THAI_FONT_PATH = 'Sarabun-Regular.ttf' 
 
-# ฟังก์ชันสำหรับโหลดข้อมูล
 def load_data():
     if os.path.exists(DATA_FILE):
         return pd.read_csv(DATA_FILE)
     else:
         return pd.DataFrame(columns=['vote'])
 
-# ฟังก์ชันสำหรับบันทึกข้อมูล
 def save_data(vote_text):
     df = load_data()
     new_entry = pd.DataFrame({'vote': [vote_text]})
     df = pd.concat([df, new_entry], ignore_index=True)
     df.to_csv(DATA_FILE, index=False)
 
-# --- ส่วนหน้าตาของ Web App ---
-st.title("📊 ระบบ Poll ความเห็นแบบ Real-time")
-st.write("พิมพ์ข้อความสั้นๆ เพื่อโหวต หรือแสดงความคิดเห็น")
+st.title("☁️ ระบบ Poll แบบ Word Cloud")
+st.write("พิมพ์ความรู้สึกของคุณสั้นๆ (คำซ้ำเยอะ ตัวยิ่งใหญ่)")
 
-# 1. ส่วนรับข้อมูล (Input)
-user_input = st.text_input("กรอกคำตอบของคุณ (เช่น: ชอบ, เฉยๆ, ไม่ชอบ):")
+# Input
+user_input = st.text_input("กรอกคำตอบ (เช่น: สนุก, ดีมาก, ง่วง):")
 
 if st.button("ส่งคำตอบ"):
     if user_input.strip():
-        save_data(user_input.strip()) # บันทึกข้อมูลและตัดช่องว่าง
-        st.success(f"บันทึกคำตอบ: '{user_input}' เรียบร้อยแล้ว!")
+        save_data(user_input.strip())
+        st.success("บันทึกแล้ว!")
     else:
-        st.warning("กรุณากรอกข้อความก่อนส่ง")
+        st.warning("กรุณากรอกข้อความ")
 
-st.divider() # เส้นคั่น
+st.divider()
 
-# 2. ส่วนประมวลผลและแสดงผล (Processing & Display)
-st.subheader("ผลลัพธ์ล่าสุด")
+# Visualization
+st.subheader("ผลลัพธ์แบบ Word Cloud")
 
 df = load_data()
 
 if not df.empty:
-    # นับจำนวนคำตอบที่ซ้ำกัน (Frequency Count)
-    # value_counts() ของ Pandas จะนับให้อัตโนมัติ
-    result_counts = df['vote'].value_counts()
-    
-    # แสดงข้อมูลดิบเป็นตาราง (ถ้าต้องการดู)
-    with st.expander("ดูข้อมูลดิบ"):
-        st.dataframe(result_counts)
+    # 1. รวมคำตอบทั้งหมดให้เป็นข้อความยาวๆ ข้อความเดียว คั่นด้วยเว้นวรรค
+    # เพราะ WordCloud ต้องการ Text ก้อนใหญ่ก้อนเดียว
+    text_data = " ".join(df['vote'].astype(str))
 
-    # แสดงผลเป็นกราฟแท่ง
-    st.bar_chart(result_counts)
+    # 2. ตั้งค่า WordCloud
+    # regexp=r"[ก-๙a-zA-Z]+" ช่วยให้จับตัวอักษรไทยได้ดีขึ้น
+    try:
+        wc = WordCloud(
+            width=800, 
+            height=400, 
+            background_color='white',
+            font_path=THAI_FONT_PATH, # ใส่ path ฟอนต์ไทยตรงนี้
+            regexp=r"[ก-๙a-zA-Z]+",    # Regular Expression เพื่อให้รองรับภาษาไทย
+            collocations=False         # ปิดการจับคู่คำซ้ำซ้อน
+        ).generate(text_data)
+
+        # 3. แสดงผลด้วย Matplotlib
+        fig, ax = plt.subplots(figsize=(10, 5))
+        ax.imshow(wc, interpolation='bilinear')
+        ax.axis("off") # ปิดแกน x, y ไม่ให้รก
+        st.pyplot(fig)
+        
+    except Exception as e:
+        st.error(f"เกิดข้อผิดพลาดในการสร้าง Word Cloud: {e}")
+        st.info("💡 คำแนะนำ: คุณอาจจะยังไม่ได้วางไฟล์ Font ภาษาไทย (.ttf) ในโฟลเดอร์")
     
-    # แสดงสรุปอันดับ 1
-    top_answer = result_counts.idxmax()
-    top_count = result_counts.max()
-    st.metric(label="คำตอบยอดนิยมสูงสุด", value=top_answer, delta=f"{top_count} โหวต")
+    # แสดงจำนวนคนตอบทั้งหมด
+    st.caption(f"จำนวนความคิดเห็นทั้งหมด: {len(df)} คน")
 
 else:
-    st.info("ยังไม่มีข้อมูลในระบบ ลองส่งคำตอบแรกดูสิ!")
+    st.info("ยังไม่มีข้อมูล ส่งคำตอบแรกเพื่อเริ่มสร้าง Word Cloud เลย!")
